@@ -1,0 +1,9 @@
+{
+  "name": "tourist-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "echo \"start tourist-frontend\"",
+    "build": "echo \"build tourist-frontend\""
+  }
+}

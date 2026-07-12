@@ -1,0 +1,9 @@
+{
+  "name": "api-backend",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node src/server.ts",
+    "build": "echo \"build api-backend\""
+  }
+}
