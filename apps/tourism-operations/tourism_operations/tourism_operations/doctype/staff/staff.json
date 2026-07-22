@@ -1,0 +1,371 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-07-20 19:35:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "basic_info_sb",
+  "naming_series",
+  "first_name",
+  "last_name",
+  "full_name",
+  "employee_id",
+  "column_break_basic",
+  "gender",
+  "date_of_birth",
+  "profile_photo",
+  "government_id_type",
+  "government_id_number",
+  "employment_sb",
+  "role",
+  "department",
+  "employment_type",
+  "reporting_manager",
+  "column_break_emp",
+  "status",
+  "availability",
+  "date_of_joining",
+  "years_of_experience",
+  "assignment_sb",
+  "primary_attraction",
+  "assigned_district",
+  "column_break_assign",
+  "assigned_panchayat",
+  "contact_sb",
+  "phone_number",
+  "alternate_phone_number",
+  "email",
+  "column_break_con",
+  "address",
+  "emergency_contact_name",
+  "emergency_contact_number",
+  "system_access_sb",
+  "user_account",
+  "skills_sb",
+  "languages_known",
+  "skills",
+  "column_break_sk",
+  "first_aid_certified",
+  "fire_safety_certified",
+  "eco_guide_certified",
+  "notes_sb",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "basic_info_sb",
+   "fieldtype": "Section Break",
+   "label": "Basic Information"
+  },
+  {
+   "default": "STF-.####",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "STF-.####"
+  },
+  {
+   "fieldname": "first_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "First Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "last_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "Last Name"
+  },
+  {
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "Full Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "employee_id",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "Employee ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_basic",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Select",
+   "label": "Gender",
+   "options": "\nMale\nFemale\nOther"
+  },
+  {
+   "fieldname": "date_of_birth",
+   "fieldtype": "Date",
+   "label": "Date of Birth"
+  },
+  {
+   "fieldname": "profile_photo",
+   "fieldtype": "Attach Image",
+   "label": "Profile Photo"
+  },
+  {
+   "fieldname": "government_id_type",
+   "fieldtype": "Select",
+   "label": "Government ID Type",
+   "options": "\nAadhaar\nPassport\nDriving License\nVoter ID\nPAN\nOther"
+  },
+  {
+   "fieldname": "government_id_number",
+   "fieldtype": "Data",
+   "label": "Government ID Number"
+  },
+  {
+   "fieldname": "employment_sb",
+   "fieldtype": "Section Break",
+   "label": "Employment"
+  },
+  {
+   "fieldname": "role",
+   "fieldtype": "Select",
+   "in_global_search": 1,
+   "label": "Role",
+   "options": "Tourism Administrator\nTourism Officer\nOperations Manager\nField Officer\nSafety Officer\nEco Inspector\nSupport Executive\nMaintenance Staff\nGuide Coordinator\nParking Supervisor\nVolunteer Coordinator",
+   "reqd": 1
+  },
+  {
+   "fieldname": "department",
+   "fieldtype": "Select",
+   "in_global_search": 1,
+   "label": "Department",
+   "options": "\nAdministration\nOperations\nMaintenance\nSafety\nEnvironment\nVisitor Services"
+  },
+  {
+   "fieldname": "employment_type",
+   "fieldtype": "Select",
+   "label": "Employment Type",
+   "options": "\nFull-Time\nPart-Time\nContract\nSeasonal\nVolunteer\nIntern"
+  },
+  {
+   "fieldname": "reporting_manager",
+   "fieldtype": "Link",
+   "label": "Reporting Manager",
+   "options": "Staff"
+  },
+  {
+   "fieldname": "column_break_emp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_global_search": 1,
+   "label": "Employment Status",
+   "options": "Active\nOn Leave\nInactive\nRetired",
+   "reqd": 1
+  },
+  {
+   "default": "Available",
+   "fieldname": "availability",
+   "fieldtype": "Select",
+   "label": "Availability",
+   "options": "Available\nOn Field\nIn Training\nUnavailable\nOn Leave\nEmergency Response"
+  },
+  {
+   "fieldname": "date_of_joining",
+   "fieldtype": "Date",
+   "label": "Date of Joining"
+  },
+  {
+   "fieldname": "years_of_experience",
+   "fieldtype": "Float",
+   "label": "Years of Experience"
+  },
+  {
+   "fieldname": "assignment_sb",
+   "fieldtype": "Section Break",
+   "label": "Assignment"
+  },
+  {
+   "fieldname": "primary_attraction",
+   "fieldtype": "Link",
+   "in_global_search": 1,
+   "label": "Primary Attraction",
+   "options": "Attraction"
+  },
+  {
+   "fieldname": "assigned_district",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "Assigned District"
+  },
+  {
+   "fieldname": "column_break_assign",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "assigned_panchayat",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "Assigned Panchayat"
+  },
+  {
+   "fieldname": "contact_sb",
+   "fieldtype": "Section Break",
+   "label": "Contact Information"
+  },
+  {
+   "fieldname": "phone_number",
+   "fieldtype": "Phone",
+   "in_global_search": 1,
+   "label": "Phone Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "alternate_phone_number",
+   "fieldtype": "Phone",
+   "label": "Alternate Phone Number"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "Email",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_con",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  },
+  {
+   "fieldname": "emergency_contact_name",
+   "fieldtype": "Data",
+   "label": "Emergency Contact Name"
+  },
+  {
+   "fieldname": "emergency_contact_number",
+   "fieldtype": "Phone",
+   "label": "Emergency Contact Number"
+  },
+  {
+   "fieldname": "system_access_sb",
+   "fieldtype": "Section Break",
+   "label": "System Access"
+  },
+  {
+   "fieldname": "user_account",
+   "fieldtype": "Link",
+   "label": "User Account",
+   "options": "User"
+  },
+  {
+   "fieldname": "skills_sb",
+   "fieldtype": "Section Break",
+   "label": "Skills & Certifications"
+  },
+  {
+   "fieldname": "languages_known",
+   "fieldtype": "Data",
+   "label": "Languages Known"
+  },
+  {
+   "fieldname": "skills",
+   "fieldtype": "Small Text",
+   "label": "Skills"
+  },
+  {
+   "fieldname": "column_break_sk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "first_aid_certified",
+   "fieldtype": "Check",
+   "label": "First Aid Certified"
+  },
+  {
+   "default": "0",
+   "fieldname": "fire_safety_certified",
+   "fieldtype": "Check",
+   "label": "Fire Safety Certified"
+  },
+  {
+   "default": "0",
+   "fieldname": "eco_guide_certified",
+   "fieldtype": "Check",
+   "label": "Eco Guide Certified"
+  },
+  {
+   "fieldname": "notes_sb",
+   "fieldtype": "Section Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "idx": 0,
+ "is_submittable": 0,
+ "module": "Tourism Operations",
+ "name": "Staff",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Tourism Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "import": 0,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Tourism Officer",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "search_fields": "employee_id,first_name,last_name,full_name,role,department,status,email,phone_number,assigned_district,assigned_panchayat",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

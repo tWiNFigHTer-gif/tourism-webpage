@@ -1,0 +1,89 @@
+{
+ "creation": "2026-07-20 22:30:00.000000",
+ "docstatus": 0,
+ "doctype": "Workflow",
+ "document_type": "Business",
+ "is_active": 1,
+ "module": "Tourism Operations",
+ "name": "Business Verification Workflow",
+ "override_status": 1,
+ "owner": "Administrator",
+ "states": [
+  {
+   "allow_edit": "Tourism Administrator",
+   "doc_status": "0",
+   "state": "Pending Verification",
+   "style": "Warning"
+  },
+  {
+   "allow_edit": "Tourism Administrator",
+   "doc_status": "0",
+   "state": "Verified",
+   "style": "Success"
+  },
+  {
+   "allow_edit": "Tourism Administrator",
+   "doc_status": "0",
+   "state": "Rejected",
+   "style": "Danger"
+  },
+  {
+   "allow_edit": "Tourism Administrator",
+   "doc_status": "0",
+   "state": "Suspended",
+   "style": "Inverse"
+  },
+  {
+   "allow_edit": "Tourism Administrator",
+   "doc_status": "0",
+   "state": "Expired",
+   "style": "Danger"
+  }
+ ],
+ "transitions": [
+  {
+   "action": "Approve & Verify",
+   "allowed": "Tourism Administrator",
+   "next_state": "Verified",
+   "state": "Pending Verification"
+  },
+  {
+   "action": "Reject",
+   "allowed": "Tourism Administrator",
+   "next_state": "Rejected",
+   "state": "Pending Verification"
+  },
+  {
+   "action": "Suspend",
+   "allowed": "Tourism Administrator",
+   "next_state": "Suspended",
+   "state": "Verified"
+  },
+  {
+   "action": "Reactivate",
+   "allowed": "Tourism Administrator",
+   "next_state": "Verified",
+   "state": "Suspended"
+  },
+  {
+   "action": "Mark Expired",
+   "allowed": "Tourism Administrator",
+   "next_state": "Expired",
+   "state": "Verified"
+  },
+  {
+   "action": "Reactivate",
+   "allowed": "Tourism Administrator",
+   "next_state": "Verified",
+   "state": "Expired"
+  },
+  {
+   "action": "Re-open Verification",
+   "allowed": "Tourism Administrator",
+   "next_state": "Pending Verification",
+   "state": "Rejected"
+  }
+ ],
+ "workflow_name": "Business Verification Workflow",
+ "workflow_state_field": "workflow_state"
+}

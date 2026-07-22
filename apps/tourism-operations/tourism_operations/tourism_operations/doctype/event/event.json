@@ -1,0 +1,580 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-07-20 21:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "basic_info_sb",
+  "naming_series",
+  "event_name",
+  "event_code",
+  "category",
+  "visibility",
+  "column_break_basic",
+  "description",
+  "banner_image",
+  "gallery_images",
+  "schedule_sb",
+  "start_date",
+  "start_time",
+  "column_break_sch",
+  "end_date",
+  "end_time",
+  "registration_sb",
+  "registration_required",
+  "registration_status",
+  "registration_deadline",
+  "column_break_rec",
+  "recurring_event",
+  "recurrence_pattern",
+  "location_sb",
+  "attraction",
+  "venue",
+  "column_break_loc",
+  "google_maps_url",
+  "capacity_sb",
+  "maximum_participants",
+  "current_registrations",
+  "column_break_cap",
+  "remaining_seats",
+  "waitlist_enabled",
+  "ticketing_sb",
+  "event_type",
+  "ticket_price",
+  "minimum_age",
+  "column_break_tix",
+  "currency",
+  "maximum_tickets_per_booking",
+  "is_refundable",
+  "online_registration_enabled",
+  "organizers_sb",
+  "event_coordinator",
+  "organizer_name",
+  "organizer_contact",
+  "organizer_email",
+  "supporting_staff",
+  "partners_sb",
+  "participating_businesses",
+  "safety_sb",
+  "risk_level",
+  "emergency_contact",
+  "column_break_saf",
+  "medical_support_available",
+  "security_required",
+  "sustainability_sb",
+  "plastic_free_event",
+  "waste_management_plan",
+  "column_break_sus",
+  "carbon_neutral_initiative",
+  "eco_certification",
+  "status_sb",
+  "status",
+  "is_featured_event",
+  "statistics_sb",
+  "total_revenue",
+  "average_rating",
+  "column_break_stat",
+  "number_of_feedbacks",
+  "notes_sb",
+  "remarks",
+  "compat_sb",
+  "sync_with_google_calendar",
+  "pulled_from_google_calendar",
+  "google_calendar"
+ ],
+ "fields": [
+  {
+   "fieldname": "basic_info_sb",
+   "fieldtype": "Section Break",
+   "label": "Basic Information"
+  },
+  {
+   "default": "EVT-.####",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "EVT-.####"
+  },
+  {
+   "fieldname": "event_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "Event Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "event_code",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "Event Code",
+   "read_only": 1
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "in_global_search": 1,
+   "label": "Category",
+   "options": "Cultural Festival\nAdventure\nReligious\nSports\nFood Festival\nExhibition\nWorkshop\nConference\nNature Walk\nEco Tourism\nHeritage\nMusic\nArt\nOther"
+  },
+  {
+   "default": "Public",
+   "fieldname": "visibility",
+   "fieldtype": "Select",
+   "label": "Visibility",
+   "options": "Public\nPrivate\nInvitation Only"
+  },
+  {
+   "fieldname": "column_break_basic",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "banner_image",
+   "fieldtype": "Attach Image",
+   "label": "Banner Image"
+  },
+  {
+   "fieldname": "gallery_images",
+   "fieldtype": "Table",
+   "label": "Gallery Images",
+   "options": "Event Gallery Image"
+  },
+  {
+   "fieldname": "schedule_sb",
+   "fieldtype": "Section Break",
+   "label": "Schedule"
+  },
+  {
+   "fieldname": "start_date",
+   "fieldtype": "Date",
+   "label": "Start Date"
+  },
+  {
+   "fieldname": "start_time",
+   "fieldtype": "Time",
+   "label": "Start Time"
+  },
+  {
+   "fieldname": "column_break_sch",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "end_date",
+   "fieldtype": "Date",
+   "label": "End Date"
+  },
+  {
+   "fieldname": "end_time",
+   "fieldtype": "Time",
+   "label": "End Time"
+  },
+  {
+   "fieldname": "registration_sb",
+   "fieldtype": "Section Break",
+   "label": "Registration & Recurrence"
+  },
+  {
+   "default": "0",
+   "fieldname": "registration_required",
+   "fieldtype": "Check",
+   "label": "Registration Required"
+  },
+  {
+   "default": "Not Required",
+   "fieldname": "registration_status",
+   "fieldtype": "Select",
+   "in_global_search": 1,
+   "label": "Registration Status",
+   "options": "Not Required\nUpcoming\nOpen\nClosed\nFull"
+  },
+  {
+   "fieldname": "registration_deadline",
+   "fieldtype": "Date",
+   "label": "Registration Deadline"
+  },
+  {
+   "fieldname": "column_break_rec",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "No",
+   "fieldname": "recurring_event",
+   "fieldtype": "Select",
+   "label": "Recurring Event",
+   "options": "No\nYes"
+  },
+  {
+   "depends_on": "eval:doc.recurring_event == 'Yes'",
+   "fieldname": "recurrence_pattern",
+   "fieldtype": "Select",
+   "label": "Recurrence Pattern",
+   "options": "Daily\nWeekly\nMonthly\nYearly"
+  },
+  {
+   "fieldname": "location_sb",
+   "fieldtype": "Section Break",
+   "label": "Location"
+  },
+  {
+   "fieldname": "attraction",
+   "fieldtype": "Link",
+   "in_global_search": 1,
+   "label": "Attraction",
+   "options": "Attraction",
+   "reqd": 1
+  },
+  {
+   "fieldname": "venue",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "Venue"
+  },
+  {
+   "fieldname": "column_break_loc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "google_maps_url",
+   "fieldtype": "URL",
+   "label": "Google Maps URL"
+  },
+  {
+   "fieldname": "capacity_sb",
+   "fieldtype": "Section Break",
+   "label": "Capacity"
+  },
+  {
+   "fieldname": "maximum_participants",
+   "fieldtype": "Int",
+   "label": "Maximum Participants"
+  },
+  {
+   "default": "0",
+   "fieldname": "current_registrations",
+   "fieldtype": "Int",
+   "label": "Current Registrations",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_cap",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "remaining_seats",
+   "fieldtype": "Int",
+   "label": "Remaining Seats",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "waitlist_enabled",
+   "fieldtype": "Check",
+   "label": "Waitlist Enabled"
+  },
+  {
+   "fieldname": "ticketing_sb",
+   "fieldtype": "Section Break",
+   "label": "Ticketing"
+  },
+  {
+   "default": "Free",
+   "fieldname": "event_type",
+   "fieldtype": "Select",
+   "label": "Event Type",
+   "options": "Free\nPaid"
+  },
+  {
+   "depends_on": "eval:doc.event_type == 'Paid'",
+   "fieldname": "ticket_price",
+   "fieldtype": "Currency",
+   "label": "Ticket Price"
+  },
+  {
+   "fieldname": "minimum_age",
+   "fieldtype": "Int",
+   "label": "Minimum Age"
+  },
+  {
+   "fieldname": "column_break_tix",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "INR",
+   "fieldname": "currency",
+   "fieldtype": "Data",
+   "label": "Currency"
+  },
+  {
+   "fieldname": "maximum_tickets_per_booking",
+   "fieldtype": "Int",
+   "label": "Maximum Tickets Per Booking"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_refundable",
+   "fieldtype": "Check",
+   "label": "Refundable"
+  },
+  {
+   "default": "0",
+   "fieldname": "online_registration_enabled",
+   "fieldtype": "Check",
+   "label": "Online Registration Enabled"
+  },
+  {
+   "fieldname": "organizers_sb",
+   "fieldtype": "Section Break",
+   "label": "Organizers"
+  },
+  {
+   "fieldname": "event_coordinator",
+   "fieldtype": "Link",
+   "in_global_search": 1,
+   "label": "Event Coordinator",
+   "options": "Staff"
+  },
+  {
+   "fieldname": "organizer_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "Organizer Name"
+  },
+  {
+   "fieldname": "organizer_contact",
+   "fieldtype": "Phone",
+   "label": "Organizer Contact"
+  },
+  {
+   "fieldname": "organizer_email",
+   "fieldtype": "Data",
+   "label": "Organizer Email"
+  },
+  {
+   "fieldname": "supporting_staff",
+   "fieldtype": "Table",
+   "label": "Supporting Staff",
+   "options": "Event Supporting Staff"
+  },
+  {
+   "fieldname": "partners_sb",
+   "fieldtype": "Section Break",
+   "label": "Business Partners"
+  },
+  {
+   "fieldname": "participating_businesses",
+   "fieldtype": "Table",
+   "label": "Participating Businesses",
+   "options": "Event Business Partner"
+  },
+  {
+   "fieldname": "safety_sb",
+   "fieldtype": "Section Break",
+   "label": "Safety"
+  },
+  {
+   "default": "Low",
+   "fieldname": "risk_level",
+   "fieldtype": "Select",
+   "label": "Risk Level",
+   "options": "Low\nMedium\nHigh"
+  },
+  {
+   "fieldname": "emergency_contact",
+   "fieldtype": "Phone",
+   "label": "Emergency Contact"
+  },
+  {
+   "fieldname": "column_break_saf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "medical_support_available",
+   "fieldtype": "Check",
+   "label": "Medical Support Available"
+  },
+  {
+   "default": "0",
+   "fieldname": "security_required",
+   "fieldtype": "Check",
+   "label": "Security Required"
+  },
+  {
+   "fieldname": "sustainability_sb",
+   "fieldtype": "Section Break",
+   "label": "Sustainability"
+  },
+  {
+   "default": "0",
+   "fieldname": "plastic_free_event",
+   "fieldtype": "Check",
+   "label": "Plastic-Free Event"
+  },
+  {
+   "default": "0",
+   "fieldname": "waste_management_plan",
+   "fieldtype": "Check",
+   "label": "Waste Management Plan"
+  },
+  {
+   "fieldname": "column_break_sus",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "carbon_neutral_initiative",
+   "fieldtype": "Check",
+   "label": "Carbon Neutral Initiative"
+  },
+  {
+   "default": "0",
+   "fieldname": "eco_certification",
+   "fieldtype": "Check",
+   "label": "Eco Certification"
+  },
+  {
+   "fieldname": "status_sb",
+   "fieldtype": "Section Break",
+   "label": "Status"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_global_search": 1,
+   "label": "Event Status",
+   "options": "Draft\nPublished\nOngoing\nCompleted\nCancelled",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_featured_event",
+   "fieldtype": "Check",
+   "label": "Featured Event"
+  },
+  {
+   "fieldname": "statistics_sb",
+   "fieldtype": "Section Break",
+   "label": "Statistics"
+  },
+  {
+   "default": "0",
+   "fieldname": "total_revenue",
+   "fieldtype": "Currency",
+   "label": "Total Revenue",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "average_rating",
+   "fieldtype": "Float",
+   "label": "Average Rating",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_stat",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "number_of_feedbacks",
+   "fieldtype": "Int",
+   "label": "Number of Feedbacks",
+   "read_only": 1
+  },
+  {
+   "fieldname": "notes_sb",
+   "fieldtype": "Section Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "compat_sb",
+   "fieldtype": "Section Break",
+   "hidden": 1,
+   "label": "Framework Compatibility"
+  },
+  {
+   "default": "0",
+   "fieldname": "sync_with_google_calendar",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Sync with Google Calendar"
+  },
+  {
+   "default": "0",
+   "fieldname": "pulled_from_google_calendar",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Pulled from Google Calendar"
+  },
+  {
+   "fieldname": "google_calendar",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Google Calendar"
+  }
+ ],
+ "idx": 0,
+ "is_submittable": 0,
+ "module": "Tourism Operations",
+ "name": "Event",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Tourism Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "import": 0,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Tourism Officer",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "search_fields": "event_name,event_code,category,status,registration_status,attraction,venue,event_coordinator,organizer_name",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

@@ -1,0 +1,19 @@
+{
+ "aggregate_function_based_on": "",
+ "color": "#27AE60",
+ "creation": "2026-07-20 23:35:00.000000",
+ "docstatus": 0,
+ "doctype": "Number Card",
+ "document_type": "Tourist",
+ "filters_json": "[[\"Tourist\",\"creation\",\"Timespan\",\"this month\"]]",
+ "function": "Count",
+ "idx": 0,
+ "is_public": 1,
+ "is_standard": 1,
+ "label": "New Tourist Registrations",
+ "module": "Tourism Operations",
+ "name": "New Tourist Registrations",
+ "owner": "Administrator",
+ "show_percentage_stats": 1,
+ "stats_time_interval": "Monthly"
+}

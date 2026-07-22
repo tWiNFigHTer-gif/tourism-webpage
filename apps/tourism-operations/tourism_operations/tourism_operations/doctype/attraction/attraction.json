@@ -1,0 +1,410 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:ATT-{####}",
+ "creation": "2026-07-20 10:15:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "basic_info_sb",
+  "attraction_name",
+  "attraction_code",
+  "category",
+  "status",
+  "approval_status",
+  "column_break_1",
+  "description",
+  "location_sb",
+  "state",
+  "district",
+  "panchayat",
+  "village_or_ward",
+  "column_break_2",
+  "address",
+  "latitude",
+  "longitude",
+  "google_maps_url",
+  "visitor_info_sb",
+  "opening_time",
+  "closing_time",
+  "entry_ticket_required",
+  "entry_fee",
+  "column_break_3",
+  "maximum_capacity",
+  "maximum_daily_visitors",
+  "estimated_visit_duration",
+  "facilities_sb",
+  "parking_available",
+  "parking_capacity",
+  "public_toilet",
+  "drinking_water",
+  "food_court",
+  "column_break_4",
+  "wheelchair_accessible",
+  "first_aid",
+  "guide_available",
+  "emergency_sb",
+  "contact_person",
+  "contact_number",
+  "emergency_contact_number",
+  "safety_instructions",
+  "column_break_5",
+  "nearest_police_station",
+  "police_contact_number",
+  "nearest_hospital",
+  "hospital_contact_number",
+  "nearest_fire_station",
+  "fire_station_contact_number",
+  "media_sb",
+  "cover_image",
+  "gallery",
+  "seo_sb",
+  "short_description",
+  "keywords",
+  "operational_sb",
+  "current_crowd_level",
+  "is_featured_attraction"
+ ],
+ "fields": [
+  {
+   "fieldname": "basic_info_sb",
+   "fieldtype": "Section Break",
+   "label": "Basic Information"
+  },
+  {
+   "fieldname": "attraction_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "Attraction Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "attraction_code",
+   "fieldtype": "Data",
+   "label": "Attraction Code",
+   "read_only": 1
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "in_global_search": 1,
+   "label": "Category",
+   "options": "Waterfall\nHill Station\nWildlife\nTemple\nBeach\nDam\nTrekking\nMuseum\nHeritage\nPark\nTheme Park\nNational Park\nFort\nMonument\nLake\nCave\nOther",
+   "reqd": 1
+  },
+  {
+   "default": "Open",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Operational Status",
+   "options": "Open\nClosed\nMaintenance\nSeasonal Closure\nTemporarily Closed",
+   "reqd": 1
+  },
+  {
+   "default": "Draft",
+   "fieldname": "approval_status",
+   "fieldtype": "Select",
+   "in_global_search": 1,
+   "label": "Approval Status",
+   "options": "Draft\nPending Review\nApproved\nRejected",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "location_sb",
+   "fieldtype": "Section Break",
+   "label": "Location"
+  },
+  {
+   "fieldname": "state",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "State"
+  },
+  {
+   "fieldname": "district",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "District"
+  },
+  {
+   "fieldname": "panchayat",
+   "fieldtype": "Data",
+   "label": "Panchayat"
+  },
+  {
+   "fieldname": "village_or_ward",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "Village/Ward"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  },
+  {
+   "fieldname": "latitude",
+   "fieldtype": "Float",
+   "label": "Latitude"
+  },
+  {
+   "fieldname": "longitude",
+   "fieldtype": "Float",
+   "label": "Longitude"
+  },
+  {
+   "fieldname": "google_maps_url",
+   "fieldtype": "URL",
+   "label": "Google Maps URL"
+  },
+  {
+   "fieldname": "visitor_info_sb",
+   "fieldtype": "Section Break",
+   "label": "Visitor Information"
+  },
+  {
+   "fieldname": "opening_time",
+   "fieldtype": "Time",
+   "label": "Opening Time"
+  },
+  {
+   "fieldname": "closing_time",
+   "fieldtype": "Time",
+   "label": "Closing Time"
+  },
+  {
+   "default": "0",
+   "fieldname": "entry_ticket_required",
+   "fieldtype": "Check",
+   "label": "Entry Ticket Required"
+  },
+  {
+   "depends_on": "eval:doc.entry_ticket_required == 1",
+   "fieldname": "entry_fee",
+   "fieldtype": "Currency",
+   "label": "Entry Fee"
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "maximum_capacity",
+   "fieldtype": "Int",
+   "label": "Maximum Capacity"
+  },
+  {
+   "fieldname": "maximum_daily_visitors",
+   "fieldtype": "Int",
+   "label": "Maximum Daily Visitors"
+  },
+  {
+   "fieldname": "estimated_visit_duration",
+   "fieldtype": "Duration",
+   "label": "Estimated Visit Duration"
+  },
+  {
+   "fieldname": "facilities_sb",
+   "fieldtype": "Section Break",
+   "label": "Facilities"
+  },
+  {
+   "default": "0",
+   "fieldname": "parking_available",
+   "fieldtype": "Check",
+   "label": "Parking Available"
+  },
+  {
+   "depends_on": "eval:doc.parking_available == 1",
+   "fieldname": "parking_capacity",
+   "fieldtype": "Int",
+   "label": "Parking Capacity"
+  },
+  {
+   "default": "0",
+   "fieldname": "public_toilet",
+   "fieldtype": "Check",
+   "label": "Public Toilet"
+  },
+  {
+   "default": "0",
+   "fieldname": "drinking_water",
+   "fieldtype": "Check",
+   "label": "Drinking Water"
+  },
+  {
+   "default": "0",
+   "fieldname": "food_court",
+   "fieldtype": "Check",
+   "label": "Food Court"
+  },
+  {
+   "fieldname": "column_break_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "wheelchair_accessible",
+   "fieldtype": "Check",
+   "label": "Wheelchair Accessible"
+  },
+  {
+   "default": "0",
+   "fieldname": "first_aid",
+   "fieldtype": "Check",
+   "label": "First Aid"
+  },
+  {
+   "default": "0",
+   "fieldname": "guide_available",
+   "fieldtype": "Check",
+   "label": "Guide Available"
+  },
+  {
+   "fieldname": "emergency_sb",
+   "fieldtype": "Section Break",
+   "label": "Contact & Emergency"
+  },
+  {
+   "fieldname": "contact_person",
+   "fieldtype": "Data",
+   "label": "Contact Person"
+  },
+  {
+   "fieldname": "contact_number",
+   "fieldtype": "Phone",
+   "label": "Contact Number"
+  },
+  {
+   "fieldname": "emergency_contact_number",
+   "fieldtype": "Phone",
+   "label": "Emergency Contact Number"
+  },
+  {
+   "fieldname": "safety_instructions",
+   "fieldtype": "Small Text",
+   "label": "Safety Instructions"
+  },
+  {
+   "fieldname": "column_break_5",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "nearest_police_station",
+   "fieldtype": "Data",
+   "label": "Nearest Police Station"
+  },
+  {
+   "fieldname": "police_contact_number",
+   "fieldtype": "Phone",
+   "label": "Police Contact Number"
+  },
+  {
+   "fieldname": "nearest_hospital",
+   "fieldtype": "Data",
+   "label": "Nearest Hospital"
+  },
+  {
+   "fieldname": "hospital_contact_number",
+   "fieldtype": "Phone",
+   "label": "Hospital Contact Number"
+  },
+  {
+   "fieldname": "nearest_fire_station",
+   "fieldtype": "Data",
+   "label": "Nearest Fire Station"
+  },
+  {
+   "fieldname": "fire_station_contact_number",
+   "fieldtype": "Phone",
+   "label": "Fire Station Contact Number"
+  },
+  {
+   "fieldname": "media_sb",
+   "fieldtype": "Section Break",
+   "label": "Media"
+  },
+  {
+   "fieldname": "cover_image",
+   "fieldtype": "Attach Image",
+   "label": "Cover Image"
+  },
+  {
+   "fieldname": "gallery",
+   "fieldtype": "Table",
+   "label": "Gallery",
+   "options": "Attraction Gallery Image"
+  },
+  {
+   "fieldname": "seo_sb",
+   "fieldtype": "Section Break",
+   "label": "SEO / Tourism"
+  },
+  {
+   "fieldname": "short_description",
+   "fieldtype": "Small Text",
+   "label": "Short Description"
+  },
+  {
+   "fieldname": "keywords",
+   "fieldtype": "Text",
+   "label": "Keywords"
+  },
+  {
+   "fieldname": "operational_sb",
+   "fieldtype": "Section Break",
+   "label": "Operational Details"
+  },
+  {
+   "default": "Low",
+   "fieldname": "current_crowd_level",
+   "fieldtype": "Select",
+   "label": "Current Crowd Level",
+   "options": "Low\nMedium\nHigh\nPeak"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_featured_attraction",
+   "fieldtype": "Check",
+   "label": "Is Featured Attraction"
+  }
+ ],
+ "idx": 0,
+ "is_submittable": 0,
+ "module": "Tourism Operations",
+ "name": "Attraction",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "search_fields": "attraction_name,category,status,attraction_code,district,panchayat,state,village_or_ward,approval_status",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

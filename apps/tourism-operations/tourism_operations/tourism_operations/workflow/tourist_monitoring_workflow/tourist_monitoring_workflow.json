@@ -1,0 +1,59 @@
+{
+ "creation": "2026-07-20 22:30:00.000000",
+ "docstatus": 0,
+ "doctype": "Workflow",
+ "document_type": "Tourist",
+ "is_active": 1,
+ "module": "Tourism Operations",
+ "name": "Tourist Monitoring Workflow",
+ "override_status": 1,
+ "owner": "Administrator",
+ "states": [
+  {
+   "allow_edit": "Tourism Administrator",
+   "doc_status": "0",
+   "state": "Active",
+   "style": "Success"
+  },
+  {
+   "allow_edit": "Tourism Administrator",
+   "doc_status": "0",
+   "state": "Inactive",
+   "style": "Warning"
+  },
+  {
+   "allow_edit": "Tourism Administrator",
+   "doc_status": "0",
+   "state": "Blacklisted",
+   "style": "Danger"
+  }
+ ],
+ "transitions": [
+  {
+   "action": "Blacklist",
+   "allowed": "Tourism Administrator",
+   "next_state": "Blacklisted",
+   "state": "Active"
+  },
+  {
+   "action": "Reactivate",
+   "allowed": "Tourism Administrator",
+   "next_state": "Active",
+   "state": "Blacklisted"
+  },
+  {
+   "action": "Deactivate",
+   "allowed": "Tourism Administrator",
+   "next_state": "Inactive",
+   "state": "Active"
+  },
+  {
+   "action": "Reactivate",
+   "allowed": "Tourism Administrator",
+   "next_state": "Active",
+   "state": "Inactive"
+  }
+ ],
+ "workflow_name": "Tourist Monitoring Workflow",
+ "workflow_state_field": "workflow_state"
+}

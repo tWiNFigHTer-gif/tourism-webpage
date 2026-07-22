@@ -1,0 +1,57 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-07-20 21:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "staff_member",
+  "role",
+  "contact_number",
+  "duty_start_time",
+  "duty_end_time"
+ ],
+ "fields": [
+  {
+   "fieldname": "staff_member",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Staff Member",
+   "options": "Staff",
+   "reqd": 1
+  },
+  {
+   "fieldname": "role",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Role"
+  },
+  {
+   "fieldname": "contact_number",
+   "fieldtype": "Phone",
+   "in_list_view": 1,
+   "label": "Contact Number"
+  },
+  {
+   "fieldname": "duty_start_time",
+   "fieldtype": "Time",
+   "in_list_view": 1,
+   "label": "Duty Start Time"
+  },
+  {
+   "fieldname": "duty_end_time",
+   "fieldtype": "Time",
+   "in_list_view": 1,
+   "label": "Duty End Time"
+  }
+ ],
+ "idx": 0,
+ "istable": 1,
+ "module": "Tourism Operations",
+ "name": "Event Supporting Staff",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}

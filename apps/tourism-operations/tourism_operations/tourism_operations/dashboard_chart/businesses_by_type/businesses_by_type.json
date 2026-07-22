@@ -1,0 +1,17 @@
+{
+ "chart_name": "Businesses by Type",
+ "chart_type": "Group By",
+ "creation": "2026-07-20 19:15:00.000000",
+ "docstatus": 0,
+ "doctype": "Dashboard Chart",
+ "document_type": "Business",
+ "group_by_based_on": "business_type",
+ "group_by_type": "Count",
+ "idx": 0,
+ "is_public": 1,
+ "is_standard": 1,
+ "module": "Tourism Operations",
+ "name": "Businesses by Type",
+ "owner": "Administrator",
+ "type": "Bar"
+}

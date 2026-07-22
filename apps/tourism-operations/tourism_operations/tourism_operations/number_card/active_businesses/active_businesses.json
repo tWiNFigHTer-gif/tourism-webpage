@@ -1,0 +1,17 @@
+{
+ "aggregate_function_based_on": "",
+ "creation": "2026-07-20 19:15:00.000000",
+ "docstatus": 0,
+ "doctype": "Number Card",
+ "document_type": "Business",
+ "filters_json": "[[\"Business\",\"status\",\"=\",\"Active\",false]]",
+ "function": "Count",
+ "idx": 0,
+ "is_standard": 1,
+ "label": "Active Businesses",
+ "module": "Tourism Operations",
+ "name": "Active Businesses",
+ "owner": "Administrator",
+ "show_percentage_stats": 0,
+ "type": "Document Type"
+}

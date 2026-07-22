@@ -1,0 +1,20 @@
+{
+ "aggregate_function_based_on": "",
+ "color": "#28a745",
+ "creation": "2026-07-20 22:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Number Card",
+ "document_type": "Tourist",
+ "dynamic_filters_json": "[]",
+ "filters_json": "[[\"Tourist\",\"registration_status\",\"=\",\"Active\",false]]",
+ "function": "Count",
+ "idx": 0,
+ "is_public": 1,
+ "is_standard": 1,
+ "label": "Active Tourists",
+ "module": "Tourism Operations",
+ "name": "Active Tourists",
+ "owner": "Administrator",
+ "show_percentage_stats": 1,
+ "stats_time_interval": "Daily"
+}

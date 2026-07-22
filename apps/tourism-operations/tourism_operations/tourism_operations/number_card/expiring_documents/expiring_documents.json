@@ -1,0 +1,19 @@
+{
+ "aggregate_function_based_on": "",
+ "color": "#E67E22",
+ "creation": "2026-07-20 23:35:00.000000",
+ "docstatus": 0,
+ "doctype": "Number Card",
+ "document_type": "Business",
+ "filters_json": "[[\"Business\",\"registration_status\",\"=\",\"Expired\"]]",
+ "function": "Count",
+ "idx": 0,
+ "is_public": 1,
+ "is_standard": 1,
+ "label": "Expiring & Expired Licenses",
+ "module": "Tourism Operations",
+ "name": "Expiring & Expired Licenses",
+ "owner": "Administrator",
+ "show_percentage_stats": 1,
+ "stats_time_interval": "Monthly"
+}

@@ -1,0 +1,482 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-07-20 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "basic_info_sb",
+  "naming_series",
+  "business_name",
+  "business_code",
+  "business_type",
+  "operational_status",
+  "is_featured_business",
+  "column_break_basic",
+  "description",
+  "languages_spoken",
+  "years_in_operation",
+  "operating_season",
+  "gallery_images",
+  "registration_sb",
+  "registration_status",
+  "license_number",
+  "license_expiry",
+  "documents",
+  "column_break_reg",
+  "owner_name",
+  "verification_date",
+  "verified_by",
+  "rejection_reason",
+  "suspension_reason",
+  "contact_sb",
+  "contact_number",
+  "alternate_contact_number",
+  "email",
+  "website_url",
+  "column_break_con",
+  "emergency_contact_number",
+  "location_sb",
+  "attraction",
+  "address_line_1",
+  "address_line_2",
+  "district",
+  "panchayat",
+  "column_break_loc",
+  "google_maps_url",
+  "latitude",
+  "longitude",
+  "details_sb",
+  "opening_time",
+  "closing_time",
+  "weekly_off",
+  "price_range",
+  "column_break_det",
+  "seating_capacity",
+  "accepted_payment_methods",
+  "services_and_amenities",
+  "facilities",
+  "parking_available",
+  "wheelchair_accessible",
+  "wifi_available",
+  "pet_friendly",
+  "sustainability_sb",
+  "eco_certified",
+  "waste_segregation_available",
+  "plastic_free_certified",
+  "notes_sb",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "basic_info_sb",
+   "fieldtype": "Section Break",
+   "label": "Basic Information"
+  },
+  {
+   "default": "BIZ-.####",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "BIZ-.####"
+  },
+  {
+   "fieldname": "business_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "Business Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "business_code",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "Business Code",
+   "read_only": 1
+  },
+  {
+   "fieldname": "business_type",
+   "fieldtype": "Select",
+   "in_global_search": 1,
+   "label": "Business Type",
+   "options": "Hotel\nHomestay\nResort\nRestaurant\nCafe\nTour Operator\nLocal Guide\nJeep Safari\nTaxi\nBoat Service\nSouvenir Shop\nAdventure Activities\nParking Operator\nArtisan / Craft Shop\nWellness / Spa\nCultural Center\nEquipment Rental\nOther",
+   "reqd": 1
+  },
+  {
+   "default": "Active",
+   "fieldname": "operational_status",
+   "fieldtype": "Select",
+   "label": "Operational Status",
+   "options": "Active\nTemporarily Closed\nPermanently Closed\nSeasonal"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_featured_business",
+   "fieldtype": "Check",
+   "label": "Is Featured Business"
+  },
+  {
+   "fieldname": "column_break_basic",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "languages_spoken",
+   "fieldtype": "Data",
+   "label": "Languages Spoken"
+  },
+  {
+   "fieldname": "years_in_operation",
+   "fieldtype": "Int",
+   "label": "Years in Operation"
+  },
+  {
+   "fieldname": "operating_season",
+   "fieldtype": "Select",
+   "label": "Operating Season",
+   "options": "All Year\nPeak Season Only\nWinter Only\nMonsoon Only\nCustom"
+  },
+  {
+   "fieldname": "gallery_images",
+   "fieldtype": "Table",
+   "label": "Gallery Images",
+   "options": "Business Gallery Image"
+  },
+  {
+   "fieldname": "registration_sb",
+   "fieldtype": "Section Break",
+   "label": "Registration & Licensing"
+  },
+  {
+   "default": "Pending Verification",
+   "fieldname": "registration_status",
+   "fieldtype": "Select",
+   "in_global_search": 1,
+   "label": "Registration Status",
+   "options": "Pending Verification\nVerified\nRejected\nSuspended\nExpired",
+   "reqd": 1
+  },
+  {
+   "fieldname": "license_number",
+   "fieldtype": "Data",
+   "label": "License Number"
+  },
+  {
+   "fieldname": "license_expiry",
+   "fieldtype": "Date",
+   "label": "License Expiry"
+  },
+  {
+   "fieldname": "documents",
+   "fieldtype": "Table",
+   "label": "Business Documents",
+   "options": "Business Document"
+  },
+  {
+   "fieldname": "column_break_reg",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "owner_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "Owner Name"
+  },
+  {
+   "fieldname": "verification_date",
+   "fieldtype": "Datetime",
+   "label": "Verification Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "verified_by",
+   "fieldtype": "Link",
+   "label": "Verified By",
+   "options": "Staff",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rejection_reason",
+   "fieldtype": "Small Text",
+   "label": "Rejection Reason"
+  },
+  {
+   "fieldname": "suspension_reason",
+   "fieldtype": "Small Text",
+   "label": "Suspension Reason"
+  },
+  {
+   "fieldname": "contact_sb",
+   "fieldtype": "Section Break",
+   "label": "Contact Information"
+  },
+  {
+   "fieldname": "contact_number",
+   "fieldtype": "Phone",
+   "in_global_search": 1,
+   "label": "Contact Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "alternate_contact_number",
+   "fieldtype": "Phone",
+   "label": "Alternate Contact Number"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email"
+  },
+  {
+   "fieldname": "website_url",
+   "fieldtype": "URL",
+   "label": "Website URL"
+  },
+  {
+   "fieldname": "column_break_con",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "emergency_contact_number",
+   "fieldtype": "Phone",
+   "label": "Emergency Contact Number"
+  },
+  {
+   "fieldname": "location_sb",
+   "fieldtype": "Section Break",
+   "label": "Location Details"
+  },
+  {
+   "fieldname": "attraction",
+   "fieldtype": "Link",
+   "in_global_search": 1,
+   "label": "Nearest Attraction",
+   "options": "Attraction"
+  },
+  {
+   "fieldname": "address_line_1",
+   "fieldtype": "Data",
+   "label": "Address Line 1"
+  },
+  {
+   "fieldname": "address_line_2",
+   "fieldtype": "Data",
+   "label": "Address Line 2"
+  },
+  {
+   "fieldname": "district",
+   "fieldtype": "Data",
+   "label": "District"
+  },
+  {
+   "fieldname": "panchayat",
+   "fieldtype": "Data",
+   "label": "Panchayat"
+  },
+  {
+   "fieldname": "column_break_loc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "google_maps_url",
+   "fieldtype": "URL",
+   "label": "Google Maps URL"
+  },
+  {
+   "fieldname": "latitude",
+   "fieldtype": "Float",
+   "label": "Latitude"
+  },
+  {
+   "fieldname": "longitude",
+   "fieldtype": "Float",
+   "label": "Longitude"
+  },
+  {
+   "fieldname": "details_sb",
+   "fieldtype": "Section Break",
+   "label": "Business Details & Operational Parameters"
+  },
+  {
+   "fieldname": "opening_time",
+   "fieldtype": "Time",
+   "label": "Opening Time"
+  },
+  {
+   "fieldname": "closing_time",
+   "fieldtype": "Time",
+   "label": "Closing Time"
+  },
+  {
+   "fieldname": "weekly_off",
+   "fieldtype": "Select",
+   "label": "Weekly Off Day",
+   "options": "None\nMonday\nTuesday\nWednesday\nThursday\nFriday\nSaturday\nSunday"
+  },
+  {
+   "fieldname": "price_range",
+   "fieldtype": "Select",
+   "label": "Price Range",
+   "options": "Budget\nModerate\nLuxury\nUltra Luxury"
+  },
+  {
+   "fieldname": "column_break_det",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "seating_capacity",
+   "fieldtype": "Int",
+   "label": "Capacity (Seating / Rooms)"
+  },
+  {
+   "fieldname": "accepted_payment_methods",
+   "fieldtype": "Data",
+   "label": "Accepted Payment Methods"
+  },
+  {
+   "fieldname": "services_and_amenities",
+   "fieldtype": "Small Text",
+   "label": "Services and Amenities"
+  },
+  {
+   "fieldname": "facilities",
+   "fieldtype": "Small Text",
+   "label": "Facilities"
+  },
+  {
+   "default": "0",
+   "fieldname": "parking_available",
+   "fieldtype": "Check",
+   "label": "Parking Available"
+  },
+  {
+   "default": "0",
+   "fieldname": "wheelchair_accessible",
+   "fieldtype": "Check",
+   "label": "Wheelchair Accessible"
+  },
+  {
+   "default": "0",
+   "fieldname": "wifi_available",
+   "fieldtype": "Check",
+   "label": "Free Wi-Fi Available"
+  },
+  {
+   "default": "0",
+   "fieldname": "pet_friendly",
+   "fieldtype": "Check",
+   "label": "Pet Friendly"
+  },
+  {
+   "fieldname": "sustainability_sb",
+   "fieldtype": "Section Break",
+   "label": "Sustainability & Eco Parameters"
+  },
+  {
+   "default": "0",
+   "fieldname": "eco_certified",
+   "fieldtype": "Check",
+   "label": "Eco-certified"
+  },
+  {
+   "default": "0",
+   "fieldname": "waste_segregation_available",
+   "fieldtype": "Check",
+   "label": "Waste Segregation Available"
+  },
+  {
+   "fieldname": "column_break_sus",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "plastic_free_certified",
+   "fieldtype": "Check",
+   "label": "Plastic-Free Certified"
+  },
+  {
+   "fieldname": "notes_sb",
+   "fieldtype": "Section Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "idx": 0,
+ "is_submittable": 0,
+ "module": "Tourism Operations",
+ "name": "Business",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 0,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Tourism Administrator",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "import": 0,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Tourism Officer",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 0,
+   "import": 0,
+   "print": 1,
+   "read": 1,
+   "report": 0,
+   "role": "Website User",
+   "select": 1,
+   "share": 0,
+   "write": 1
+  }
+ ],
+ "search_fields": "business_name,business_code,business_type,registration_status,owner_name,contact_number",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}
