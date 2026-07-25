@@ -1270,9 +1270,8 @@ function MobileMapPage() {
           }}
         >
           {[
-            { id: "map",   icon: "explore",             label: "Explore", action: () => setActiveNav("map") },
-            { id: "saved", icon: "bookmark",            label: "Saved",   action: () => setActiveNav("saved") },
-            { id: "pass",  icon: "confirmation_number", label: "Pass",    action: () => router.push("/mobile/book") },
+            { id: "map",     icon: "explore",  label: "Explore", action: () => setActiveNav("map") },
+            { id: "saved",   icon: "bookmark", label: "Saved",   action: () => setActiveNav("saved") },
           ].map((item) => {
             const isActive = activeNav === item.id
             return (
@@ -1317,6 +1316,69 @@ function MobileMapPage() {
               </button>
             )
           })}
+
+          {/* Profile User Avatar Button */}
+          <button
+            type="button"
+            onClick={() => router.push("/mobile/profile")}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "3px",
+              padding: "6px 16px",
+              borderRadius: "10px",
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              transition: "all 0.2s",
+            }}
+          >
+            <div
+              style={{
+                width: "24px",
+                height: "24px",
+                borderRadius: "9999px",
+                border: user ? "1.5px solid #10b981" : "1px solid rgba(255,255,255,0.15)",
+                boxShadow: user ? "0 0 8px rgba(16,185,129,0.35)" : "none",
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "#111820",
+              }}
+            >
+              {user ? (
+                <span
+                  style={{
+                    fontFamily: "'Inter', sans-serif",
+                    fontSize: "9px",
+                    fontWeight: 700,
+                    color: "#4edea3",
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  {(user.user_metadata?.full_name || user.email || "EX").slice(0, 2).toUpperCase()}
+                </span>
+              ) : (
+                <span className="material-symbols-outlined" style={{ fontSize: "16px", color: "#4a6380" }}>
+                  account_circle
+                </span>
+              )}
+            </div>
+            <span
+              style={{
+                fontFamily: "'Inter', sans-serif",
+                fontSize: "10px",
+                fontWeight: 500,
+                letterSpacing: "0.03em",
+                color: "#4a6380",
+              }}
+            >
+              Profile
+            </span>
+          </button>
         </div>
       </nav>
 
