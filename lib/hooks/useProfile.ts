@@ -149,12 +149,20 @@ export function useProfile(): UseProfileReturn {
       return { error: "Image must be smaller than 5 MB." }
     }
 
+    const fileToDataUrl = (file: File): Promise<string> =>
+      new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+
     try {
       const ext = file.name.split(".").pop() ?? "jpg"
       const path = `${userId}/avatar.${ext}`
 
-      // Ensure bucket exists
-      await supabase.storage.createBucket("avatars", { public: true })
+      // Try creating bucket if possible
+      await supabase.storage.createBucket("avatars", { public: true }).catch(() => null)
 
       const { error: uploadErr } = await supabase.storage.from("avatars").upload(path, file, {
         upsert: true,
@@ -162,9 +170,10 @@ export function useProfile(): UseProfileReturn {
       })
 
       if (uploadErr) {
-        // If storage upload fails (e.g. policy not set), use data URL as fallback
-        if (uploadErr.message.includes("policy") || uploadErr.message.includes("permission") || uploadErr.message.includes("row-level")) {
-          return { error: `Storage policy not configured. Please run the SQL migration in Supabase Dashboard. Error: ${uploadErr.message}` }
+        // Fallback to Base64 Data URL if storage policy/permission error occurs
+        const dataUrl = await fileToDataUrl(file).catch(() => null)
+        if (dataUrl) {
+          return { url: dataUrl }
         }
         return { error: uploadErr.message }
       }
@@ -173,6 +182,10 @@ export function useProfile(): UseProfileReturn {
       const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`
       return { url: publicUrl }
     } catch (e: any) {
+      const dataUrl = await fileToDataUrl(file).catch(() => null)
+      if (dataUrl) {
+        return { url: dataUrl }
+      }
       return { error: e.message }
     }
   }, [])
