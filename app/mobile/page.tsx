@@ -145,6 +145,7 @@ function MobileMapPage() {
 
   // Tourist Starting Point ("From Location") state
   const [fromLocation, setFromLocation] = useState(TOURIST_START_POINTS[0])
+  const [selectedAnchorLocation, setSelectedAnchorLocation] = useState<MapLocation | null>(null)
 
   // Filters state
   const [selectedCategory, setSelectedCategory] = useState("all")
@@ -335,14 +336,17 @@ function MobileMapPage() {
 
   // ── Spatial Greedy Multi-Day Itinerary Engine (35km/h speed, 2.5h visit, 9h budget) ──
   const itineraryData = useMemo(() => {
-    if (selectedDuration === "all" && !searchValue.toLowerCase().includes("kozhikode")) {
+    if (selectedDuration === "all" && !selectedAnchorLocation && !searchValue.toLowerCase().includes("kozhikode")) {
       return null
     }
 
+    const startLat = selectedAnchorLocation ? selectedAnchorLocation.lat : fromLocation.lat
+    const startLng = selectedAnchorLocation ? selectedAnchorLocation.lng : fromLocation.lng
+
     const numDays = selectedDuration === "3days" ? 3 : selectedDuration === "2days" ? 2 : 1
     const generatedDays: DayItinerary[] = generateItinerary(
-      fromLocation.lat,
-      fromLocation.lng,
+      startLat,
+      startLng,
       filteredLocations,
       numDays
     )
@@ -353,11 +357,11 @@ function MobileMapPage() {
     if (allStops.length < 1) return null
 
     const routeCoords: [number, number][] = [
-      [fromLocation.lat, fromLocation.lng],
+      [startLat, startLng],
       ...allStops.map((s) => [s.lat, s.lng] as [number, number]),
     ]
 
-    const origin = `${fromLocation.lat},${fromLocation.lng}`
+    const origin = `${startLat},${startLng}`
     const destination = `${allStops[allStops.length - 1].lat},${allStops[allStops.length - 1].lng}`
     const waypoints = allStops.slice(0, -1).map((s) => `${s.lat},${s.lng}`).join("|")
     const gmapsRouteUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${
@@ -370,8 +374,9 @@ function MobileMapPage() {
       dayPlans: generatedDays,
       routeCoords,
       gmapsRouteUrl,
+      startName: selectedAnchorLocation ? selectedAnchorLocation.name : fromLocation.name,
     }
-  }, [selectedDuration, searchValue, filteredLocations, fromLocation])
+  }, [selectedDuration, selectedAnchorLocation, searchValue, filteredLocations, fromLocation])
 
   // ── Spatial Safety Engine & Single-Location Navigation ────────────────────
   const [isCheckingRoute, setIsCheckingRoute] = useState(false)
@@ -564,28 +569,14 @@ function MobileMapPage() {
         </div>
 
         {/* Search Bar & Filters Section */}
-        <div ref={searchSectionRef} className="relative mt-2 w-full">
+        <div ref={searchSectionRef} className="relative mt-2 w-full flex items-center gap-2">
+          {/* Left: Standalone Search Input Box */}
           <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              height: "38px",
-              background: "#111820",
-              border: isSearchFocused ? "1px solid rgba(78,222,163,0.5)" : "1px solid rgba(255,255,255,0.12)",
-              borderRadius: "10px",
-              padding: "0 12px",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
-              transition: "all 0.2s ease",
-            }}
+            className={`flex flex-1 items-center h-10 rounded-xl border bg-[#111820] px-3 shadow-md transition-all ${
+              isSearchFocused ? "border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.2)]" : "border-white/12"
+            }`}
           >
-            <span
-              className="material-symbols-outlined"
-              style={{
-                fontSize: "18px",
-                color: isSearchFocused ? "#4edea3" : "#4a6380",
-                marginRight: "8px",
-              }}
-            >
+            <span className="material-symbols-outlined text-[#4a6380] mr-2" style={{ fontSize: "18px" }}>
               search
             </span>
             <input
@@ -594,42 +585,35 @@ function MobileMapPage() {
               onFocus={() => setIsSearchFocused(true)}
               onChange={(e) => setSearchValue(e.target.value)}
               placeholder="Search Kozhikode, Wayanad, Munnar..."
-              style={{
-                flex: 1,
-                background: "transparent",
-                border: "none",
-                outline: "none",
-                fontFamily: "'Inter', sans-serif",
-                fontSize: "13.5px",
-                fontWeight: 400,
-                color: "#f0f4f8",
-              }}
+              className="flex-1 bg-transparent text-xs text-white outline-none placeholder:text-[#4a6380]"
             />
             {searchValue ? (
               <button
                 type="button"
                 onClick={() => setSearchValue("")}
-                style={{ color: "#4a6380", background: "none", border: "none", cursor: "pointer", marginRight: "6px" }}
+                className="text-[#4a6380] hover:text-white mr-1"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>close</span>
               </button>
             ) : null}
-
-            <button
-              type="button"
-              onClick={() => {
-                setIsSearchFocused(true)
-                setShowAdvancedFilters(!showAdvancedFilters)
-              }}
-              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors ${
-                showAdvancedFilters || selectedClimate !== "all" || selectedDuration !== "all"
-                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                  : "text-[#4a6380] hover:text-white"
-              }`}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>tune</span>
-            </button>
           </div>
+
+          {/* Right: Standalone Filter Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsSearchFocused(true)
+              setShowAdvancedFilters(!showAdvancedFilters)
+            }}
+            className={`flex h-10 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+              showAdvancedFilters || selectedClimate !== "all" || selectedDuration !== "all"
+                ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.25)]"
+                : "border-white/12 bg-[#111820] text-[#bbcabf] hover:border-white/20 hover:text-white"
+            }`}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>tune</span>
+            <span>Filters</span>
+          </button>
 
           {/* Live Search Suggestions Dropdown */}
           {isSearchFocused && (
@@ -885,23 +869,34 @@ function MobileMapPage() {
               </span>
               <div>
                 <p className="text-xs font-bold text-white">
-                  {itineraryData.days}-Day Optimized Plan (Max 9h/day)
+                  {itineraryData.days}-Day Route Starting From:
                 </p>
-                <p className="text-[11px] text-[#4edea3]">
-                  {itineraryData.stops.length} Eco-Stops | 35 km/h Speed & 2.5h Visit
+                <p className="text-[11px] text-[#4edea3] font-semibold truncate max-w-[180px]">
+                  📍 {itineraryData.startName}
                 </p>
               </div>
             </div>
 
-            <a
-              href={itineraryData.gmapsRouteUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-[#003824] shadow-md hover:bg-emerald-400"
-            >
-              <span>Open Google Route</span>
-              <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>open_in_new</span>
-            </a>
+            <div className="flex items-center gap-1.5">
+              {selectedAnchorLocation && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedAnchorLocation(null)}
+                  className="text-[10.5px] font-semibold text-[#8aa299] hover:text-white px-2 py-1 rounded bg-white/5 border border-white/10"
+                >
+                  Reset Origin
+                </button>
+              )}
+              <a
+                href={itineraryData.gmapsRouteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-semibold text-[#003824] shadow-md hover:bg-emerald-400"
+              >
+                <span>Google Route</span>
+                <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>open_in_new</span>
+              </a>
+            </div>
           </div>
 
           <div className="mt-2.5 flex gap-2.5 overflow-x-auto no-scrollbar py-1">
@@ -1059,7 +1054,7 @@ function MobileMapPage() {
               />
             </div>
 
-            <div style={{ display: "flex", gap: "8px" }}>
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
               <button
                 type="button"
                 onClick={() =>
@@ -1084,12 +1079,28 @@ function MobileMapPage() {
                   alignItems: "center",
                   justifyContent: "center",
                   gap: "6px",
+                  minWidth: "120px",
                 }}
               >
                 Book Entry
                 <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>
                   arrow_forward
                 </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedAnchorLocation(selectedLocation)
+                  if (selectedDuration === "all") {
+                    setSelectedDuration("2days")
+                  }
+                  setSelectedLocation(null)
+                }}
+                className="flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3 py-2 text-xs font-bold text-emerald-400 hover:bg-emerald-500/25 transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>route</span>
+                <span>Plan Trip From Here</span>
               </button>
 
               <button
