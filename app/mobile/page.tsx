@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
 import { getLocations, getDangerZones } from "@/lib/db"
-import { useAuth } from "@/lib/hooks/useAuth"
+import { useAuth, ProtectedRoute } from "@/lib/hooks/useAuth"
 import { useCapacity } from "@/lib/hooks/useCapacity"
 import { useSubmitHazard } from "@/lib/hooks/useSubmitHazard"
 import { generateRoute, checkRouteSafety, type SafetyCheckResult } from "@/lib/turf"
@@ -136,7 +136,7 @@ const KERALA_PLACES_SEED: MapLocation[] = [
   },
 ]
 
-export default function MobileMapPage() {
+function MobileMapPage() {
   const router = useRouter()
   const { user, signOut } = useAuth()
 
@@ -1268,5 +1268,13 @@ export default function MobileMapPage() {
         .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
     </div>
+  )
+}
+
+export default function ProtectedMobileMapPage() {
+  return (
+    <ProtectedRoute>
+      <MobileMapPage />
+    </ProtectedRoute>
   )
 }

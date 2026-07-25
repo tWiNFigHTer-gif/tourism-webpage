@@ -1,1 +1,1 @@
-export { useAuth, AuthProvider, AuthContext } from "@/components/AuthProvider";
+export { useAuth, AuthProvider, AuthContext, ProtectedRoute } from "@/components/AuthProvider";

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, createContext, useContext } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -97,4 +98,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   return useContext(AuthContext);
+}
+
+export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace("/login");
+    }
+  }, [user, isLoading, router]);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-dvh w-full flex-col items-center justify-center bg-[#0a0e13] text-[#4edea3]">
+        <div className="flex flex-col items-center gap-3">
+          <span className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+          <p className="font-mono text-xs text-[#8aa299]">Checking Explorer Authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  return <>{children}</>;
 }

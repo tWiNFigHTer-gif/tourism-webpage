@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCapacity } from "@/lib/hooks/useCapacity"
 import { useBookPass } from "@/lib/hooks/useBookPass"
+import { ProtectedRoute } from "@/components/AuthProvider"
 
 const ENTRY_WINDOWS = [
   { time: "08:00 AM", slotCode: "08:00", label: "Morning Slot", id: "0800", available: true  },
@@ -541,8 +542,10 @@ function BookingContent() {
 
 export default function MobileBookingPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-text-muted">Loading booking...</div>}>
-      <BookingContent />
-    </Suspense>
+    <ProtectedRoute>
+      <Suspense fallback={<div className="p-8 text-center text-text-muted">Loading booking...</div>}>
+        <BookingContent />
+      </Suspense>
+    </ProtectedRoute>
   )
 }
