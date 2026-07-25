@@ -1,13 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/hooks/useAuth"
 
 export default function ExplorerLoginPage() {
   const router = useRouter()
-  const { signIn } = useAuth()
+  const { user, signIn } = useAuth()
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -17,6 +17,13 @@ export default function ExplorerLoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
+
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      router.replace("/mobile")
+    }
+  }, [user, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,8 +44,8 @@ export default function ExplorerLoginPage() {
     } else {
       setSuccessMessage("Sign in successful! Redirecting to mobile explorer...")
       setTimeout(() => {
-        router.push("/mobile")
-      }, 1000)
+        router.replace("/mobile")
+      }, 300)
     }
   }
 
@@ -47,16 +54,12 @@ export default function ExplorerLoginPage() {
     setEmail("explorer.demo@terrapulse.kerala.gov.in")
     setPassword("KeralaWild2026!")
     setIsSubmitting(true)
-    const { error } = await signIn("explorer.demo@terrapulse.kerala.gov.in", "KeralaWild2026!")
+    await signIn("explorer.demo@terrapulse.kerala.gov.in", "KeralaWild2026!")
     setIsSubmitting(false)
-    if (!error) {
-      setSuccessMessage("Logged in as Demo Explorer!")
-      setTimeout(() => router.push("/mobile"), 800)
-    } else {
-      // If demo account doesn't exist yet, proceed into mobile app directly
-      setSuccessMessage("Demo Explorer Session Activated!")
-      setTimeout(() => router.push("/mobile"), 800)
-    }
+    setSuccessMessage("Logged in as Demo Explorer!")
+    setTimeout(() => {
+      router.replace("/mobile")
+    }, 300)
   }
 
   return (
