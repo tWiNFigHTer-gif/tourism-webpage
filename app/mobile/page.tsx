@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
 import { getLocations, getDangerZones } from "@/lib/db"
@@ -188,9 +188,26 @@ function MobileMapPage() {
   const [activeNav, setActiveNav] = useState("map")
   const [searchValue, setSearchValue] = useState("")
 
-  // Search & Filter Panel focus state
+  // Search & Filter Panel focus & outside-click ref
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
+  const searchSectionRef = useRef<HTMLDivElement>(null)
+
+  // Close search suggestions & advanced filters when clicking outside search section
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      if (searchSectionRef.current && !searchSectionRef.current.contains(event.target as Node)) {
+        setIsSearchFocused(false)
+        setShowAdvancedFilters(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    document.addEventListener("touchstart", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("touchstart", handleClickOutside)
+    }
+  }, [])
 
   // Modals & Drawers state
   const [isReportDrawerOpen, setIsReportDrawerOpen] = useState(false)
@@ -417,22 +434,18 @@ function MobileMapPage() {
           WebkitBackdropFilter: "blur(16px)",
         }}
       >
-        {/* Header Row: Menu | Title | Red Zone Alert | Profile */}
+        {/* Header Row: Brand Logo | Pass Shortcut | Red Zone Alert | Profile */}
         <div className="flex h-10 items-center justify-between">
-          <button type="button" aria-label="Open menu" style={{ color: "#bbcabf" }}>
-            <span className="material-symbols-outlined" style={{ fontSize: "22px" }}>menu</span>
-          </button>
-
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push("/mobile")}>
+            <span className="relative flex h-3 w-3 items-center justify-center">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
             </span>
             <h1
               style={{
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontSize: "18px",
-                fontWeight: 600,
+                fontWeight: 700,
                 letterSpacing: "-0.02em",
                 color: "#4edea3",
               }}
@@ -444,8 +457,20 @@ function MobileMapPage() {
           <div className="flex items-center gap-2 relative">
             <button
               type="button"
+              onClick={() => router.push("/mobile/book")}
+              className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold text-emerald-400 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
+                confirmation_number
+              </span>
+              PASS
+            </button>
+
+            <button
+              type="button"
               onClick={() => setIsHazardModalOpen(true)}
-              className="flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-400"
+              className="flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-1 text-[10px] font-bold text-red-400 hover:bg-red-500/20 cursor-pointer"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: "12px", fontVariationSettings: "'FILL' 1" }}>
@@ -538,8 +563,8 @@ function MobileMapPage() {
           </select>
         </div>
 
-        {/* Search Bar */}
-        <div className="relative mt-2 w-full">
+        {/* Search Bar & Filters Section */}
+        <div ref={searchSectionRef} className="relative mt-2 w-full">
           <div
             style={{
               display: "flex",
@@ -620,6 +645,7 @@ function MobileMapPage() {
                     onClick={() => {
                       setSelectedLocation(loc)
                       setIsSearchFocused(false)
+                      setShowAdvancedFilters(false)
                     }}
                     className="flex items-center justify-between border-b border-white/5 p-2.5 text-left transition-colors hover:bg-white/5"
                   >
