@@ -14,11 +14,6 @@ const ENTRY_WINDOWS = [
   { time: "04:00 PM", slotCode: "16:00", label: "Evening Sunset", id: "1600", available: true },
 ]
 
-const PASS_TYPES = [
-  { id: "standard", label: "Standard Entry Pass", duration: "4 Hours", price: "Free (Panchayat DPI)" },
-  { id: "full-day", label: "Full Day Explorer Pass", duration: "8 Hours", price: "Free (Panchayat DPI)" },
-]
-
 export interface StoredPass {
   id: string;
   pass_token: string;
@@ -31,7 +26,37 @@ export interface StoredPass {
   booked_at: string;
   status: "ACTIVE" | "VISITED";
   image?: string;
+  is_bulk?: boolean;
 }
+
+const DEFAULT_SEED_PASSES: StoredPass[] = [
+  {
+    id: "pass-active-1",
+    pass_token: "TP-PASS-7842M",
+    location_id: "mavoor-wetlands",
+    location_name: "Mavoor Wetlands & Bird Sanctuary",
+    slot_time: "10:00 AM",
+    visitors: 2,
+    visitor_name: "Arjun Nair",
+    visitor_phone: "9876543210",
+    booked_at: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+    status: "ACTIVE",
+    image: "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    id: "pass-seed-1",
+    pass_token: "TP-PASS-9821K",
+    location_id: "canoly-canal",
+    location_name: "Canoly Canal & Sarovaram Eco Park",
+    slot_time: "10:00 AM",
+    visitors: 2,
+    visitor_name: "Arjun Nair",
+    visitor_phone: "9876543210",
+    booked_at: new Date(Date.now() - 86400000 * 2).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+    status: "VISITED",
+    image: "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=600&q=80",
+  },
+]
 
 function BookingContent() {
   const router = useRouter()
@@ -39,11 +64,14 @@ function BookingContent() {
 
   const locationId = searchParams.get("location_id") ?? "mavoor-wetlands"
   const locationName = searchParams.get("location_name") ?? "Mavoor Wetlands & Bird Sanctuary"
+  const bulkNamesRaw = searchParams.get("bulk_names")
+  const isDirectBook = searchParams.has("location_id") || Boolean(bulkNamesRaw)
 
-  const [activeTab, setActiveTab] = useState<"book" | "my-passes">("book")
+  const [activeTab, setActiveTab] = useState<"my-passes" | "book">(
+    isDirectBook ? "book" : "my-passes"
+  )
 
   const [selectedWindowId, setSelectedWindowId] = useState("1000")
-  const [selectedPass, setSelectedPass] = useState("standard")
   const [visitors, setVisitors] = useState(1)
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
@@ -58,25 +86,7 @@ function BookingContent() {
         console.error("Failed to load passes:", err)
       }
     }
-    return [
-      {
-        id: "pass-seed-1",
-        pass_token: "TP-PASS-9821K",
-        location_id: "canoly-canal",
-        location_name: "Canoly Canal & Sarovaram Eco Park",
-        slot_time: "10:00 AM",
-        visitors: 2,
-        visitor_name: "Arjun Nair",
-        visitor_phone: "9876543210",
-        booked_at: new Date(Date.now() - 86400000).toLocaleDateString("en-IN", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        }),
-        status: "VISITED",
-        image: "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=600&q=80",
-      },
-    ]
+    return DEFAULT_SEED_PASSES
   })
 
   const activeWindow = ENTRY_WINDOWS.find((w) => w.id === selectedWindowId) ?? ENTRY_WINDOWS[1]
@@ -95,6 +105,45 @@ function BookingContent() {
 
   // Real Pass Booking Hook
   const { bookPass, isBooking, error: bookingError, result: confirmedPass } = useBookPass()
+
+  // Auto handle Bulk Booking if bulk_names query param exists
+  useEffect(() => {
+    if (bulkNamesRaw) {
+      try {
+        const names: string[] = JSON.parse(bulkNamesRaw)
+        const todayStr = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+        const bulkPasses: StoredPass[] = names.map((spotName, i) => ({
+          id: `bulk-pass-${Date.now()}-${i}`,
+          pass_token: `TP-TRIP-${Math.floor(1000 + Math.random() * 9000)}`,
+          location_id: `spot-${i}`,
+          location_name: spotName,
+          slot_time: i % 2 === 0 ? "10:00 AM" : "02:00 PM",
+          visitors: 2,
+          visitor_name: "Explorer Traveler",
+          visitor_phone: "9876543210",
+          booked_at: todayStr,
+          status: "ACTIVE",
+          image: "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=600&q=80",
+          is_bulk: true,
+        }))
+
+        setMyPasses((prev) => {
+          const next = [...bulkPasses, ...prev]
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem("terra_my_passes", JSON.stringify(next))
+            } catch (e) {
+              console.error(e)
+            }
+          }
+          return next
+        })
+        setActiveTab("my-passes")
+      } catch (err) {
+        console.error("Bulk pass error:", err)
+      }
+    }
+  }, [bulkNamesRaw])
 
   const handleBook = async () => {
     if (!name.trim() || phone.length !== 10) return
@@ -131,8 +180,12 @@ function BookingContent() {
         }
         return next
       })
+      setActiveTab("my-passes")
     }
   }
+
+  const activePasses = myPasses.filter((p) => p.status === "ACTIVE")
+  const visitedPasses = myPasses.filter((p) => p.status === "VISITED")
 
   return (
     <div
@@ -164,10 +217,10 @@ function BookingContent() {
           </button>
           <div>
             <p className="text-[10px] font-bold text-emerald-400 tracking-wider uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-              PANCHAYAT PASS PORTAL
+              MY PASSES & TRIPS
             </p>
             <h1 className="text-base font-bold text-white leading-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-              Eco-Zone Entry Pass
+              {activeTab === "my-passes" ? "My Booked Passes & History" : "Place Entry Pass"}
             </h1>
           </div>
         </div>
@@ -181,19 +234,8 @@ function BookingContent() {
         </button>
       </header>
 
-      {/* ── Navigation Tab Selector (Book Pass vs My Passes & Visited) ── */}
+      {/* ── Navigation Tab Selector ───────────────────────────────── */}
       <div className="flex w-full border-b border-white/10 bg-[#0c2132]/80 px-4 pt-3 backdrop-blur-md">
-        <button
-          type="button"
-          onClick={() => setActiveTab("book")}
-          className={`flex-1 pb-3 text-center text-xs font-bold transition-all cursor-pointer ${
-            activeTab === "book"
-              ? "border-b-2 border-emerald-400 text-emerald-400"
-              : "text-[#4a6380] hover:text-white"
-          }`}
-        >
-          🎟️ Book New Pass
-        </button>
         <button
           type="button"
           onClick={() => setActiveTab("my-passes")}
@@ -203,18 +245,180 @@ function BookingContent() {
               : "text-[#4a6380] hover:text-white"
           }`}
         >
-          <span>🎫 My Passes & Visited</span>
+          <span>🎫 My Passes & Upcoming Trips</span>
           <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-400">
             {myPasses.length}
           </span>
         </button>
+
+        {isDirectBook && (
+          <button
+            type="button"
+            onClick={() => setActiveTab("book")}
+            className={`flex-1 pb-3 text-center text-xs font-bold transition-all cursor-pointer ${
+              activeTab === "book"
+                ? "border-b-2 border-emerald-400 text-emerald-400"
+                : "text-[#4a6380] hover:text-white"
+            }`}
+          >
+            🎟️ Single Place Booking
+          </button>
+        )}
       </div>
 
       <main className="flex-1 p-4 pb-12">
-        {/* ── TAB 1: BOOK NEW PASS FORM ──────────────────────────────── */}
+        {/* ── VIEW 1: MY PASSES & UPCOMING TRIPS DASHBOARD ────────────── */}
+        {activeTab === "my-passes" && (
+          <div className="flex flex-col gap-6 max-w-md mx-auto animate-in fade-in duration-200">
+            {/* Active & Upcoming Passes Section */}
+            <div>
+              <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-emerald-400" style={{ fontSize: "18px" }}>
+                    confirmation_number
+                  </span>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-white">
+                    Upcoming & Active Passes ({activePasses.length})
+                  </h2>
+                </div>
+                <span className="text-[10.5px] font-semibold text-emerald-400">
+                  Panchayat DPI Authorized
+                </span>
+              </div>
+
+              {activePasses.length > 0 ? (
+                <div className="flex flex-col gap-3">
+                  {activePasses.map((pass) => (
+                    <div
+                      key={pass.id}
+                      className="flex flex-col overflow-hidden rounded-2xl border border-emerald-500/30 bg-[#111820] shadow-xl"
+                    >
+                      {/* Ticket Header */}
+                      <div className="flex items-center justify-between bg-[#0c2132] px-4 py-2.5 border-b border-white/10">
+                        <span className="text-xs font-bold text-emerald-400 font-mono">{pass.pass_token}</span>
+                        <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-[9.5px] font-bold text-emerald-400 border border-emerald-500/30 font-mono">
+                          ACTIVE PASS
+                        </span>
+                      </div>
+
+                      {/* Ticket Content */}
+                      <div className="p-4 flex flex-col gap-3">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={pass.image || "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=600&q=80"}
+                            alt={pass.location_name}
+                            className="h-14 w-16 rounded-xl object-cover border border-white/10 shrink-0"
+                          />
+                          <div>
+                            <h3 className="text-xs font-bold text-white">{pass.location_name}</h3>
+                            <p className="text-[11px] text-emerald-400 font-medium mt-0.5">
+                              ⏰ Slot: {pass.slot_time} | 👥 {pass.visitors} Visitor(s)
+                            </p>
+                            <p className="text-[10px] text-[#4a6380] mt-0.5">
+                              Issued for: {pass.visitor_name} ({pass.booked_at})
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Digital QR Ticket Scanner Visual */}
+                        <div className="flex items-center justify-between rounded-xl border border-dashed border-emerald-500/30 bg-emerald-500/5 p-3">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${pass.pass_token}`}
+                              alt="QR Ticket"
+                              className="h-12 w-12 rounded bg-white p-0.5 shrink-0 shadow-md"
+                            />
+                            <div>
+                              <p className="text-[11px] font-bold text-white">Digital Checkpoint Pass</p>
+                              <p className="text-[9.5px] text-[#8aa299]">Present QR code at gate checkpoint</p>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMyPasses((prev) => {
+                                const next = prev.map((p) => (p.id === pass.id ? { ...p, status: "VISITED" as const } : p))
+                                if (typeof window !== "undefined") {
+                                  localStorage.setItem("terra_my_passes", JSON.stringify(next))
+                                }
+                                return next
+                              })
+                            }}
+                            className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-[10.5px] font-semibold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 cursor-pointer shrink-0"
+                          >
+                            Mark Visited
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center rounded-xl border border-dashed border-white/10 bg-white/5">
+                  <span className="material-symbols-outlined text-3xl text-[#4a6380] mb-1">confirmation_number</span>
+                  <p className="text-xs font-semibold text-white">No Upcoming Passes</p>
+                  <p className="text-[11px] text-[#8aa299] mt-0.5 max-w-xs">
+                    Book entry passes from any place card or generate a multi-day trip on the map to bulk book your passes.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Previous Visited History Section */}
+            <div>
+              <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-blue-400" style={{ fontSize: "18px" }}>
+                    history
+                  </span>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-white">
+                    Previous Visited Places ({visitedPasses.length})
+                  </h2>
+                </div>
+              </div>
+
+              {visitedPasses.length > 0 ? (
+                <div className="flex flex-col gap-2.5">
+                  {visitedPasses.map((pass) => (
+                    <div
+                      key={pass.id}
+                      className="flex items-center justify-between rounded-xl border border-white/10 bg-[#111820] p-3 shadow-md"
+                    >
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={pass.image || "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=600&q=80"}
+                          alt={pass.location_name}
+                          className="h-12 w-14 rounded-lg object-cover border border-white/10 shrink-0"
+                        />
+                        <div>
+                          <h3 className="text-xs font-bold text-white">{pass.location_name}</h3>
+                          <p className="text-[10.5px] text-[#8aa299]">Visited on {pass.booked_at}</p>
+                          <span className="text-[9.5px] font-mono text-blue-400">PASSED: {pass.pass_token}</span>
+                        </div>
+                      </div>
+
+                      <span className="flex items-center gap-1 rounded bg-blue-500/10 px-2 py-1 text-[10px] font-semibold text-blue-400 border border-blue-500/20">
+                        <span className="material-symbols-outlined" style={{ fontSize: "14px", fontVariationSettings: "'FILL' 1" }}>
+                          check_circle
+                        </span>
+                        Visited
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 text-center text-xs text-[#4a6380]">
+                  No past visited spots logged yet.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── VIEW 2: SINGLE PLACE ENTRY PASS BOOKING FORM ───────────── */}
         {activeTab === "book" && (
           <div className="flex flex-col gap-5 max-w-md mx-auto animate-in fade-in duration-200">
-            {/* Confirmation Screen */}
             {confirmedPass ? (
               <div className="flex flex-col items-center justify-center p-6 text-center rounded-2xl border border-emerald-500/30 bg-[#111820] shadow-2xl backdrop-blur-xl">
                 <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
@@ -226,64 +430,21 @@ function BookingContent() {
                   Pass Issued Successfully!
                 </h2>
                 <p className="text-xs text-[#8aa299] mt-1">
-                  Your carrying-capacity pass for <span className="text-emerald-400 font-semibold">{locationName}</span> is active.
+                  Your entry pass for <span className="text-emerald-400 font-semibold">{locationName}</span> is saved to your Passes.
                 </p>
-
-                {/* Digital Pass Ticket Card */}
-                <div className="mt-5 w-full rounded-xl border border-emerald-500/30 bg-[#0c2132] p-4 text-left shadow-lg">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                    <span className="text-xs font-bold text-emerald-400" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                      KERALA WILD DPI
-                    </span>
-                    <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      ACTIVE PASS
-                    </span>
-                  </div>
-
-                  <div className="mt-3 flex flex-col gap-2 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-[#4a6380] font-mono text-[10.5px]">PASS TOKEN:</span>
-                      <span className="font-bold text-white font-mono">{confirmedPass.pass_token}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#4a6380] font-mono text-[10.5px]">LOCATION:</span>
-                      <span className="font-bold text-white">{locationName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#4a6380] font-mono text-[10.5px]">TIME SLOT:</span>
-                      <span className="font-bold text-emerald-400">{activeWindow.time}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#4a6380] font-mono text-[10.5px]">VISITORS:</span>
-                      <span className="font-bold text-white">{visitors} Explorer(s)</span>
-                    </div>
-                  </div>
-
-                  {/* QR Ticket Visual */}
-                  <div className="mt-4 flex flex-col items-center justify-center rounded-lg border border-dashed border-white/20 bg-white/5 p-3">
-                    <div className="flex h-20 w-20 items-center justify-center rounded bg-white p-1">
-                      <img
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${confirmedPass.pass_token}`}
-                        alt="QR Code"
-                        className="h-full w-full object-contain"
-                      />
-                    </div>
-                    <p className="mt-2 text-[10px] font-mono text-[#8aa299]">Scan at Panchayat Checkpoint</p>
-                  </div>
-                </div>
 
                 <div className="mt-5 flex w-full gap-2">
                   <button
                     type="button"
                     onClick={() => setActiveTab("my-passes")}
-                    className="flex-1 rounded-xl bg-emerald-500 px-4 py-3 text-xs font-bold text-[#003824] shadow-lg hover:bg-emerald-400"
+                    className="flex-1 rounded-xl bg-emerald-500 px-4 py-3 text-xs font-bold text-[#003824] shadow-lg hover:bg-emerald-400 cursor-pointer"
                   >
-                    View All My Passes
+                    View My Passes
                   </button>
                   <button
                     type="button"
                     onClick={() => router.push("/mobile")}
-                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-semibold text-white hover:bg-white/10"
+                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-semibold text-white hover:bg-white/10 cursor-pointer"
                   >
                     Map
                   </button>
@@ -301,14 +462,6 @@ function BookingContent() {
                     <p className="text-[11px] text-emerald-400 font-medium">Live Panchayat Carrying Capacity Protected Zone</p>
                   </div>
                 </div>
-
-                {/* Error Banner */}
-                {bookingError && (
-                  <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-400">
-                    <span className="material-symbols-outlined shrink-0" style={{ fontSize: "18px" }}>warning</span>
-                    <span>{bookingError.message}</span>
-                  </div>
-                )}
 
                 {/* Capacity Card */}
                 <div className="rounded-xl border border-white/10 bg-[#111820] p-3.5 shadow-md">
@@ -329,9 +482,9 @@ function BookingContent() {
                   </div>
                 </div>
 
-                {/* Visitor Form */}
+                {/* Visitor Details Form */}
                 <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-[#111820] p-4 shadow-md">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#4a6380]">Explorer Registration</h3>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#4a6380]">Explorer Details</h3>
 
                   <div>
                     <label className="text-xs font-semibold text-[#bbcabf] mb-1 block">Full Name</label>
@@ -427,111 +580,6 @@ function BookingContent() {
                   )}
                 </button>
               </>
-            )}
-          </div>
-        )}
-
-        {/* ── TAB 2: MY PASSES & VISITED PLACES HISTORY ──────────────── */}
-        {activeTab === "my-passes" && (
-          <div className="flex flex-col gap-4 max-w-md mx-auto animate-in fade-in duration-200">
-            <div className="flex items-center justify-between border-b border-white/10 pb-2">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-[#4a6380]">
-                Issued Digital Passes ({myPasses.length})
-              </h2>
-              <span className="text-[11px] font-semibold text-emerald-400">
-                Panchayat Verified
-              </span>
-            </div>
-
-            {myPasses.length > 0 ? (
-              myPasses.map((pass) => (
-                <div
-                  key={pass.id}
-                  className="flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#111820] shadow-xl"
-                >
-                  {/* Card Header Banner */}
-                  <div className="flex items-center justify-between bg-[#0c2132] px-4 py-2.5 border-b border-white/10">
-                    <span className="text-xs font-bold text-white font-mono">{pass.pass_token}</span>
-                    <span
-                      className={`rounded px-2 py-0.5 text-[9.5px] font-bold border ${
-                        pass.status === "ACTIVE"
-                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                          : "bg-blue-500/20 text-blue-400 border-blue-500/30"
-                      }`}
-                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                    >
-                      {pass.status === "ACTIVE" ? "ACTIVE PASS" : "VISITED / COMPLETED"}
-                    </span>
-                  </div>
-
-                  {/* Pass Body Info */}
-                  <div className="p-4 flex flex-col gap-3">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={pass.image || DEFAULT_FALLBACK_IMAGE}
-                        alt={pass.location_name}
-                        className="h-14 w-16 rounded-xl object-cover border border-white/10 shrink-0"
-                      />
-                      <div>
-                        <h3 className="text-xs font-bold text-white">{pass.location_name}</h3>
-                        <p className="text-[11px] text-emerald-400 font-medium mt-0.5">
-                          ⏰ Slot: {pass.slot_time} | 👥 {pass.visitors} Visitor(s)
-                        </p>
-                        <p className="text-[10px] text-[#4a6380] mt-0.5">
-                          Issued for: {pass.visitor_name} ({pass.booked_at})
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* QR Code section for Active Pass */}
-                    {pass.status === "ACTIVE" && (
-                      <div className="flex items-center justify-between rounded-xl border border-dashed border-emerald-500/30 bg-emerald-500/5 p-2.5">
-                        <div className="flex items-center gap-2">
-                          <img
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${pass.pass_token}`}
-                            alt="QR Ticket"
-                            className="h-10 w-10 rounded bg-white p-0.5 shrink-0"
-                          />
-                          <div>
-                            <p className="text-[11px] font-bold text-white">Digital Checkpoint Ticket</p>
-                            <p className="text-[9.5px] text-[#8aa299]">Show QR at reserve gate</p>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMyPasses((prev) =>
-                              prev.map((p) => (p.id === pass.id ? { ...p, status: "VISITED" } : p))
-                            )
-                          }}
-                          className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-[10.5px] font-semibold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30"
-                        >
-                          Mark Visited
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Visited Badge */}
-                    {pass.status === "VISITED" && (
-                      <div className="flex items-center gap-2 rounded-xl bg-blue-500/10 border border-blue-500/20 p-2 text-xs text-blue-300">
-                        <span className="material-symbols-outlined" style={{ fontSize: "16px", fontVariationSettings: "'FILL' 1" }}>
-                          verified
-                        </span>
-                        <span>Completed Visit on {pass.booked_at}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <span className="material-symbols-outlined text-4xl text-[#4a6380] mb-2">confirmation_number</span>
-                <p className="text-sm font-semibold text-white">No Issued Passes Yet</p>
-                <p className="text-xs text-[#8aa299] mt-1 max-w-xs">
-                  Book your carrying-capacity pass above to receive your digital QR entry ticket.
-                </p>
-              </div>
             )}
           </div>
         )}

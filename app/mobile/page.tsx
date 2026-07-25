@@ -878,11 +878,25 @@ function MobileMapPage() {
             </div>
 
             <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const names = itineraryData.stops.map((s) => s.name)
+                  router.push(`/mobile/book?bulk_names=${encodeURIComponent(JSON.stringify(names))}`)
+                }}
+                className="flex items-center gap-1 rounded-lg bg-emerald-500/20 px-2.5 py-1.5 text-xs font-bold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 cursor-pointer"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
+                  confirmation_number
+                </span>
+                <span>Bulk Book Passes</span>
+              </button>
+
               {selectedAnchorLocation && (
                 <button
                   type="button"
                   onClick={() => setSelectedAnchorLocation(null)}
-                  className="text-[10.5px] font-semibold text-[#8aa299] hover:text-white px-2 py-1 rounded bg-white/5 border border-white/10"
+                  className="text-[10.5px] font-semibold text-[#8aa299] hover:text-white px-2 py-1.5 rounded bg-white/5 border border-white/10"
                 >
                   Reset Origin
                 </button>
