@@ -138,7 +138,7 @@ const KERALA_PLACES_SEED: MapLocation[] = [
 
 function MobileMapPage() {
   const router = useRouter()
-  const { user, signOut } = useAuth()
+  const { user, signOut, profile } = useAuth()
 
   // Profile session menu toggle
   const [showProfileMenu, setShowProfileMenu] = useState(false)
@@ -1349,7 +1349,14 @@ function MobileMapPage() {
                 background: "#111820",
               }}
             >
-              {user ? (
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt="Avatar"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+                />
+              ) : user ? (
                 <span
                   style={{
                     fontFamily: "'Inter', sans-serif",
@@ -1359,7 +1366,7 @@ function MobileMapPage() {
                     letterSpacing: "0.02em",
                   }}
                 >
-                  {(user.user_metadata?.full_name || user.email || "EX").slice(0, 2).toUpperCase()}
+                  {(profile?.username || user.user_metadata?.full_name || user.email || "EX").slice(0, 2).toUpperCase()}
                 </span>
               ) : (
                 <span className="material-symbols-outlined" style={{ fontSize: "16px", color: "#4a6380" }}>
