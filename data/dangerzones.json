@@ -1,0 +1,47 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "dz-001",
+        "name": "Flash Flood Zone",
+        "severity": "high",
+        "panchayat_id": "panch-001"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [76.2680, 10.0120],
+            [76.2740, 10.0120],
+            [76.2740, 10.0180],
+            [76.2680, 10.0180],
+            [76.2680, 10.0120]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "dz-002",
+        "name": "Landslide Risk Area",
+        "severity": "critical",
+        "panchayat_id": "panch-001"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [76.2820, 10.0190],
+            [76.2890, 10.0190],
+            [76.2890, 10.0250],
+            [76.2820, 10.0250],
+            [76.2820, 10.0190]
+          ]
+        ]
+      }
+    }
+  ]
+}

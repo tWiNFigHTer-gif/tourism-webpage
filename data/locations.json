@@ -1,0 +1,50 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "loc-001",
+        "name": "Emerald Falls",
+        "description": "A secluded waterfall hidden deep in the forest canopy.",
+        "category": "waterfall",
+        "capacity_per_slot": 20,
+        "panchayat_id": "panch-001"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [76.2711, 10.0159]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "loc-002",
+        "name": "Sunset Ridge",
+        "description": "Panoramic ridge trail with views over the valley at dusk.",
+        "category": "viewpoint",
+        "capacity_per_slot": 15,
+        "panchayat_id": "panch-001"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [76.2854, 10.0223]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "loc-003",
+        "name": "Ancient Grove",
+        "description": "Old-growth forest grove with rare endemic flora.",
+        "category": "nature",
+        "capacity_per_slot": 10,
+        "panchayat_id": "panch-001"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [76.2598, 10.0087]
+      }
+    }
+  ]
+}
