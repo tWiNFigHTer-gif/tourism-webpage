@@ -419,6 +419,35 @@ function MobileMapPage() {
     }
   }, [selectedLocation, locations, dangerZones, fromLocation])
 
+  // ── Auto-Detect Spatial Hazards for Selected Location or Trip Route ────────
+  useEffect(() => {
+    if (!dangerZones || dangerZones.length === 0) return
+
+    if (selectedLocation) {
+      const spotPt: [number, number] = [selectedLocation.lng, selectedLocation.lat]
+      const userPt: [number, number] = [fromLocation.lng, fromLocation.lat]
+      const routeLine: GeoJSON.LineString = {
+        type: "LineString",
+        coordinates: [userPt, spotPt],
+      }
+      const safety = checkRouteSafety(routeLine, dangerZones)
+      if (!safety.isSafe) {
+        setSafetyResult(safety)
+        setIsHazardModalOpen(true)
+      }
+    } else if (itineraryData && itineraryData.routeCoords.length > 1) {
+      const routeLine: GeoJSON.LineString = {
+        type: "LineString",
+        coordinates: itineraryData.routeCoords.map(([lat, lng]) => [lng, lat]),
+      }
+      const safety = checkRouteSafety(routeLine, dangerZones)
+      if (!safety.isSafe) {
+        setSafetyResult(safety)
+        setIsHazardModalOpen(true)
+      }
+    }
+  }, [selectedLocation, itineraryData, dangerZones, fromLocation])
+
   return (
     <div
       className="relative flex h-dvh w-full flex-col overflow-hidden"
@@ -470,18 +499,6 @@ function MobileMapPage() {
                 confirmation_number
               </span>
               PASS
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsHazardModalOpen(true)}
-              className="flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-1 text-[10px] font-bold text-red-400 hover:bg-red-500/20 cursor-pointer"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: "12px", fontVariationSettings: "'FILL' 1" }}>
-                warning
-              </span>
-              ALERT
             </button>
 
             {/* Profile Avatar Button */}
