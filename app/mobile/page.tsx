@@ -156,6 +156,33 @@ export default function MobileMapPage() {
   const [dangerZones, setDangerZones] = useState<GeoJSON.Feature<GeoJSON.Polygon>[]>([])
   const [isDbLoading, setIsDbLoading] = useState(true)
 
+  // Saved / Bookmarked Places state
+  const [savedLocationIds, setSavedLocationIds] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("terra_saved_spots")
+        return stored ? JSON.parse(stored) : ["canoly-canal", "mavoor-wetlands"]
+      } catch {
+        return ["canoly-canal"]
+      }
+    }
+    return ["canoly-canal"]
+  })
+
+  const toggleSaveLocation = (id: string) => {
+    setSavedLocationIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("terra_saved_spots", JSON.stringify(next))
+        } catch (err) {
+          console.error("Failed to save bookmark:", err)
+        }
+      }
+      return next
+    })
+  }
+
   // Selected location (null initially so full map opens clean)
   const [selectedLocation, setSelectedLocation] = useState<MapLocation | null>(null)
   const [activeNav, setActiveNav] = useState("map")
@@ -247,6 +274,11 @@ export default function MobileMapPage() {
     }).sort((a, b) => a.distanceKm - b.distanceKm)
   }, [rawLocations, fromLocation])
 
+  // Saved locations list
+  const savedLocations = useMemo(() => {
+    return locations.filter((loc) => savedLocationIds.includes(loc.id))
+  }, [locations, savedLocationIds])
+
   // ── Live Capacity polling for selected location ─────────────────────────
   const activeSlot = "10:00"
   const locationIdForCapacity = selectedLocation?.id ?? (locations[0]?.id || "canoly-canal")
@@ -300,7 +332,6 @@ export default function MobileMapPage() {
 
     if (generatedDays.length === 0) return null
 
-    // Flatten stops for map route polylines & Google Maps direction links
     const allStops = generatedDays.flatMap((d) => d.route as MapLocation[])
     if (allStops.length < 1) return null
 
@@ -733,10 +764,93 @@ export default function MobileMapPage() {
         />
       </main>
 
-      {/* ── Connected Multi-Day Trip Itinerary Plan Box (Greedy 9h Spatial Algorithm Engine) ── */}
-      {itineraryData && !selectedLocation && (
+      {/* ── SAVED PLACES DRAWER / PAGE (Appears when Saved tab is active) ── */}
+      {activeNav === "saved" && (
+        <div className="fixed inset-x-0 top-[175px] bottom-[76px] z-40 flex flex-col bg-[#0a0e13]/98 backdrop-blur-2xl p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-emerald-400" style={{ fontVariationSettings: "'FILL' 1" }}>
+                bookmark
+              </span>
+              <h2 className="text-sm font-bold text-white">Saved Eco-Gems ({savedLocations.length})</h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveNav("map")}
+              className="text-xs font-semibold text-emerald-400 hover:underline"
+            >
+              Back to Map
+            </button>
+          </div>
+
+          {savedLocations.length > 0 ? (
+            <div className="mt-3 flex flex-col gap-2.5">
+              {savedLocations.map((spot) => (
+                <div
+                  key={spot.id}
+                  className="flex items-center justify-between rounded-xl border border-white/10 bg-[#111820] p-2.5 transition-colors hover:border-emerald-500/40"
+                >
+                  <div
+                    className="flex items-center gap-3 cursor-pointer flex-1"
+                    onClick={() => {
+                      setSelectedLocation(spot)
+                      setActiveNav("map")
+                    }}
+                  >
+                    <img
+                      src={spot.image}
+                      alt={spot.name}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = DEFAULT_FALLBACK_IMAGE
+                      }}
+                      className="h-12 w-14 rounded-lg object-cover border border-white/10 shrink-0"
+                    />
+                    <div>
+                      <h3 className="text-xs font-bold text-white truncate max-w-[170px]">{spot.name}</h3>
+                      <p className="text-[11px] font-medium text-emerald-400">📍 {spot.distance}</p>
+                      <span className="text-[9.5px] text-[#4a6380] uppercase">{spot.district}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedLocation(spot)
+                        setActiveNav("map")
+                      }}
+                      className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-[11px] font-semibold text-emerald-400 border border-emerald-500/30"
+                    >
+                      View
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleSaveLocation(spot.id)}
+                      className="text-[#4a6380] hover:text-red-400 p-1"
+                      aria-label="Remove saved spot"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>delete</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <span className="material-symbols-outlined text-4xl text-[#4a6380] mb-2">bookmark_border</span>
+              <p className="text-sm font-semibold text-white">No Saved Spots Yet</p>
+              <p className="text-xs text-[#8aa299] mt-1 max-w-xs">
+                Tap the bookmark icon on any location card to save your favorite eco-gems here.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Connected Multi-Day Trip Itinerary Plan Box (Floating 76px above bottom nav) ── */}
+      {itineraryData && !selectedLocation && activeNav === "map" && (
         <div
-          className="fixed bottom-[68px] left-3 right-3 z-40 flex flex-col rounded-xl border border-emerald-500/30 bg-[#111820]/95 p-3.5 shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom-4 duration-300"
+          className="fixed bottom-[76px] left-3 right-3 z-40 flex flex-col rounded-xl border border-emerald-500/30 bg-[#111820]/95 p-3.5 shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom-4 duration-300"
         >
           <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
             <div className="flex items-center gap-2">
@@ -794,17 +908,17 @@ export default function MobileMapPage() {
         </div>
       )}
 
-      {/* ── Location Bottom Sheet with Place Hero Photo ── */}
-      {selectedLocation && !isCheckingRoute && !safetyResult && (
+      {/* ── Location Bottom Sheet with Place Hero Photo & Bookmark Save Button (Floating 76px above bottom nav) ── */}
+      {selectedLocation && !isCheckingRoute && !safetyResult && activeNav === "map" && (
         <div
           style={{
             position: "fixed",
-            bottom: "64px",
+            bottom: "76px",
             left: 0,
             width: "100%",
             zIndex: 40,
             padding: "0 12px",
-            paddingBottom: "8px",
+            paddingBottom: "4px",
             animation: "slideUp 0.25s ease-out",
           }}
         >
@@ -979,24 +1093,35 @@ export default function MobileMapPage() {
                 Directions
               </button>
 
+              {/* Bookmark Save Button */}
               <button
                 type="button"
-                aria-label="Share"
+                onClick={() => toggleSaveLocation(selectedLocation.id)}
+                aria-label={savedLocationIds.includes(selectedLocation.id) ? "Unsave spot" : "Save spot"}
                 style={{
                   width: "40px",
                   height: "40px",
-                  background: "transparent",
-                  border: "1px solid rgba(255,255,255,0.10)",
+                  background: savedLocationIds.includes(selectedLocation.id) ? "rgba(16,185,129,0.20)" : "transparent",
+                  border: savedLocationIds.includes(selectedLocation.id)
+                    ? "1px solid rgba(78,222,163,0.5)"
+                    : "1px solid rgba(255,255,255,0.10)",
                   borderRadius: "9999px",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  color: "#d0e5fb",
+                  color: savedLocationIds.includes(selectedLocation.id) ? "#4edea3" : "#d0e5fb",
                   cursor: "pointer",
+                  transition: "all 0.2s ease",
                 }}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: "17px" }}>
-                  share
+                <span
+                  className="material-symbols-outlined"
+                  style={{
+                    fontSize: "19px",
+                    fontVariationSettings: savedLocationIds.includes(selectedLocation.id) ? "'FILL' 1" : "'FILL' 0",
+                  }}
+                >
+                  bookmark
                 </span>
               </button>
             </div>
@@ -1055,7 +1180,7 @@ export default function MobileMapPage() {
         />
       )}
 
-      {/* ── Refined Bottom Navigation Bar ────────────────────────── */}
+      {/* ── Refined Clean Bottom Navigation Bar (Explore | Saved | Pass) ── */}
       <nav
         style={{
           position: "fixed",
@@ -1077,10 +1202,9 @@ export default function MobileMapPage() {
           }}
         >
           {[
-            { id: "map",        icon: "explore",             label: "Explore",    action: () => setActiveNav("map") },
-            { id: "directions", icon: "near_me",             label: "Directions", action: () => { setActiveNav("directions"); handleNavigate(selectedLocation); } },
-            { id: "saved",      icon: "bookmark",            label: "Saved",      action: () => setActiveNav("saved") },
-            { id: "pass",       icon: "confirmation_number", label: "Pass",       action: () => router.push("/mobile/book") },
+            { id: "map",   icon: "explore",             label: "Explore", action: () => setActiveNav("map") },
+            { id: "saved", icon: "bookmark",            label: "Saved",   action: () => setActiveNav("saved") },
+            { id: "pass",  icon: "confirmation_number", label: "Pass",    action: () => router.push("/mobile/book") },
           ].map((item) => {
             const isActive = activeNav === item.id
             return (
@@ -1094,7 +1218,7 @@ export default function MobileMapPage() {
                   alignItems: "center",
                   justifyContent: "center",
                   gap: "2px",
-                  padding: "6px 12px",
+                  padding: "6px 16px",
                   borderRadius: "10px",
                   border: "none",
                   background: isActive ? "rgba(16,185,129,0.12)" : "transparent",
@@ -1115,7 +1239,7 @@ export default function MobileMapPage() {
                 <span
                   style={{
                     fontFamily: "'Inter', sans-serif",
-                    fontSize: "9.5px",
+                    fontSize: "10px",
                     fontWeight: 500,
                     letterSpacing: "0.03em",
                   }}
