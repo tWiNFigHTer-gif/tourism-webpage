@@ -501,63 +501,7 @@ function MobileMapPage() {
               PASS
             </button>
 
-            {/* Profile Avatar Button */}
-            <button
-              type="button"
-              aria-label="Profile"
-              onClick={() => {
-                if (user) {
-                  setShowProfileMenu(!showProfileMenu)
-                } else {
-                  router.push("/login")
-                }
-              }}
-              style={{
-                width: "30px",
-                height: "30px",
-                borderRadius: "9999px",
-                overflow: "hidden",
-                border: user ? "1.5px solid #10b981" : "1px solid rgba(255,255,255,0.15)",
-                boxShadow: user ? "0 0 10px rgba(16,185,129,0.3)" : "none",
-              }}
-              className="flex items-center justify-center bg-[#111820] cursor-pointer"
-            >
-              {user ? (
-                <div className="flex h-full w-full items-center justify-center bg-emerald-500/20 text-[11px] font-bold text-emerald-400">
-                  {(user.user_metadata?.full_name || user.email || "E").slice(0, 2).toUpperCase()}
-                </div>
-              ) : (
-                <span className="material-symbols-outlined text-[#bbcabf]" style={{ fontSize: "18px" }}>
-                  account_circle
-                </span>
-              )}
-            </button>
 
-            {/* User Session Dropdown */}
-            {user && showProfileMenu && (
-              <div className="absolute right-0 top-10 z-50 w-56 rounded-xl border border-white/10 bg-[#111820] p-3 shadow-2xl backdrop-blur-xl">
-                <div className="border-b border-white/10 pb-2">
-                  <p className="text-xs font-bold text-white">
-                    {user.user_metadata?.full_name || "Explorer"}
-                  </p>
-                  <p className="text-[10.5px] text-[#4a6380] truncate">{user.email}</p>
-                  <span className="mt-1 inline-block rounded bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 text-[9.5px] font-semibold text-emerald-400">
-                    VERIFIED EXPLORER
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await signOut()
-                    setShowProfileMenu(false)
-                  }}
-                  className="mt-2 flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs text-red-400 transition-colors hover:bg-red-500/10 cursor-pointer"
-                >
-                  <span>Sign Out</span>
-                  <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>logout</span>
-                </button>
-              </div>
-            )}
           </div>
         </div>
 

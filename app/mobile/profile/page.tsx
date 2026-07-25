@@ -251,9 +251,20 @@ function ProfileContent() {
           <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>arrow_back</span>
         </button>
 
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", fontWeight: 700, color: "#4edea3", letterSpacing: "0.08em" }}>
-          EXPLORER DASHBOARD
-        </span>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ position: "relative", display: "inline-flex", width: "8px", height: "8px", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ position: "absolute", inset: 0, borderRadius: "9999px", background: "#4edea3", opacity: 0.7, animation: "ping 1.5s ease infinite" }} />
+              <span style={{ position: "relative", width: "6px", height: "6px", borderRadius: "9999px", background: "#4edea3", display: "inline-block" }} />
+            </span>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "16px", fontWeight: 700, color: "#4edea3", letterSpacing: "-0.01em" }}>
+              Terra-Pulse
+            </span>
+          </div>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "9px", fontWeight: 700, color: "#4a6380", letterSpacing: "0.10em" }}>
+            EXPLORER DASHBOARD
+          </span>
+        </div>
 
         {/* Edit / Done toggle */}
         {!isEditMode ? (
@@ -278,40 +289,7 @@ function ProfileContent() {
       {/* ── Main Scroll Area ────────────────────────────────────────────── */}
       <main style={{ flex: 1, padding: "0 16px 120px", maxWidth: "480px", margin: "0 auto", width: "100%" }}>
 
-        {/* DB Setup notice */}
-      {!dbAvailable && (
-        <div
-          style={{
-            margin: "12px 0 0",
-            padding: "12px 14px",
-            borderRadius: "12px",
-            background: "rgba(245,158,11,0.10)",
-            border: "1px solid rgba(245,158,11,0.30)",
-            display: "flex",
-            alignItems: "flex-start",
-            gap: "10px",
-          }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: "18px", color: "#f59e0b", marginTop: "1px", flexShrink: 0 }}>info</span>
-          <div>
-            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#fcd34d", marginBottom: "4px", fontWeight: 600 }}>
-              Profile stored locally
-            </p>
-            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "11px", color: "#8fa3b8", lineHeight: 1.5 }}>
-              Changes are saved on this device. To enable cloud sync, run the{" "}
-              <a
-                href="https://supabase.com/dashboard/project/lwunotlnczcsynaemjsq/sql/new"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: "#4edea3", textDecoration: "underline", cursor: "pointer" }}
-              >
-                SQL migration
-              </a>{" "}
-              in Supabase.
-            </p>
-          </div>
-        </div>
-      )}
+
 
       {/* ── Profile Loading Skeleton ────────────────────────────────── */}
         {profileLoading && (
