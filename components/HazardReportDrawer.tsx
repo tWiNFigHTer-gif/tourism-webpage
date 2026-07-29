@@ -29,7 +29,7 @@ type CategoryId =
 interface CategoryOption {
   id: CategoryId;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   accentColor: string;
   selectedBgClass: string;
   selectedTextClass: string;

@@ -7,12 +7,16 @@ import { getLocations, getDangerZones } from "@/lib/db"
 import { useAuth, ProtectedRoute } from "@/lib/hooks/useAuth"
 import { useCapacity } from "@/lib/hooks/useCapacity"
 import { useSubmitHazard } from "@/lib/hooks/useSubmitHazard"
-import { generateRoute, checkRouteSafety, type SafetyCheckResult } from "@/lib/turf"
+import { generateRoute, checkRouteSafety, normalizeDangerZoneFeature, type SafetyCheckResult } from "@/lib/turf"
 import { generateItinerary, calculateHaversineDistance, type DayItinerary } from "@/lib/itinerary"
 import HazardReportDrawer from "@/components/HazardReportDrawer"
 import { HazardAlertModal } from "@/components/hazard-alert-modal"
 import { RouteSafetyPanel } from "@/components/map/RouteSafetyPanel"
 import type { MapLocation } from "@/components/map/LeafletMobileMap"
+import FlatBottomNav from "@/components/mobile/FlatBottomNav"
+import RichLocationDetailSheet from "@/components/mobile/RichLocationDetailSheet"
+import { TOURIST_START_POINTS, buildGoogleMapsDirUrl } from "@/lib/config"
+import { LocationRating } from "@/components/mobile/LocationRating"
 
 // Dynamically import Leaflet map with ssr: false
 const LeafletMobileMap = dynamic(
@@ -41,15 +45,6 @@ const DURATION_OPTIONS = [
   { id: "1day", label: "1-Day Plan" },
   { id: "2days", label: "2 Days Plan" },
   { id: "3days", label: "3+ Days Plan" },
-]
-
-// Tourist Starting Points Preset Options
-const TOURIST_START_POINTS = [
-  { id: "clt-station", name: "Kozhikode Railway Station", district: "Kozhikode", lat: 11.2480, lng: 75.7838 },
-  { id: "clt-airport", name: "Calicut Airport (CCJ)", district: "Kozhikode", lat: 11.1368, lng: 75.9553 },
-  { id: "clt-beach",   name: "Kozhikode Beach",           district: "Kozhikode", lat: 11.2612, lng: 75.7690 },
-  { id: "wyd-kalpetta",name: "Wayanad Kalpetta Town",     district: "Wayanad",   lat: 11.6094, lng: 76.0829 },
-  { id: "idk-munnar",  name: "Munnar Town Center",        district: "Idukki",    lat: 10.0889, lng: 77.0595 },
 ]
 
 // Curated High-Resolution Unsplash Ecotourism Photos for Kerala Gems
@@ -261,13 +256,9 @@ function MobileMapPage() {
         }
 
         if (dbDangerZones && dbDangerZones.length > 0) {
-          const mappedDz: GeoJSON.Feature<GeoJSON.Polygon>[] = dbDangerZones
-            .filter((dz: any) => dz.geojson)
-            .map((dz: any) => ({
-              type: "Feature",
-              properties: { id: dz.id, name: dz.name, severity: dz.severity || "high" },
-              geometry: typeof dz.geojson === "string" ? JSON.parse(dz.geojson) : dz.geojson,
-            }))
+          const mappedDz = dbDangerZones
+            .map((dz: any) => normalizeDangerZoneFeature(dz))
+            .filter((f): f is GeoJSON.Feature<GeoJSON.Polygon> => f !== null)
           setDangerZones(mappedDz)
         }
       } catch (err) {
@@ -361,7 +352,7 @@ function MobileMapPage() {
       ...allStops.map((s) => [s.lat, s.lng] as [number, number]),
     ]
 
-    const origin = `${startLat},${startLng}`
+    const origin = `${fromLocation.lat},${fromLocation.lng}`
     const destination = `${allStops[allStops.length - 1].lat},${allStops[allStops.length - 1].lng}`
     const waypoints = allStops.slice(0, -1).map((s) => `${s.lat},${s.lng}`).join("|")
     const gmapsRouteUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${
@@ -374,7 +365,7 @@ function MobileMapPage() {
       dayPlans: generatedDays,
       routeCoords,
       gmapsRouteUrl,
-      startName: selectedAnchorLocation ? selectedAnchorLocation.name : fromLocation.name,
+      startName: fromLocation.name,
     }
   }, [selectedDuration, selectedAnchorLocation, searchValue, filteredLocations, fromLocation])
 
@@ -390,7 +381,7 @@ function MobileMapPage() {
     setIsCheckingRoute(true)
 
     // Launch Google Maps directions from tourist start point to location coordinates
-    const gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${fromLocation.lat},${fromLocation.lng}&destination=${locToUse.lat},${locToUse.lng}`
+    const gmapsUrl = buildGoogleMapsDirUrl(fromLocation.lat, fromLocation.lng, locToUse.lat, locToUse.lng)
     if (typeof window !== "undefined") {
       window.open(gmapsUrl, "_blank")
     }
@@ -501,7 +492,17 @@ function MobileMapPage() {
               PASS
             </button>
 
-
+            <button
+              type="button"
+              onClick={() => router.push("/mobile/reports")}
+              className="flex items-center gap-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-[11px] font-bold text-blue-400 hover:bg-blue-500/20 transition-colors cursor-pointer"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
+                analytics
+              </span>
+              REPORTS
+            </button>
           </div>
         </div>
 
@@ -737,7 +738,7 @@ function MobileMapPage() {
 
       {/* ── SAVED PLACES DRAWER / PAGE (Appears when Saved tab is active) ── */}
       {activeNav === "saved" && (
-        <div className="fixed inset-x-0 top-[175px] bottom-[76px] z-40 flex flex-col bg-[#0a0e13]/98 backdrop-blur-2xl p-4 overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-x-0 top-[175px] bottom-[60px] z-40 flex flex-col bg-[#0a0e13]/98 backdrop-blur-2xl p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="flex items-center justify-between border-b border-white/10 pb-3">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-emerald-400" style={{ fontVariationSettings: "'FILL' 1" }}>
@@ -821,7 +822,7 @@ function MobileMapPage() {
       {/* ── Connected Multi-Day Trip Itinerary Plan Box (Floating 76px above bottom nav) ── */}
       {itineraryData && !selectedLocation && activeNav === "map" && (
         <div
-          className="fixed bottom-[76px] left-3 right-3 z-40 flex flex-col rounded-xl border border-emerald-500/30 bg-[#111820]/95 p-3.5 shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom-4 duration-300"
+          className="fixed bottom-[60px] left-3 right-3 z-40 flex flex-col rounded-xl border border-emerald-500/30 bg-[#111820]/95 p-3.5 shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom-4 duration-300"
         >
           <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
             <div className="flex items-center gap-2">
@@ -904,265 +905,26 @@ function MobileMapPage() {
         </div>
       )}
 
-      {/* ── Location Bottom Sheet with Place Hero Photo & Bookmark Save Button (Floating 76px above bottom nav) ── */}
+      {/* ── Rich Location Explorer Bottom Sheet with Kerala Responsible Tourism Companion ── */}
       {selectedLocation && !isCheckingRoute && !safetyResult && activeNav === "map" && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "76px",
-            left: 0,
-            width: "100%",
-            zIndex: 40,
-            padding: "0 12px",
-            paddingBottom: "4px",
-            animation: "slideUp 0.25s ease-out",
+        <RichLocationDetailSheet
+          location={selectedLocation}
+          capacityPct={capacityPct}
+          capacityColor={capacityColor}
+          isFull={isFull}
+          slotsRemaining={slotsRemaining}
+          isSaved={savedLocationIds.includes(selectedLocation.id)}
+          onToggleSave={() => toggleSaveLocation(selectedLocation.id)}
+          onClose={() => setSelectedLocation(null)}
+          onPlanTripFromHere={() => {
+            setSelectedAnchorLocation(selectedLocation)
+            if (selectedDuration === "all") {
+              setSelectedDuration("2days")
+            }
+            setSelectedLocation(null)
           }}
-        >
-          <div
-            style={{
-              background: "rgba(17,24,32,0.96)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
-              border: "1px solid rgba(255,255,255,0.10)",
-              borderRadius: "14px 14px 0 0",
-              padding: "12px 14px 14px",
-              boxShadow: "0 -8px 32px rgba(0,0,0,0.6)",
-              position: "relative",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-              <div style={{ width: "24px" }} />
-              <div
-                style={{
-                  width: "40px",
-                  height: "3.5px",
-                  borderRadius: "9999px",
-                  background: "rgba(255,255,255,0.20)",
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setSelectedLocation(null)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "#bbcabf",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-                aria-label="Close details"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>close</span>
-              </button>
-            </div>
-
-            <div className="relative mb-3 h-32 w-full overflow-hidden rounded-xl border border-white/10">
-              <img
-                src={selectedLocation.image}
-                alt={selectedLocation.name}
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = DEFAULT_FALLBACK_IMAGE
-                }}
-                className="h-full w-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#111820] via-transparent to-transparent opacity-80" />
-              <span className="absolute bottom-2 left-2.5 text-xs font-semibold text-white drop-shadow">
-                {selectedLocation.region}
-              </span>
-              <span
-                style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: "10px",
-                  fontWeight: 600,
-                  color: capacityColor,
-                  background: "rgba(10,14,19,0.85)",
-                  padding: "2px 8px",
-                  borderRadius: "6px",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                }}
-                className="absolute bottom-2 right-2.5"
-              >
-                {capacityPct}% FULL {isFull ? "(FULL)" : `(${slotsRemaining} left)`}
-              </span>
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-              <div>
-                <h2
-                  style={{
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    fontSize: "17px",
-                    fontWeight: 600,
-                    letterSpacing: "-0.02em",
-                    color: "#f0f4f8",
-                  }}
-                >
-                  {selectedLocation.name}
-                </h2>
-                <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "11px", color: "#4edea3", fontWeight: 500 }}>
-                  📍 {selectedLocation.distance}
-                </p>
-              </div>
-            </div>
-
-            <div
-              style={{
-                width: "100%",
-                height: "5px",
-                borderRadius: "9999px",
-                background: "#0c2132",
-                overflow: "hidden",
-                marginBottom: "12px",
-              }}
-            >
-              <div
-                style={{
-                  height: "100%",
-                  width: `${capacityPct}%`,
-                  background: capacityColor,
-                  borderRadius: "9999px",
-                  boxShadow: `0 0 6px ${capacityColor}80`,
-                  transition: "width 0.5s ease",
-                }}
-              />
-            </div>
-
-            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={() =>
-                  router.push(
-                    `/mobile/book?location_id=${selectedLocation.id}&location_name=${encodeURIComponent(
-                      selectedLocation.name
-                    )}`
-                  )
-                }
-                style={{
-                  flex: 1,
-                  background: "#10b981",
-                  color: "#003824",
-                  border: "none",
-                  borderRadius: "9999px",
-                  padding: "10px 12px",
-                  fontFamily: "'Inter', sans-serif",
-                  fontSize: "13.5px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "6px",
-                  minWidth: "120px",
-                }}
-              >
-                Book Entry
-                <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>
-                  arrow_forward
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedAnchorLocation(selectedLocation)
-                  if (selectedDuration === "all") {
-                    setSelectedDuration("2days")
-                  }
-                  setSelectedLocation(null)
-                }}
-                className="flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3 py-2 text-xs font-bold text-emerald-400 hover:bg-emerald-500/25 transition-colors cursor-pointer"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>route</span>
-                <span>Plan Trip From Here</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleNavigate(selectedLocation)}
-                style={{
-                  background: "rgba(255,255,255,0.06)",
-                  color: "#d0e5fb",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  borderRadius: "9999px",
-                  padding: "10px 12px",
-                  fontFamily: "'Inter', sans-serif",
-                  fontSize: "13.5px",
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "5px",
-                }}
-              >
-                <span
-                  className="material-symbols-outlined"
-                  style={{ fontSize: "16px" }}
-                >
-                  near_me
-                </span>
-                Directions
-              </button>
-
-              {/* Bookmark Save Button */}
-              <button
-                type="button"
-                onClick={() => toggleSaveLocation(selectedLocation.id)}
-                aria-label={savedLocationIds.includes(selectedLocation.id) ? "Unsave spot" : "Save spot"}
-                style={{
-                  width: "40px",
-                  height: "40px",
-                  background: savedLocationIds.includes(selectedLocation.id) ? "rgba(16,185,129,0.20)" : "transparent",
-                  border: savedLocationIds.includes(selectedLocation.id)
-                    ? "1px solid rgba(78,222,163,0.5)"
-                    : "1px solid rgba(255,255,255,0.10)",
-                  borderRadius: "9999px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: savedLocationIds.includes(selectedLocation.id) ? "#4edea3" : "#d0e5fb",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                }}
-              >
-                <span
-                  className="material-symbols-outlined"
-                  style={{
-                    fontSize: "19px",
-                    fontVariationSettings: savedLocationIds.includes(selectedLocation.id) ? "'FILL' 1" : "'FILL' 0",
-                  }}
-                >
-                  bookmark
-                </span>
-              </button>
-            </div>
-
-            <div style={{ marginTop: "10px", paddingTop: "8px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "center" }}>
-              <button
-                type="button"
-                onClick={() => setIsReportDrawerOpen(true)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "5px",
-                  background: "transparent",
-                  border: "none",
-                  color: "rgba(245, 158, 11, 0.85)",
-                  fontFamily: "'Inter', sans-serif",
-                  fontSize: "11.5px",
-                  fontWeight: 500,
-                  cursor: "pointer",
-                }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>
-                  flag
-                </span>
-                Report a problem
-              </button>
-            </div>
-          </div>
-        </div>
+          onNavigate={() => handleNavigate(selectedLocation)}
+        />
       )}
 
       {/* ── Route Safety Panel Overlay ───────────────────────────── */}
@@ -1192,146 +954,8 @@ function MobileMapPage() {
         />
       )}
 
-      {/* ── Refined Clean Bottom Navigation Bar (Explore | Saved | Pass) ── */}
-      <nav
-        style={{
-          position: "fixed",
-          bottom: 0,
-          width: "100%",
-          zIndex: 50,
-          background: "rgba(17,24,32,0.96)",
-          backdropFilter: "blur(16px)",
-          WebkitBackdropFilter: "blur(16px)",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-around",
-            alignItems: "center",
-            height: "60px",
-          }}
-        >
-          {[
-            { id: "map",     icon: "explore",  label: "Explore", action: () => setActiveNav("map") },
-            { id: "saved",   icon: "bookmark", label: "Saved",   action: () => setActiveNav("saved") },
-          ].map((item) => {
-            const isActive = activeNav === item.id
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={item.action}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "2px",
-                  padding: "6px 16px",
-                  borderRadius: "10px",
-                  border: "none",
-                  background: isActive ? "rgba(16,185,129,0.12)" : "transparent",
-                  color: isActive ? "#4edea3" : "#4a6380",
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                }}
-              >
-                <span
-                  className="material-symbols-outlined"
-                  style={{
-                    fontSize: "20px",
-                    fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
-                  }}
-                >
-                  {item.icon}
-                </span>
-                <span
-                  style={{
-                    fontFamily: "'Inter', sans-serif",
-                    fontSize: "10px",
-                    fontWeight: 500,
-                    letterSpacing: "0.03em",
-                  }}
-                >
-                  {item.label}
-                </span>
-              </button>
-            )
-          })}
-
-          {/* Profile User Avatar Button */}
-          <button
-            type="button"
-            onClick={() => router.push("/mobile/profile")}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "3px",
-              padding: "6px 16px",
-              borderRadius: "10px",
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              transition: "all 0.2s",
-            }}
-          >
-            <div
-              style={{
-                width: "24px",
-                height: "24px",
-                borderRadius: "9999px",
-                border: user ? "1.5px solid #10b981" : "1px solid rgba(255,255,255,0.15)",
-                boxShadow: user ? "0 0 8px rgba(16,185,129,0.35)" : "none",
-                overflow: "hidden",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "#111820",
-              }}
-            >
-              {profile?.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt="Avatar"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
-                />
-              ) : user ? (
-                <span
-                  style={{
-                    fontFamily: "'Inter', sans-serif",
-                    fontSize: "9px",
-                    fontWeight: 700,
-                    color: "#4edea3",
-                    letterSpacing: "0.02em",
-                  }}
-                >
-                  {(profile?.username || user.user_metadata?.full_name || user.email || "EX").slice(0, 2).toUpperCase()}
-                </span>
-              ) : (
-                <span className="material-symbols-outlined" style={{ fontSize: "16px", color: "#4a6380" }}>
-                  account_circle
-                </span>
-              )}
-            </div>
-            <span
-              style={{
-                fontFamily: "'Inter', sans-serif",
-                fontSize: "10px",
-                fontWeight: 500,
-                letterSpacing: "0.03em",
-                color: "#4a6380",
-              }}
-            >
-              Profile
-            </span>
-          </button>
-        </div>
-      </nav>
+      {/* ── Flat Bottom Navigation Bar (Map | Explore | Profile) ── */}
+      <FlatBottomNav active="map" />
 
       {/* ── Keyframes ─────────────────────────────────────────────── */}
       <style>{`

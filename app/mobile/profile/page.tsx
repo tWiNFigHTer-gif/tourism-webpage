@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation"
 import { ProtectedRoute } from "@/components/AuthProvider"
 import { useAuth } from "@/lib/hooks/useAuth"
 import { useProfile } from "@/lib/hooks/useProfile"
+import { usePreferences } from "@/lib/hooks/usePreferences"
+import FlatBottomNav from "@/components/mobile/FlatBottomNav"
+import { getUserHazardReports } from "@/lib/db"
 import type { StoredPass } from "@/app/mobile/book/page"
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
@@ -40,15 +43,14 @@ function ToastStack({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: nu
   )
 }
 
-// ─── Preference items ─────────────────────────────────────────────────────────
-const PREF_ITEMS = [
-  { icon: "eco", label: "Environmental Preferences" },
-  { icon: "shield", label: "Privacy Settings" },
-  { icon: "dashboard", label: "Civic Dashboard", external: true },
-  { icon: "notifications", label: "Notification Settings" },
+// ─── Explorer Badges / Achievements ──────────────────────────────────────────
+const EXPLORER_BADGES = [
+  { id: "b1", title: "Eco Pioneer", icon: "forest", desc: "Visited 3+ Protected Sanctuaries" },
+  { id: "b2", title: "Civic Warden", icon: "shield", desc: "Logged Field Hazard Report" },
+  { id: "b3", title: "Trailblazer", icon: "hiking", desc: "Completed Wayanad Circuit" },
 ]
 
-// ─── Main Component ────────────────────────────────────────────────────────────
+// ─── Main Profile Content Component ──────────────────────────────────────────
 function ProfileContent() {
   const router = useRouter()
   const { user, signOut, refreshProfile } = useAuth()
@@ -56,26 +58,29 @@ function ProfileContent() {
     profile,
     isLoading: profileLoading,
     isSaving,
-    dbAvailable,
     fetchProfile,
     updateProfile,
     uploadAvatar,
   } = useProfile()
 
-  // ── Local state ──────────────────────────────────────────────────────────────
+  const { preferences, updatePreferences } = usePreferences(user?.id)
+
+  // Local State
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming")
   const [myPasses, setMyPasses] = useState<StoredPass[]>([])
+  const [reportCount, setReportCount] = useState<number>(0)
   const [isEditMode, setIsEditMode] = useState(false)
   const [editUsername, setEditUsername] = useState("")
   const [editBio, setEditBio] = useState("")
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [activePrefSection, setActivePrefSection] = useState<string | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [isSigningOut, setIsSigningOut] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   let toastIdCounter = useRef(0)
 
-  // ── Toast helpers ─────────────────────────────────────────────────────────
+  // Toast Helpers
   const addToast = useCallback((type: ToastType, message: string, autoDismissMs = 4000) => {
     const id = ++toastIdCounter.current
     setToasts((prev) => [...prev, { id, type, message }])
@@ -89,18 +94,47 @@ function ProfileContent() {
     setToasts((prev) => prev.filter((t) => t.id !== id))
   }, [])
 
-  // ── Boot: load profile + passes ───────────────────────────────────────────
+  // Boot: Load profile, passes, reports count
   useEffect(() => {
     if (user?.id) fetchProfile(user.id)
     if (typeof window !== "undefined") {
       try {
         const stored = localStorage.getItem("terra_my_passes")
         if (stored) setMyPasses(JSON.parse(stored))
+
+        const storedReports = localStorage.getItem("terra_my_reports")
+        if (storedReports) {
+          setReportCount(JSON.parse(storedReports).length)
+        }
       } catch {/* ignore */}
     }
+
+    // Try fetching DB report count
+    getUserHazardReports(user?.id)
+      .then((data) => {
+        if (data) setReportCount((prev) => Math.max(prev, data.length))
+      })
+      .catch(() => {})
   }, [user?.id, fetchProfile])
 
-  // ── Sync edit fields when profile loads ──────────────────────────────────
+  useEffect(() => {
+    const handleSync = () => {
+      const stored = localStorage.getItem("terra_my_passes");
+      if (stored) {
+        try {
+          setMyPasses(JSON.parse(stored));
+        } catch {}
+      }
+    };
+    window.addEventListener("storage", handleSync);
+    window.addEventListener("storage_sync", handleSync);
+    return () => {
+      window.removeEventListener("storage", handleSync);
+      window.removeEventListener("storage_sync", handleSync);
+    };
+  }, []);
+
+  // Sync edit fields when profile loads
   useEffect(() => {
     if (profile) {
       setEditUsername(profile.username ?? "")
@@ -108,7 +142,7 @@ function ProfileContent() {
     }
   }, [profile])
 
-  // ── Derived values ────────────────────────────────────────────────────────
+  // Derived values
   const activePasses = myPasses.filter((p) => p.status === "ACTIVE")
   const visitedPasses = myPasses.filter((p) => p.status === "VISITED")
   const displayName = profile?.username || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Explorer"
@@ -116,7 +150,7 @@ function ProfileContent() {
   const email = user?.email || "explorer@kerala.wild"
   const currentAvatarUrl = avatarPreview || profile?.avatar_url || null
 
-  // ── Avatar upload handler ─────────────────────────────────────────────────
+  // Avatar change handler
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -133,12 +167,11 @@ function ProfileContent() {
     setAvatarPreview(URL.createObjectURL(file))
   }
 
-  // ── Save profile ──────────────────────────────────────────────────────────
+  // Save profile
   const handleSave = async () => {
     const trimmedUsername = editUsername.trim()
     const trimmedBio = editBio.trim()
 
-    // Validate
     if (trimmedUsername.length > 30) {
       addToast("error", "Username must be 30 characters or fewer.")
       return
@@ -153,7 +186,6 @@ function ProfileContent() {
     try {
       let avatarUrl: string | undefined
 
-      // 1. Upload avatar if changed
       if (avatarFile && user?.id) {
         const { url, error: uploadErr } = await uploadAvatar(user.id, avatarFile)
         if (uploadErr) {
@@ -164,7 +196,6 @@ function ProfileContent() {
         avatarUrl = url
       }
 
-      // 2. Upsert profile row
       const { error: updateErr } = await updateProfile({
         username: trimmedUsername || undefined,
         bio: trimmedBio || undefined,
@@ -178,10 +209,8 @@ function ProfileContent() {
         return
       }
 
-      // 3. Refresh global profile in AuthProvider
       await refreshProfile()
 
-      // 4. Clear preview state and exit edit mode
       setAvatarFile(null)
       setAvatarPreview(null)
       setIsEditMode(false)
@@ -192,7 +221,7 @@ function ProfileContent() {
     }
   }
 
-  // ── Cancel edit ───────────────────────────────────────────────────────────
+  // Cancel edit
   const handleCancelEdit = () => {
     setEditUsername(profile?.username ?? "")
     setEditBio(profile?.bio ?? "")
@@ -204,27 +233,22 @@ function ProfileContent() {
     setIsEditMode(false)
   }
 
-  // ── Sign out ──────────────────────────────────────────────────────────────
+  // Sign out
   const handleSignOut = async () => {
     setIsSigningOut(true)
     await signOut()
     router.replace("/login")
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div
-      style={{ backgroundColor: "#0a0e13", color: "#f0f4f8", minHeight: "100dvh", display: "flex", flexDirection: "column" }}
-    >
+    <div style={{ backgroundColor: "#0a0e13", color: "#f0f4f8", minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
       <link
         href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=Inter:wght@100..900&family=JetBrains+Mono:wght@100..800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         rel="stylesheet"
       />
 
-      {/* Toast stack */}
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
-      {/* ── Hidden file input ────────────────────────────────────────────── */}
       <input
         ref={fileInputRef}
         type="file"
@@ -266,7 +290,6 @@ function ProfileContent() {
           </span>
         </div>
 
-        {/* Edit / Done toggle */}
         {!isEditMode ? (
           <button
             type="button"
@@ -289,9 +312,6 @@ function ProfileContent() {
       {/* ── Main Scroll Area ────────────────────────────────────────────── */}
       <main style={{ flex: 1, padding: "0 16px 120px", maxWidth: "480px", margin: "0 auto", width: "100%" }}>
 
-
-
-      {/* ── Profile Loading Skeleton ────────────────────────────────── */}
         {profileLoading && (
           <div style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "12px" }}>
             {[80, 60, 40].map((w, i) => (
@@ -300,7 +320,7 @@ function ProfileContent() {
           </div>
         )}
 
-        {/* ── Profile Glass Hero Card ─────────────────────────────────── */}
+        {/* ── Profile Hero Card ─────────────────────────────────── */}
         {!profileLoading && (
           <section
             style={{
@@ -309,13 +329,11 @@ function ProfileContent() {
               background: "#111820", padding: "20px", boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
             }}
           >
-            {/* Ambient glow */}
             <div style={{ pointerEvents: "none", position: "absolute", top: "-40px", right: "-40px", width: "120px", height: "120px", borderRadius: "9999px", background: "rgba(16,185,129,0.10)", filter: "blur(40px)" }} />
 
-            {/* ── EDIT MODE ────────────────────────────────────────────── */}
+            {/* Edit Mode */}
             {isEditMode && (
               <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                {/* Avatar upload area */}
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
                   <div
                     onClick={() => fileInputRef.current?.click()}
@@ -329,12 +347,7 @@ function ProfileContent() {
                   >
                     {currentAvatarUrl ? (
                       <>
-                        <img
-                          src={currentAvatarUrl}
-                          alt="Avatar preview"
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
-                        />
+                        <img src={currentAvatarUrl} alt="Avatar preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                         <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <span className="material-symbols-outlined" style={{ fontSize: "24px", color: "#fff" }}>photo_camera</span>
                         </div>
@@ -349,115 +362,65 @@ function ProfileContent() {
                   <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "11px", color: "#4a6380", textAlign: "center" }}>
                     JPG, PNG, WebP or GIF · Max 5 MB
                   </p>
-                  {avatarPreview && (
-                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "9px", color: "#4edea3", background: "rgba(16,185,129,0.12)", padding: "3px 8px", borderRadius: "6px", border: "1px solid rgba(78,222,163,0.2)" }}>
-                      ✓ NEW PHOTO READY
-                    </span>
-                  )}
                 </div>
 
-                {/* Username field */}
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   <label style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "9.5px", color: "#4a6380", letterSpacing: "0.08em" }}>
                     USERNAME
                   </label>
-                  <div style={{ position: "relative" }}>
-                    <input
-                      type="text"
-                      value={editUsername}
-                      onChange={(e) => setEditUsername(e.target.value)}
-                      maxLength={30}
-                      placeholder="e.g. arjun_explorer"
-                      style={{
-                        width: "100%", padding: "10px 40px 10px 12px",
-                        borderRadius: "10px", border: "1px solid rgba(78,222,163,0.35)",
-                        background: "#0c2132", color: "#f0f4f8",
-                        fontFamily: "'Inter', sans-serif", fontSize: "14px",
-                        outline: "none", boxSizing: "border-box",
-                      }}
-                    />
-                    <span style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", fontFamily: "'JetBrains Mono', monospace", fontSize: "9px", color: editUsername.length > 25 ? "#f59e0b" : "#4a6380" }}>
-                      {editUsername.length}/30
-                    </span>
-                  </div>
+                  <input
+                    type="text"
+                    value={editUsername}
+                    onChange={(e) => setEditUsername(e.target.value)}
+                    maxLength={30}
+                    placeholder="e.g. arjun_explorer"
+                    style={{
+                      width: "100%", padding: "10px 12px",
+                      borderRadius: "10px", border: "1px solid rgba(78,222,163,0.35)",
+                      background: "#0c2132", color: "#f0f4f8",
+                      fontFamily: "'Inter', sans-serif", fontSize: "14px", outline: "none",
+                    }}
+                  />
                 </div>
 
-                {/* Bio field */}
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   <label style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "9.5px", color: "#4a6380", letterSpacing: "0.08em" }}>
                     BIO
                   </label>
-                  <div style={{ position: "relative" }}>
-                    <textarea
-                      value={editBio}
-                      onChange={(e) => setEditBio(e.target.value)}
-                      maxLength={160}
-                      rows={3}
-                      placeholder="A short bio about your explorations…"
-                      style={{
-                        width: "100%", padding: "10px 12px",
-                        borderRadius: "10px", border: "1px solid rgba(78,222,163,0.35)",
-                        background: "#0c2132", color: "#f0f4f8",
-                        fontFamily: "'Inter', sans-serif", fontSize: "14px",
-                        outline: "none", resize: "none", boxSizing: "border-box",
-                        lineHeight: "1.5",
-                      }}
-                    />
-                    <span style={{ position: "absolute", right: "10px", bottom: "8px", fontFamily: "'JetBrains Mono', monospace", fontSize: "9px", color: editBio.length > 140 ? "#f59e0b" : "#4a6380" }}>
-                      {editBio.length}/160
-                    </span>
-                  </div>
+                  <textarea
+                    value={editBio}
+                    onChange={(e) => setEditBio(e.target.value)}
+                    maxLength={160}
+                    rows={3}
+                    placeholder="A short bio about your explorations…"
+                    style={{
+                      width: "100%", padding: "10px 12px",
+                      borderRadius: "10px", border: "1px solid rgba(78,222,163,0.35)",
+                      background: "#0c2132", color: "#f0f4f8",
+                      fontFamily: "'Inter', sans-serif", fontSize: "14px", outline: "none", resize: "none",
+                    }}
+                  />
                 </div>
 
-                {/* Save / Cancel buttons */}
                 <div style={{ display: "flex", gap: "10px" }}>
-                  <button
-                    type="button"
-                    onClick={handleCancelEdit}
-                    style={{ flex: 1, padding: "11px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "#8fa3b8", fontFamily: "'Inter', sans-serif", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
-                  >
+                  <button type="button" onClick={handleCancelEdit} style={{ flex: 1, padding: "11px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "#8fa3b8", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
                     Cancel
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    style={{
-                      flex: 2, padding: "11px", borderRadius: "12px",
-                      border: "1px solid rgba(78,222,163,0.4)",
-                      background: isSaving ? "rgba(16,185,129,0.08)" : "rgba(16,185,129,0.18)",
-                      color: isSaving ? "#8aa299" : "#4edea3",
-                      fontFamily: "'Inter', sans-serif", fontSize: "13px", fontWeight: 700,
-                      cursor: isSaving ? "not-allowed" : "pointer",
-                      display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
-                      transition: "all 0.2s",
-                    }}
-                  >
-                    {isSaving ? (
-                      <>
-                        <span style={{ width: "14px", height: "14px", borderRadius: "9999px", border: "2px solid #4edea3", borderTopColor: "transparent", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
-                        Saving…
-                      </>
-                    ) : (
-                      <>
-                        <span className="material-symbols-outlined" style={{ fontSize: "16px", fontVariationSettings: "'FILL' 1" }}>save</span>
-                        Save Profile
-                      </>
-                    )}
+                  <button type="button" onClick={handleSave} disabled={isSaving} style={{ flex: 2, padding: "11px", borderRadius: "12px", border: "1px solid rgba(78,222,163,0.4)", background: "rgba(16,185,129,0.18)", color: "#4edea3", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+                    {isSaving ? "Saving…" : "Save Profile"}
                   </button>
                 </div>
               </div>
             )}
 
-            {/* ── VIEW MODE ────────────────────────────────────────────── */}
+            {/* View Mode */}
             {!isEditMode && (
               <>
-                <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "20px" }}>
-                  {/* Avatar */}
+                <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
                   <div style={{ position: "relative", flexShrink: 0 }}>
                     <div
                       style={{
-                        width: "80px", height: "80px", borderRadius: "9999px",
+                        width: "76px", height: "76px", borderRadius: "9999px",
                         border: "2px solid #10b981",
                         boxShadow: "0 0 18px rgba(16,185,129,0.4)",
                         background: "#0c2132", overflow: "hidden",
@@ -465,98 +428,128 @@ function ProfileContent() {
                       }}
                     >
                       {currentAvatarUrl ? (
-                        <img
-                          src={currentAvatarUrl}
-                          alt={displayName}
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                          onError={(e) => {
-                            const el = e.target as HTMLImageElement
-                            el.style.display = "none"
-                            el.nextElementSibling?.removeAttribute("style")
-                          }}
-                        />
-                      ) : null}
-                      <span
-                        style={{
-                          fontFamily: "'Space Grotesk', sans-serif", fontSize: "24px", fontWeight: 700,
-                          color: "#4edea3", letterSpacing: "-0.02em",
-                          display: currentAvatarUrl ? "none" : "block",
-                        }}
-                      >
-                        {initials}
-                      </span>
+                        <img src={currentAvatarUrl} alt={displayName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "24px", fontWeight: 700, color: "#4edea3" }}>
+                          {initials}
+                        </span>
+                      )}
                     </div>
-                    {/* Verified badge */}
-                    <div style={{ position: "absolute", bottom: "2px", right: "2px", width: "22px", height: "22px", borderRadius: "9999px", background: "#4edea3", border: "2px solid #0a0e13", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ position: "absolute", bottom: "2px", right: "2px", width: "20px", height: "20px", borderRadius: "9999px", background: "#4edea3", border: "2px solid #0a0e13", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <span className="material-symbols-outlined" style={{ fontSize: "12px", color: "#003824", fontVariationSettings: "'FILL' 1" }}>verified</span>
                     </div>
                   </div>
 
-                  {/* Name + badge */}
                   <div>
-                    <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "20px", fontWeight: 700, color: "#f0f4f8", letterSpacing: "-0.02em", marginBottom: "4px" }}>
+                    <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "20px", fontWeight: 700, color: "#f0f4f8", letterSpacing: "-0.02em", marginBottom: "2px" }}>
                       {displayName}
                     </h1>
-                    <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#8fa3b8", marginBottom: "8px" }}>{email}</p>
-                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "9.5px", fontWeight: 700, color: "#4edea3", background: "rgba(16,185,129,0.12)", padding: "3px 8px", borderRadius: "6px", border: "1px solid rgba(78,222,163,0.2)" }}>
+                    <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#8fa3b8", marginBottom: "6px" }}>{email}</p>
+                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "9px", fontWeight: 700, color: "#4edea3", background: "rgba(16,185,129,0.12)", padding: "3px 8px", borderRadius: "6px", border: "1px solid rgba(78,222,163,0.2)" }}>
                       VERIFIED EXPLORER
                     </span>
                   </div>
                 </div>
 
-                {/* Bio */}
                 {profile?.bio && (
-                  <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", color: "#8fa3b8", lineHeight: 1.6, marginBottom: "16px", borderLeft: "2px solid rgba(78,222,163,0.3)", paddingLeft: "12px" }}>
+                  <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", color: "#8fa3b8", lineHeight: 1.5, marginBottom: "16px", borderLeft: "2px solid rgba(78,222,163,0.3)", paddingLeft: "10px" }}>
                     {profile.bio}
                   </p>
                 )}
-                {!profile?.bio && (
+
+                {/* Stats Grid */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "14px" }}>
+                  <div style={{ background: "#0c2132", borderRadius: "12px", padding: "10px", textAlign: "center" }}>
+                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "8.5px", color: "#4a6380" }}>ACTIVE PASSES</span>
+                    <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "18px", fontWeight: 700, color: "#4edea3", marginTop: "2px" }}>{String(activePasses.length).padStart(2, "0")}</p>
+                  </div>
+                  <div style={{ background: "#0c2132", borderRadius: "12px", padding: "10px", textAlign: "center" }}>
+                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "8.5px", color: "#4a6380" }}>PLACES VISITED</span>
+                    <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "18px", fontWeight: 700, color: "#ffb95f", marginTop: "2px" }}>{String(visitedPasses.length).padStart(2, "0")}</p>
+                  </div>
+                  <div style={{ background: "#0c2132", borderRadius: "12px", padding: "10px", textAlign: "center" }}>
+                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "8.5px", color: "#4a6380" }}>CIVIC REPORTS</span>
+                    <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "18px", fontWeight: 700, color: "#60a5fa", marginTop: "2px" }}>{String(reportCount).padStart(2, "0")}</p>
+                  </div>
+                </div>
+
+                {/* Quick Action Row: Digital Pass & Reports Button */}
+                <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
                   <button
                     type="button"
-                    onClick={() => setIsEditMode(true)}
-                    style={{ fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#4a6380", border: "1px dashed rgba(255,255,255,0.08)", borderRadius: "8px", padding: "8px 12px", background: "transparent", cursor: "pointer", marginBottom: "16px", width: "100%", textAlign: "left" }}
+                    onClick={() => router.push("/mobile/book")}
+                    style={{
+                      flex: 1, padding: "10px", borderRadius: "12px",
+                      background: "rgba(16,185,129,0.15)", border: "1px solid rgba(78,222,163,0.3)",
+                      color: "#4edea3", fontFamily: "'Inter', sans-serif", fontSize: "12px", fontWeight: 700,
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", cursor: "pointer",
+                    }}
                   >
-                    + Add a short bio about your explorations…
+                    <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>confirmation_number</span>
+                    Digital Pass
                   </button>
-                )}
 
-                {/* Stats */}
-                <div style={{ display: "flex", gap: "24px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "16px" }}>
-                  {[
-                    { label: "ACTIVE PASSES", value: String(activePasses.length).padStart(2, "0") },
-                    { label: "PLACES VISITED", value: String(visitedPasses.length).padStart(2, "0") },
-                    { label: "CIVIC REPORTS", value: "00" },
-                  ].map(({ label, value }) => (
-                    <div key={label} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "9px", color: "#4a6380", letterSpacing: "0.06em" }}>{label}</span>
-                      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "18px", fontWeight: 700, color: "#4edea3" }}>{value}</span>
-                    </div>
-                  ))}
+                  <button
+                    type="button"
+                    onClick={() => router.push("/mobile/reports")}
+                    style={{
+                      flex: 1, padding: "10px", borderRadius: "12px",
+                      background: "rgba(59,130,246,0.15)", border: "1px solid rgba(96,165,250,0.3)",
+                      color: "#60a5fa", fontFamily: "'Inter', sans-serif", fontSize: "12px", fontWeight: 700,
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", cursor: "pointer",
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>analytics</span>
+                    Reports ({reportCount})
+                  </button>
                 </div>
               </>
             )}
           </section>
         )}
 
+        {/* ── Explorer Badges / Achievements Section ────────────────── */}
+        {!isEditMode && (
+          <section style={{ marginTop: "24px" }}>
+            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "9.5px", fontWeight: 700, color: "#4a6380", letterSpacing: "0.08em", marginBottom: "10px" }}>
+              EXPLORER BADGES & HONORS
+            </p>
+            <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "4px" }}>
+              {EXPLORER_BADGES.map((b) => (
+                <div
+                  key={b.id}
+                  style={{
+                    background: "#111820", border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: "14px", padding: "12px", width: "135px", flexShrink: 0,
+                    display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
+                  }}
+                >
+                  <div style={{ width: "36px", height: "36px", borderRadius: "9999px", background: "rgba(78,222,163,0.15)", border: "1px solid rgba(78,222,163,0.3)", display: "flex", alignItems: "center", justifyContent: "center", color: "#4edea3", marginBottom: "6px" }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>{b.icon}</span>
+                  </div>
+                  <h4 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "12px", fontWeight: 700, color: "#f0f4f8" }}>{b.title}</h4>
+                  <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "9.5px", color: "#8fa3b8", marginTop: "2px" }}>{b.desc}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* ── Trip Tabs ────────────────────────────────────────────────── */}
         {!isEditMode && (
-          <section style={{ marginTop: "28px" }}>
-            {/* Tab headers */}
-            <div style={{ display: "flex", gap: "24px", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: "16px" }}>
+          <section style={{ marginTop: "24px" }}>
+            <div style={{ display: "flex", gap: "24px", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: "14px" }}>
               {(["upcoming", "past"] as const).map((tab) => (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => setActiveTab(tab)}
                   style={{
-                    paddingBottom: "10px",
-                    fontFamily: "'Space Grotesk', sans-serif",
+                    paddingBottom: "8px", fontFamily: "'Space Grotesk', sans-serif",
                     fontSize: "14px", fontWeight: 700,
                     color: activeTab === tab ? "#4edea3" : "#4a6380",
                     borderBottom: activeTab === tab ? "2px solid #4edea3" : "2px solid transparent",
-                    background: "transparent", border: "none",
-                    cursor: "pointer", transition: "all 0.2s",
-                    marginBottom: "-1px",
+                    background: "transparent", border: "none", cursor: "pointer",
                   }}
                 >
                   {tab === "upcoming" ? "Upcoming Trips" : "Past Expeditions"}
@@ -564,126 +557,212 @@ function ProfileContent() {
               ))}
             </div>
 
-            {/* Upcoming */}
             {activeTab === "upcoming" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 {activePasses.length > 0 ? (
                   activePasses.map((pass) => (
-                    <div
-                      key={pass.id}
-                      style={{
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
-                        borderRadius: "14px", border: "1px solid rgba(255,255,255,0.08)",
-                        background: "#111820", padding: "14px 16px",
-                        transition: "background 0.2s",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
-                        <div style={{ position: "relative", width: "10px", height: "10px", flexShrink: 0 }}>
-                          <div style={{ position: "absolute", inset: 0, borderRadius: "9999px", background: "#10b981", animation: "ping 1.5s ease infinite", opacity: 0.6 }} />
-                          <div style={{ position: "absolute", inset: 0, borderRadius: "9999px", background: "#10b981" }} />
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", fontWeight: 600, color: "#f0f4f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "180px" }}>
-                            {pass.location_name}
-                          </h3>
-                          <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "10px", color: "#4a6380", marginTop: "2px" }}>
-                            {pass.booked_at} • {pass.slot_time}
-                          </p>
-                        </div>
+                    <div key={pass.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderRadius: "14px", border: "1px solid rgba(255,255,255,0.08)", background: "#111820", padding: "12px 14px" }}>
+                      <div>
+                        <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", fontWeight: 600, color: "#f0f4f8" }}>{pass.location_name}</h3>
+                        <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "10px", color: "#4a6380", marginTop: "2px" }}>{pass.booked_at} • {pass.slot_time}</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => router.push("/mobile/book")}
-                        style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: "4px", padding: "6px 10px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)", color: "#bbcabf", fontFamily: "'JetBrains Mono', monospace", fontSize: "9px", cursor: "pointer", fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.2s" }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: "13px" }}>confirmation_number</span>
+                      <button type="button" onClick={() => router.push("/mobile/book")} style={{ padding: "6px 10px", borderRadius: "8px", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(78,222,163,0.3)", color: "#4edea3", fontSize: "10px", fontWeight: 700, cursor: "pointer" }}>
                         VIEW PASS
                       </button>
                     </div>
                   ))
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 20px", borderRadius: "14px", border: "1px dashed rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.02)", textAlign: "center" }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: "36px", color: "#4a6380", marginBottom: "10px" }}>confirmation_number</span>
-                    <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", fontWeight: 600, color: "#f0f4f8", marginBottom: "6px" }}>No Upcoming Trips</p>
-                    <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#8aa299", maxWidth: "240px", lineHeight: 1.5 }}>
-                      Book entry passes from the Explorer Map to see them here.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => router.push("/mobile")}
-                      style={{ marginTop: "16px", padding: "9px 20px", borderRadius: "10px", background: "rgba(16,185,129,0.18)", border: "1px solid rgba(78,222,163,0.3)", color: "#4edea3", fontFamily: "'Inter', sans-serif", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
-                    >
-                      Explore Map
-                    </button>
+                  <div style={{ padding: "30px 16px", borderRadius: "14px", border: "1px dashed rgba(255,255,255,0.1)", textAlign: "center" }}>
+                    <p style={{ fontSize: "13px", fontWeight: 600, color: "#f0f4f8" }}>No Upcoming Trips</p>
+                    <p style={{ fontSize: "11px", color: "#8fa3b8", marginTop: "4px" }}>Book entry passes from the map to see them here.</p>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Past expeditions */}
             {activeTab === "past" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px", opacity: 0.85 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 {visitedPasses.length > 0 ? (
                   visitedPasses.map((pass) => (
-                    <div
-                      key={pass.id}
-                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderRadius: "14px", border: "1px solid rgba(255,255,255,0.06)", background: "#111820", padding: "14px 16px", filter: "grayscale(50%)" }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: "18px", color: "#4a6380", flexShrink: 0 }}>history</span>
-                        <div style={{ minWidth: 0 }}>
-                          <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", fontWeight: 600, color: "#f0f4f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "200px" }}>
-                            {pass.location_name}
-                          </h3>
-                          <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "10px", color: "#4a6380", marginTop: "2px" }}>
-                            {pass.booked_at} • COMPLETED
-                          </p>
-                        </div>
+                    <div key={pass.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderRadius: "14px", border: "1px solid rgba(255,255,255,0.06)", background: "#111820", padding: "12px 14px" }}>
+                      <div>
+                        <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", fontWeight: 600, color: "#f0f4f8" }}>{pass.location_name}</h3>
+                        <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "10px", color: "#4a6380", marginTop: "2px" }}>{pass.booked_at} • COMPLETED</p>
                       </div>
-                      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "9.5px", color: "#4a6380", letterSpacing: "0.04em", flexShrink: 0 }}>ARCHIVED</span>
+                      <button type="button" onClick={() => router.push(`/mobile/create-post?location_id=${pass.location_id}`)} style={{ padding: "5px 10px", borderRadius: "8px", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(78,222,163,0.3)", color: "#4edea3", fontSize: "10px", fontWeight: 700, cursor: "pointer" }}>
+                        Review Spot
+                      </button>
                     </div>
                   ))
                 ) : (
-                  <div style={{ padding: "40px 0", textAlign: "center", color: "#4a6380", fontFamily: "'Inter', sans-serif", fontSize: "12px" }}>
-                    No past expeditions logged yet.
-                  </div>
+                  <div style={{ padding: "24px 0", textAlign: "center", color: "#4a6380", fontSize: "12px" }}>No past expeditions logged yet.</div>
                 )}
               </div>
             )}
           </section>
         )}
 
-        {/* ── System Preferences ─────────────────────────────────────── */}
+        {/* ── System Preferences Panel ─────────────────────────────── */}
         {!isEditMode && (
-          <section style={{ marginTop: "32px" }}>
-            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "9.5px", fontWeight: 700, color: "#4a6380", letterSpacing: "0.08em", marginBottom: "12px", paddingLeft: "4px" }}>
+          <section style={{ marginTop: "28px" }}>
+            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "9.5px", fontWeight: 700, color: "#4a6380", letterSpacing: "0.08em", marginBottom: "10px", paddingLeft: "2px" }}>
               SYSTEM PREFERENCES
             </p>
             <div style={{ borderRadius: "16px", border: "1px solid rgba(255,255,255,0.08)", background: "#111820", overflow: "hidden" }}>
-              {PREF_ITEMS.map((item, i) => (
+
+              {/* 1. Theme */}
+              <div style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                 <button
-                  key={item.label}
                   type="button"
-                  style={{
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    width: "100%", padding: "16px", textAlign: "left",
-                    background: "transparent", border: "none",
-                    borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
-                    cursor: "pointer", transition: "background 0.15s",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  onClick={() => setActivePrefSection(activePrefSection === "theme" ? null : "theme")}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "14px 16px", background: "transparent", border: "none", cursor: "pointer", color: "#f0f4f8" }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: "20px", color: "#4a6380" }}>{item.icon}</span>
-                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: "14px", color: "#f0f4f8" }}>{item.label}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: "20px", color: "#4edea3" }}>palette</span>
+                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: "13.5px", fontWeight: 500 }}>App Theme</span>
                   </div>
-                  <span className="material-symbols-outlined" style={{ fontSize: "18px", color: "#4a6380" }}>
-                    {item.external ? "open_in_new" : "chevron_right"}
+                  <span style={{ fontSize: "11px", color: "#4a6380", textTransform: "capitalize" }}>
+                    {preferences.theme} <span className="material-symbols-outlined" style={{ fontSize: "16px", verticalAlign: "middle" }}>expand_more</span>
                   </span>
                 </button>
-              ))}
+
+                {activePrefSection === "theme" && (
+                  <div style={{ padding: "8px 16px 14px", background: "#0c2132", display: "flex", gap: "8px" }}>
+                    {(["dark", "system"] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => updatePreferences({ theme: t })}
+                        style={{
+                          flex: 1, padding: "8px", borderRadius: "8px",
+                          border: preferences.theme === t ? "1px solid #4edea3" : "1px solid rgba(255,255,255,0.1)",
+                          background: preferences.theme === t ? "rgba(16,185,129,0.2)" : "transparent",
+                          color: preferences.theme === t ? "#4edea3" : "#bbcabf",
+                          fontSize: "12px", fontWeight: 600, cursor: "pointer", textTransform: "capitalize",
+                        }}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Notifications */}
+              <div style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                <button
+                  type="button"
+                  onClick={() => updatePreferences({ notifications: !preferences.notifications })}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "14px 16px", background: "transparent", border: "none", cursor: "pointer", color: "#f0f4f8" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: "20px", color: "#ffb95f" }}>notifications</span>
+                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: "13.5px", fontWeight: 500 }}>Hazard & Safety Alerts</span>
+                  </div>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: preferences.notifications ? "#4edea3" : "#f87171" }}>
+                    {preferences.notifications ? "ON" : "OFF"}
+                  </span>
+                </button>
+              </div>
+
+              {/* 3. Language */}
+              <div style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                <button
+                  type="button"
+                  onClick={() => setActivePrefSection(activePrefSection === "lang" ? null : "lang")}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "14px 16px", background: "transparent", border: "none", cursor: "pointer", color: "#f0f4f8" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: "20px", color: "#60a5fa" }}>translate</span>
+                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: "13.5px", fontWeight: 500 }}>Language</span>
+                  </div>
+                  <span style={{ fontSize: "11px", color: "#4a6380" }}>
+                    {preferences.language === "en" ? "English" : preferences.language === "ml" ? "Malayalam" : "Hindi"}{" "}
+                    <span className="material-symbols-outlined" style={{ fontSize: "16px", verticalAlign: "middle" }}>expand_more</span>
+                  </span>
+                </button>
+
+                {activePrefSection === "lang" && (
+                  <div style={{ padding: "8px 16px 14px", background: "#0c2132", display: "flex", gap: "8px" }}>
+                    {[
+                      { code: "en", label: "English" },
+                      { code: "ml", label: "മലയാളം" },
+                      { code: "hi", label: "हिंदी" },
+                    ].map((l) => (
+                      <button
+                        key={l.code}
+                        type="button"
+                        onClick={() => updatePreferences({ language: l.code as any })}
+                        style={{
+                          flex: 1, padding: "8px", borderRadius: "8px",
+                          border: preferences.language === l.code ? "1px solid #4edea3" : "1px solid rgba(255,255,255,0.1)",
+                          background: preferences.language === l.code ? "rgba(16,185,129,0.2)" : "transparent",
+                          color: preferences.language === l.code ? "#4edea3" : "#bbcabf",
+                          fontSize: "12px", fontWeight: 600, cursor: "pointer",
+                        }}
+                      >
+                        {l.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 4. Map Style */}
+              <div style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                <button
+                  type="button"
+                  onClick={() => setActivePrefSection(activePrefSection === "map" ? null : "map")}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "14px 16px", background: "transparent", border: "none", cursor: "pointer", color: "#f0f4f8" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: "20px", color: "#c084fc" }}>map</span>
+                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: "13.5px", fontWeight: 500 }}>Map Style</span>
+                  </div>
+                  <span style={{ fontSize: "11px", color: "#4a6380", textTransform: "capitalize" }}>
+                    {preferences.mapStyle} <span className="material-symbols-outlined" style={{ fontSize: "16px", verticalAlign: "middle" }}>expand_more</span>
+                  </span>
+                </button>
+
+                {activePrefSection === "map" && (
+                  <div style={{ padding: "8px 16px 14px", background: "#0c2132", display: "flex", gap: "8px" }}>
+                    {(["standard", "satellite", "terrain"] as const).map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => updatePreferences({ mapStyle: m })}
+                        style={{
+                          flex: 1, padding: "8px", borderRadius: "8px",
+                          border: preferences.mapStyle === m ? "1px solid #4edea3" : "1px solid rgba(255,255,255,0.1)",
+                          background: preferences.mapStyle === m ? "rgba(16,185,129,0.2)" : "transparent",
+                          color: preferences.mapStyle === m ? "#4edea3" : "#bbcabf",
+                          fontSize: "12px", fontWeight: 600, cursor: "pointer", textTransform: "capitalize",
+                        }}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 5. Units */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => updatePreferences({ units: preferences.units === "metric" ? "imperial" : "metric" })}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "14px 16px", background: "transparent", border: "none", cursor: "pointer", color: "#f0f4f8" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: "20px", color: "#4a6380" }}>straighten</span>
+                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: "13.5px", fontWeight: 500 }}>Distance Units</span>
+                  </div>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#4edea3" }}>
+                    {preferences.units === "metric" ? "Kilometers (km)" : "Miles (mi)"}
+                  </span>
+                </button>
+              </div>
+
             </div>
           </section>
         )}
@@ -703,26 +782,12 @@ function ProfileContent() {
               color: isSigningOut ? "#4a6380" : "#f87171",
               fontFamily: "'Inter', sans-serif", fontSize: "14px", fontWeight: 700,
               cursor: isSigningOut ? "not-allowed" : "pointer",
-              transition: "all 0.2s",
             }}
-            onMouseEnter={(e) => { if (!isSigningOut) e.currentTarget.style.background = "rgba(239,68,68,0.10)" }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
           >
-            {isSigningOut ? (
-              <>
-                <span style={{ width: "16px", height: "16px", borderRadius: "9999px", border: "2px solid #4a6380", borderTopColor: "transparent", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
-                Signing out…
-              </>
-            ) : (
-              <>
-                <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>logout</span>
-                Log Out
-              </>
-            )}
+            {isSigningOut ? "Signing out…" : "Log Out"}
           </button>
         )}
 
-        {/* ── Footer ──────────────────────────────────────────────────── */}
         <div style={{ marginTop: "20px", textAlign: "center" }}>
           <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "10px", color: "#4a6380" }}>
             Terra-Pulse SDI • 10.8505° N, 76.2711° E
@@ -730,16 +795,7 @@ function ProfileContent() {
         </div>
       </main>
 
-      {/* ── Keyframes ───────────────────────────────────────────────── */}
-      <style>{`
-        @keyframes slideDown { from { transform: translateY(-12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        input::placeholder, textarea::placeholder { color: #4a6380; }
-        input:focus, textarea:focus { outline: none; box-shadow: 0 0 0 2px rgba(78,222,163,0.25); }
-        ::-webkit-scrollbar { display: none; }
-      `}</style>
+      <FlatBottomNav active="profile" />
     </div>
   )
 }

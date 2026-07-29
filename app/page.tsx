@@ -1,5 +1,5 @@
-import MobileMapPage from "@/app/mobile/page"
+import { redirect } from "next/navigation"
 
 export default function Page() {
-  return <MobileMapPage />
+  redirect("/login")
 }

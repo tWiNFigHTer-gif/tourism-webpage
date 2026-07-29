@@ -30,6 +30,72 @@ export interface SafetyCheckResult {
   warningLevel: "none" | "caution" | "critical";
 }
 
+/**
+ * Safely parses and normalizes any GeoJSON object or Supabase row into a valid
+ * GeoJSON Feature<Polygon | MultiPolygon>. Returns null if invalid or unsupported geometry.
+ */
+export function normalizeDangerZoneFeature(
+  raw: any
+): GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null {
+  if (!raw) return null;
+  try {
+    let obj = typeof raw === "string" ? JSON.parse(raw) : raw;
+
+    let properties = { ...(obj.properties || {}) };
+    let geom = obj;
+
+    // Handle stringified inner geojson field (e.g. Supabase danger_zones table row)
+    if (obj.geojson) {
+      const inner = typeof obj.geojson === "string" ? JSON.parse(obj.geojson) : obj.geojson;
+      properties = { id: obj.id, name: obj.name, severity: obj.severity || "high", ...properties };
+      geom = inner;
+    }
+
+    if (geom && geom.type === "Feature") {
+      properties = { ...geom.properties, ...properties };
+      geom = geom.geometry;
+    } else if (geom && geom.type === "FeatureCollection" && Array.isArray(geom.features) && geom.features.length > 0) {
+      const f = geom.features[0];
+      properties = { ...f.properties, ...properties };
+      geom = f.geometry;
+    }
+
+    // Handle double stringified geometry
+    if (typeof geom === "string") {
+      try {
+        geom = JSON.parse(geom);
+      } catch {}
+    }
+
+    if (geom && geom.type === "Feature") {
+      properties = { ...geom.properties, ...properties };
+      geom = geom.geometry;
+    }
+
+    if (!geom || !geom.type || !Array.isArray(geom.coordinates)) {
+      return null;
+    }
+
+    if (geom.type !== "Polygon" && geom.type !== "MultiPolygon") {
+      return null;
+    }
+
+    return {
+      type: "Feature",
+      properties: {
+        id: raw.id || properties.id || "zone",
+        name: raw.name || properties.name || "Danger Zone",
+        severity: raw.severity || properties.severity || "high",
+        ...properties,
+      },
+      geometry: geom,
+    };
+  } catch (err) {
+    console.warn("Failed to normalize danger zone geometry:", err);
+    return null;
+  }
+}
+
 // --------------------------------------------------------------------------
 // 1. generateRoute
 // --------------------------------------------------------------------------
@@ -94,30 +160,61 @@ export async function generateRoute(
  *                    the route intersects any restricted areas.
  */
 export function checkRouteSafety(
-  route: GeoJSON.LineString,
-  dangerZones: GeoJSON.Feature<GeoJSON.Polygon>[]
+  route: GeoJSON.LineString | GeoJSON.Feature<GeoJSON.LineString> | any,
+  dangerZones: (GeoJSON.Feature<GeoJSON.Polygon> | any)[]
 ): SafetyCheckResult {
-  const routeLine = turf.lineString(route.coordinates as [number, number][]);
+  if (!route || !dangerZones || !Array.isArray(dangerZones) || dangerZones.length === 0) {
+    return { isSafe: true, intersectedZones: [], warningLevel: "none" };
+  }
+
+  let routeLine: GeoJSON.Feature<GeoJSON.LineString>;
+  try {
+    let coords: [number, number][] | null = null;
+    if (Array.isArray(route.coordinates)) {
+      coords = route.coordinates;
+    } else if (route.geometry && Array.isArray(route.geometry.coordinates)) {
+      coords = route.geometry.coordinates;
+    } else if (typeof route === "string") {
+      const parsed = JSON.parse(route);
+      coords = parsed.coordinates || parsed.geometry?.coordinates;
+    }
+
+    if (!coords || !Array.isArray(coords) || coords.length < 2) {
+      return { isSafe: true, intersectedZones: [], warningLevel: "none" };
+    }
+
+    routeLine = turf.lineString(coords);
+  } catch (err) {
+    console.warn("Invalid route passed to checkRouteSafety:", err);
+    return { isSafe: true, intersectedZones: [], warningLevel: "none" };
+  }
 
   const intersectedZones: string[] = [];
   let hasHighSeverity = false;
 
-  for (const zone of dangerZones) {
-    const intersects = turf.booleanIntersects(routeLine, zone);
-    if (intersects) {
-      // Collect the zone name (fall back to id if no name property).
-      const zoneName: string =
-        (zone.properties?.name as string | undefined) ??
-        (zone.properties?.id as string | undefined) ??
-        "Unknown Zone";
+  for (const rawZone of dangerZones) {
+    try {
+      const zoneFeature = normalizeDangerZoneFeature(rawZone);
+      if (!zoneFeature) continue;
 
-      intersectedZones.push(zoneName);
+      const intersects = turf.booleanIntersects(routeLine, zoneFeature);
+      if (intersects) {
+        const zoneName: string =
+          (zoneFeature.properties?.name as string | undefined) ??
+          (zoneFeature.properties?.id as string | undefined) ??
+          "Unknown Zone";
 
-      // Check severity for warning level escalation.
-      const severity = zone.properties?.severity as string | undefined;
-      if (severity === "high" || severity === "critical") {
-        hasHighSeverity = true;
+        if (!intersectedZones.includes(zoneName)) {
+          intersectedZones.push(zoneName);
+        }
+
+        const severity = zoneFeature.properties?.severity as string | undefined;
+        if (severity === "high" || severity === "critical") {
+          hasHighSeverity = true;
+        }
       }
+    } catch (err) {
+      console.warn("Skipping danger zone during intersection check:", err);
     }
   }
 
@@ -143,9 +240,14 @@ export function checkRouteSafety(
  */
 export function getDistanceToZone(
   point: [number, number],
-  zone: GeoJSON.Feature<GeoJSON.Polygon>
+  zone: GeoJSON.Feature<GeoJSON.Polygon> | any
 ): number {
-  const centroid = turf.centroid(zone);
-  // turf.distance accepts GeoJSON Points or [lng, lat] tuples directly.
-  return turf.distance(turf.point(point), centroid, { units: "kilometers" });
+  try {
+    const feature = normalizeDangerZoneFeature(zone);
+    if (!feature) return 999;
+    const centroid = turf.centroid(feature);
+    return turf.distance(turf.point(point), centroid, { units: "kilometers" });
+  } catch {
+    return 999;
+  }
 }

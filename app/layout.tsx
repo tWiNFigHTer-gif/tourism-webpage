@@ -25,10 +25,10 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Terra-Pulse — Ecotourism Map',
+  title: 'STOP! — Spatial Ecotourism & Panchayat Admin Portal',
   description:
-    'Explore waterfalls, dams, eco-centres and trails with live zone safety and crowd data. A spatial DPI platform for Kerala\'s underrated ecotourism zones.',
-  keywords: ['ecotourism', 'Kerala', 'hidden gems', 'nature explorer', 'terra-pulse'],
+    'Explore waterfalls, dams, eco-centres and trails with live carrying capacity, spatial red zone safety alerts, and civic hazard triage. A spatial DPI platform for Kerala\'s underrated ecotourism zones.',
+  keywords: ['STOP!', 'ecotourism', 'Kerala', 'hidden gems', 'nature explorer', 'panchayat admin'],
   generator: 'next.js',
   icons: {
     icon: [
@@ -55,6 +55,14 @@ export default function RootLayout({
       lang="en"
       className={`dark ${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
     >
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=Inter:wght@100..900&family=JetBrains+Mono:wght@100..800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"
+          rel="stylesheet"
+        />
+      </head>
       <body className="antialiased font-sans bg-bg-deep text-text-primary">
         <AuthProvider>{children}</AuthProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}

@@ -537,7 +537,7 @@ export const MapCanvas = forwardRef<MapCanvasRef>(function MapCanvas(_, ref) {
   const [isCheckingRoute,  setIsCheckingRoute]  = useState(false);
   const [safetyResult,     setSafetyResult]     = useState<SafetyCheckResult | null>(null);
 
-  useImperativeHandle(ref, () => mapRef.current);
+  useImperativeHandle(ref, () => mapRef.current as any);
 
   const handleBook = useCallback(() => {
     setSelectedLoc(null);

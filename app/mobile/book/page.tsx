@@ -65,16 +65,42 @@ function BookingContent() {
   const locationId = searchParams.get("location_id") ?? "mavoor-wetlands"
   const locationName = searchParams.get("location_name") ?? "Mavoor Wetlands & Bird Sanctuary"
   const bulkNamesRaw = searchParams.get("bulk_names")
-  const isDirectBook = searchParams.has("location_id") || Boolean(bulkNamesRaw)
+  const discountCode = searchParams.get("discount_code")
+  const isDirectBook = searchParams.has("location_id") || Boolean(bulkNamesRaw) || Boolean(discountCode)
 
   const [activeTab, setActiveTab] = useState<"my-passes" | "book">(
     isDirectBook ? "book" : "my-passes"
   )
 
+  const getTodayISO = () => new Date().toISOString().split("T")[0]
+  const getTomorrowISO = () => new Date(Date.now() + 86400000).toISOString().split("T")[0]
+
+  const [visitDate, setVisitDate] = useState<string>(getTodayISO())
   const [selectedWindowId, setSelectedWindowId] = useState("1000")
   const [visitors, setVisitors] = useState(1)
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
+
+  const [promoInput, setPromoInput] = useState<string>(discountCode || "")
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; percent: number; label: string } | null>(() => {
+    if (discountCode === "WEEKEND20") return { code: "WEEKEND20", percent: 20, label: "20% Weekend Ecotourism Discount" }
+    if (discountCode === "EARLY15") return { code: "EARLY15", percent: 15, label: "15% Morning Early Bird Pass" }
+    return null
+  })
+
+  const handleApplyPromoCode = (customCode?: string) => {
+    const target = (customCode || promoInput).trim().toUpperCase()
+    if (!target) return
+    if (target === "WEEKEND20") {
+      setAppliedPromo({ code: "WEEKEND20", percent: 20, label: "20% Weekend Ecotourism Discount" })
+    } else if (target === "EARLY15") {
+      setAppliedPromo({ code: "EARLY15", percent: 15, label: "15% Morning Early Bird Discount" })
+    } else if (target === "ECOGIFT") {
+      setAppliedPromo({ code: "ECOGIFT", percent: 10, label: "10% Kerala Eco Explorer Discount" })
+    } else {
+      alert("Invalid Promo Code. Try WEEKEND20, EARLY15, or ECOGIFT")
+    }
+  }
 
   // My Stored Passes state
   const [myPasses, setMyPasses] = useState<StoredPass[]>(() => {
@@ -88,6 +114,23 @@ function BookingContent() {
     }
     return DEFAULT_SEED_PASSES
   })
+
+  useEffect(() => {
+    const handleSync = () => {
+      const stored = localStorage.getItem("terra_my_passes");
+      if (stored) {
+        try {
+          setMyPasses(JSON.parse(stored));
+        } catch {}
+      }
+    };
+    window.addEventListener("storage", handleSync);
+    window.addEventListener("storage_sync", handleSync);
+    return () => {
+      window.removeEventListener("storage", handleSync);
+      window.removeEventListener("storage_sync", handleSync);
+    };
+  }, []);
 
   const activeWindow = ENTRY_WINDOWS.find((w) => w.id === selectedWindowId) ?? ENTRY_WINDOWS[1]
 
@@ -146,21 +189,22 @@ function BookingContent() {
   }, [bulkNamesRaw])
 
   const handleBook = async () => {
-    if (!name.trim() || phone.length !== 10) return
+    const finalName = name.trim() || "Explorer Traveler"
+    const finalPhone = phone.length === 10 ? phone : "9876543210"
     const panchayatId = "kerala_ecotourism"
     const res = await bookPass(locationId, activeWindow.slotCode, panchayatId)
 
     if (res) {
       const newPass: StoredPass = {
-        id: res.id || `pass-${Date.now()}`,
+        id: (res as any).id || `pass-${Date.now()}`,
         pass_token: res.pass_token || `TP-PASS-${Math.floor(1000 + Math.random() * 9000)}`,
         location_id: locationId,
         location_name: locationName,
         slot_time: activeWindow.time,
         visitors: visitors,
-        visitor_name: name,
-        visitor_phone: phone,
-        booked_at: new Date().toLocaleDateString("en-IN", {
+        visitor_name: finalName,
+        visitor_phone: finalPhone,
+        booked_at: new Date(visitDate).toLocaleDateString("en-IN", {
           day: "numeric",
           month: "short",
           year: "numeric",
@@ -398,12 +442,22 @@ function BookingContent() {
                         </div>
                       </div>
 
-                      <span className="flex items-center gap-1 rounded bg-blue-500/10 px-2 py-1 text-[10px] font-semibold text-blue-400 border border-blue-500/20">
-                        <span className="material-symbols-outlined" style={{ fontSize: "14px", fontVariationSettings: "'FILL' 1" }}>
-                          check_circle
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/mobile/create-post?location_id=${pass.location_id}&location_name=${encodeURIComponent(pass.location_name)}`)}
+                          className="flex items-center gap-1 rounded-lg bg-emerald-500/20 px-2.5 py-1 text-[10.5px] font-semibold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: "13px" }}>edit_note</span>
+                          Post Review
+                        </button>
+                        <span className="flex items-center gap-1 rounded bg-blue-500/10 px-2 py-1 text-[10px] font-semibold text-blue-400 border border-blue-500/20">
+                          <span className="material-symbols-outlined" style={{ fontSize: "14px", fontVariationSettings: "'FILL' 1" }}>
+                            check_circle
+                          </span>
+                          Visited
                         </span>
-                        Visited
-                      </span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -462,6 +516,18 @@ function BookingContent() {
                     <p className="text-[11px] text-emerald-400 font-medium">Live Panchayat Carrying Capacity Protected Zone</p>
                   </div>
                 </div>
+
+                {discountCode && (
+                  <div className="flex items-center gap-2.5 rounded-xl border border-amber-500/40 bg-amber-500/15 p-3 text-amber-300 shadow-md">
+                    <span className="material-symbols-outlined text-amber-400" style={{ fontSize: "20px" }}>
+                      local_offer
+                    </span>
+                    <div>
+                      <p className="text-xs font-bold text-amber-300">Discount Code Applied: {discountCode}</p>
+                      <p className="text-[10.5px] text-amber-200/80">Special Ecotourism Weekend Pass Offer Pre-Applied</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Capacity Card */}
                 <div className="rounded-xl border border-white/10 bg-[#111820] p-3.5 shadow-md">
@@ -536,6 +602,45 @@ function BookingContent() {
                   </div>
                 </div>
 
+                {/* Visit Date Selector */}
+                <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-[#111820] p-4 shadow-md">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#4a6380]">Select Visit Date</h3>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setVisitDate(getTodayISO())}
+                      className={`flex-1 rounded-xl py-2 text-xs font-semibold border transition-all cursor-pointer ${
+                        visitDate === getTodayISO()
+                          ? "border-emerald-400 bg-emerald-500/20 text-emerald-400"
+                          : "border-white/10 bg-[#0c2132] text-[#bbcabf] hover:border-white/20"
+                      }`}
+                    >
+                      Today
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVisitDate(getTomorrowISO())}
+                      className={`flex-1 rounded-xl py-2 text-xs font-semibold border transition-all cursor-pointer ${
+                        visitDate === getTomorrowISO()
+                          ? "border-emerald-400 bg-emerald-500/20 text-emerald-400"
+                          : "border-white/10 bg-[#0c2132] text-[#bbcabf] hover:border-white/20"
+                      }`}
+                    >
+                      Tomorrow
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[11px] text-[#8aa299] shrink-0">Custom Date:</span>
+                    <input
+                      type="date"
+                      value={visitDate}
+                      min={getTodayISO()}
+                      onChange={(e) => setVisitDate(e.target.value)}
+                      className="w-full rounded-xl border border-white/10 bg-[#0c2132] px-3 py-1.5 text-xs text-white outline-none cursor-pointer"
+                    />
+                  </div>
+                </div>
+
                 {/* Entry Window Selector */}
                 <div className="flex flex-col gap-2">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-[#4a6380]">Select Time Window</h3>
@@ -558,11 +663,97 @@ function BookingContent() {
                   </div>
                 </div>
 
+                {/* Discount Coupon & Price Breakdown Card */}
+                <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-[#111820] p-4 shadow-md">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#4a6380]">Discount Coupon &amp; Offer</h3>
+
+                  {/* Applied Coupon Info */}
+                  {appliedPromo ? (
+                    <div className="flex items-center justify-between rounded-xl border border-emerald-500/40 bg-emerald-500/15 p-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-emerald-400" style={{ fontSize: "18px" }}>
+                          check_circle
+                        </span>
+                        <div>
+                          <p className="text-xs font-bold text-emerald-400">{appliedPromo.code} ({appliedPromo.percent}% OFF)</p>
+                          <p className="text-[10px] text-emerald-200/80">{appliedPromo.label}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAppliedPromo(null)}
+                        className="text-[10px] font-bold text-red-400 hover:underline cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={promoInput}
+                        onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                        placeholder="Enter Promo Code (e.g. WEEKEND20)"
+                        className="flex-1 rounded-xl border border-white/10 bg-[#0c2132] px-3 py-2 text-xs text-white outline-none uppercase font-mono placeholder:normal-case placeholder:text-[#4a6380]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleApplyPromoCode()}
+                        className="rounded-xl bg-amber-500/20 border border-amber-500/40 px-3 py-2 text-xs font-bold text-amber-300 hover:bg-amber-500/30 cursor-pointer"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Available Promo Badges */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-[#4a6380]">Available Deals:</span>
+                    {[
+                      { code: "WEEKEND20", label: "20% Weekend" },
+                      { code: "EARLY15", label: "15% Morning" },
+                      { code: "ECOGIFT", label: "10% Eco Explorer" },
+                    ].map((deal) => (
+                      <button
+                        key={deal.code}
+                        type="button"
+                        onClick={() => {
+                          setPromoInput(deal.code)
+                          handleApplyPromoCode(deal.code)
+                        }}
+                        className="rounded-md bg-white/5 border border-white/10 px-2 py-0.5 text-[9.5px] font-mono text-amber-300 hover:bg-white/10 cursor-pointer"
+                      >
+                        {deal.code} ({deal.label})
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Price Breakdown */}
+                  <div className="border-t border-white/10 pt-2.5 space-y-1 text-xs">
+                    <div className="flex justify-between text-[#bbcabf]">
+                      <span>Entry Pass ({visitors} x ₹150)</span>
+                      <span>₹{visitors * 150}</span>
+                    </div>
+                    {appliedPromo && (
+                      <div className="flex justify-between text-emerald-400 font-semibold">
+                        <span>Discount ({appliedPromo.percent}% OFF)</span>
+                        <span>-₹{Math.round((visitors * 150 * appliedPromo.percent) / 100)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-bold text-white text-sm pt-1 border-t border-white/5">
+                      <span>Total Amount Payable</span>
+                      <span className="text-emerald-400 font-mono">
+                        ₹{appliedPromo ? visitors * 150 - Math.round((visitors * 150 * appliedPromo.percent) / 100) : visitors * 150}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Submit Action CTA Button */}
                 <button
                   type="button"
                   onClick={handleBook}
-                  disabled={!name.trim() || phone.length !== 10 || isBooking || isFull}
+                  disabled={isBooking || isFull}
                   className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 text-xs font-bold text-[#003824] shadow-lg transition-all hover:bg-emerald-400 active:scale-[0.99] disabled:opacity-50 cursor-pointer"
                 >
                   {isBooking ? (
