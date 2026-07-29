@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import type { SafetyCheckResult } from "@/lib/turf";
 
 interface RouteSafetyPanelProps {
@@ -42,7 +43,12 @@ const ECO_RULES = [
 // ── Loading state ───────────────────────────────────────────────────────────
 function CheckingState() {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border-subtle bg-bg-surface/90 px-4 py-3 shadow-lg backdrop-blur-md">
+    <motion.div
+      initial={{ y: 20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: 20, opacity: 0 }}
+      className="flex items-center gap-3 rounded-xl border border-border-subtle bg-bg-surface/90 px-4 py-3 shadow-lg backdrop-blur-md"
+    >
       {/* Pulsing dot */}
       <span className="relative flex h-3 w-3 shrink-0">
         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
@@ -54,14 +60,19 @@ function CheckingState() {
       >
         Checking route safety…
       </span>
-    </div>
+    </motion.div>
   );
 }
 
 // ── Safe state ──────────────────────────────────────────────────────────────
 function SafeState({ onAcknowledge }: { onAcknowledge: () => void }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-emerald-dim px-4 py-3 shadow-lg backdrop-blur-md">
+    <motion.div
+      initial={{ y: 20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: 20, opacity: 0 }}
+      className="flex items-center gap-3 rounded-xl border border-primary/30 bg-emerald-dim px-4 py-3 shadow-lg backdrop-blur-md"
+    >
       <span
         className="material-symbols-outlined text-primary"
         style={{ fontSize: "24px", fontVariationSettings: "'FILL' 1" }}
@@ -90,7 +101,7 @@ function SafeState({ onAcknowledge }: { onAcknowledge: () => void }) {
       >
         Navigate
       </button>
-    </div>
+    </motion.div>
   );
 }
 
@@ -107,7 +118,13 @@ function CautionPanel({
   const [checked, setChecked] = useState(false);
 
   return (
-    <div className="w-full rounded-t-2xl border-t border-secondary/30 bg-bg-surface/95 shadow-2xl backdrop-blur-xl">
+    <motion.div
+      initial={{ y: "100%", opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: "100%", opacity: 0 }}
+      transition={{ type: "spring", damping: 25, stiffness: 220 }}
+      className="w-full rounded-t-2xl border-t border-secondary/30 bg-bg-surface/95 shadow-2xl backdrop-blur-xl"
+    >
       {/* Drag handle */}
       <div className="flex justify-center pt-3 pb-1">
         <div className="h-1 w-12 rounded-full bg-border-subtle" />
@@ -210,7 +227,7 @@ function CautionPanel({
           </button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -228,11 +245,20 @@ function CriticalOverlay({
 
   return (
     /* Absolute inside the map container — takes over the visible canvas */
-    <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       className="pointer-events-auto absolute inset-0 z-[9999] flex flex-col items-center justify-center p-6"
       style={{ background: "rgba(10,14,19,0.88)", backdropFilter: "blur(8px)" }}
     >
-      <div className="w-full max-w-sm overflow-hidden rounded-2xl border-2 border-danger/60 bg-bg-surface shadow-[0_0_60px_rgba(239,68,68,0.25)]">
+      <motion.div
+        initial={{ scale: 0.9, y: 15 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, y: 15 }}
+        transition={{ type: "spring", damping: 25, stiffness: 250 }}
+        className="w-full max-w-sm overflow-hidden rounded-2xl border-2 border-danger/60 bg-bg-surface shadow-[0_0_60px_rgba(239,68,68,0.25)]"
+      >
 
         {/* ── Red stripe header ─────────────────────────────────── */}
         <div className="relative overflow-hidden border-b border-danger/30 bg-danger/10 px-panel-padding pb-6 pt-7 text-center">
@@ -358,8 +384,8 @@ function CriticalOverlay({
           </div>
 
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -380,48 +406,42 @@ export function RouteSafetyPanel({
   onAcknowledge,
   onChooseDifferentRoute,
 }: RouteSafetyPanelProps) {
-  // Nothing to show until we have a result or are actively checking.
-  if (!isChecking && safetyResult === null) return null;
-
-  // ── Loading ────────────────────────────────────────────────────────
-  if (isChecking) {
-    return (
-      <div className="absolute bottom-6 left-1/2 z-30 w-80 -translate-x-1/2">
-        <CheckingState />
-      </div>
-    );
-  }
-
-  if (!safetyResult) return null;
-
-  // ── Safe ───────────────────────────────────────────────────────────
-  if (safetyResult.isSafe) {
-    return (
-      <div className="absolute bottom-6 left-1/2 z-30 w-80 -translate-x-1/2">
-        <SafeState onAcknowledge={onAcknowledge} />
-      </div>
-    );
-  }
-
-  // ── Critical overlay ───────────────────────────────────────────────
-  if (safetyResult.warningLevel === "critical") {
-    return (
-      <CriticalOverlay
-        intersectedZones={safetyResult.intersectedZones}
-        onAcknowledge={onAcknowledge}
-        onChooseDifferentRoute={onChooseDifferentRoute}
-      />
-    );
-  }
-
-  // ── Caution (bottom-floating) ──────────────────────────────────────
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-30">
-      <CautionPanel
-        intersectedZones={safetyResult.intersectedZones}
-        onAcknowledge={onAcknowledge}
-        onChooseDifferentRoute={onChooseDifferentRoute}
-      />
-    </div>
+    <AnimatePresence mode="wait">
+      {/* ── Loading ──────────────────────────────────────────────────────── */}
+      {isChecking && (
+        <div key="checking" className="absolute bottom-6 left-1/2 z-30 w-80 -translate-x-1/2">
+          <CheckingState />
+        </div>
+      )}
+
+      {/* ── Safe ─────────────────────────────────────────────────────────── */}
+      {!isChecking && safetyResult && safetyResult.isSafe && (
+        <div key="safe" className="absolute bottom-6 left-1/2 z-30 w-80 -translate-x-1/2">
+          <SafeState onAcknowledge={onAcknowledge} />
+        </div>
+      )}
+
+      {/* ── Critical overlay ─────────────────────────────────────────────── */}
+      {!isChecking && safetyResult && !safetyResult.isSafe && safetyResult.warningLevel === "critical" && (
+        <CriticalOverlay
+          key="critical"
+          intersectedZones={safetyResult.intersectedZones}
+          onAcknowledge={onAcknowledge}
+          onChooseDifferentRoute={onChooseDifferentRoute}
+        />
+      )}
+
+      {/* ── Caution (bottom-floating) ────────────────────────────────────── */}
+      {!isChecking && safetyResult && !safetyResult.isSafe && safetyResult.warningLevel !== "critical" && (
+        <div key="caution" className="absolute bottom-0 left-0 right-0 z-30">
+          <CautionPanel
+            intersectedZones={safetyResult.intersectedZones}
+            onAcknowledge={onAcknowledge}
+            onChooseDifferentRoute={onChooseDifferentRoute}
+          />
+        </div>
+      )}
+    </AnimatePresence>
   );
 }

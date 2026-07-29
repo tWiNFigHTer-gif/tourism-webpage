@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { motion } from "framer-motion"
 import { ProtectedRoute } from "@/components/AuthProvider"
 import { useAuth } from "@/lib/hooks/useAuth"
 import { useProfile } from "@/lib/hooks/useProfile"
@@ -322,7 +323,10 @@ function ProfileContent() {
 
         {/* ── Profile Hero Card ─────────────────────────────────── */}
         {!profileLoading && (
-          <section
+          <motion.section
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 220 }}
             style={{
               marginTop: "20px", position: "relative", overflow: "hidden",
               borderRadius: "20px", border: "1px solid rgba(255,255,255,0.08)",
@@ -505,7 +509,7 @@ function ProfileContent() {
                 </div>
               </>
             )}
-          </section>
+          </motion.section>
         )}
 
         {/* ── Explorer Badges / Achievements Section ────────────────── */}

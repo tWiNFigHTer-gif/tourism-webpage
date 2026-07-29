@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
+import { motion } from "framer-motion"
 import type { ReviewData } from "./mockReviews"
 
 function StarRating({ rating }: { rating: number }) {
@@ -59,7 +60,11 @@ export default function ReviewCard({ review }: ReviewCardProps) {
   const hasMultipleImages = review.images.length > 1
 
   return (
-    <article
+    <motion.article
+      initial={{ opacity: 0, y: 25 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-20px" }}
+      transition={{ type: "spring", damping: 25, stiffness: 220 }}
       style={{
         background: "rgba(0,21,37,1)",
         border: "1px solid rgba(255,255,255,0.05)",
@@ -435,6 +440,6 @@ export default function ReviewCard({ review }: ReviewCardProps) {
           </span>
         </button>
       </div>
-    </article>
+    </motion.article>
   )
 }

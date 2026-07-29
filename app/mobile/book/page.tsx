@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { motion, AnimatePresence } from "framer-motion"
 import { useCapacity } from "@/lib/hooks/useCapacity"
 import { useBookPass } from "@/lib/hooks/useBookPass"
 import { ProtectedRoute } from "@/components/AuthProvider"
@@ -331,18 +332,24 @@ function BookingContent() {
             {myPasses.length > 0 ? (
               <>
                 {/* ── Active Ticket Display Card ── */}
-                {selectedPass && (
-                  <div
-                    style={{
-                      background: "linear-gradient(to bottom, #0d1e2e, #070e14)",
-                      border: selectedPass.status === "ACTIVE" ? "1.5px solid rgba(16,185,129,0.3)" : "1.5px solid rgba(255,255,255,0.08)",
-                      boxShadow: selectedPass.status === "ACTIVE" ? "0 8px 32px rgba(16,185,129,0.08)" : "none",
-                      borderRadius: "20px",
-                      padding: "20px",
-                      position: "relative",
-                      overflow: "hidden",
-                    }}
-                  >
+                <AnimatePresence mode="wait">
+                  {selectedPass && (
+                    <motion.div
+                      key={selectedPass.id}
+                      initial={{ scale: 0.95, opacity: 0, y: 10 }}
+                      animate={{ scale: 1, opacity: 1, y: 0 }}
+                      exit={{ scale: 0.95, opacity: 0, y: -10 }}
+                      transition={{ type: "spring", damping: 25, stiffness: 220 }}
+                      style={{
+                        background: "linear-gradient(to bottom, #0d1e2e, #070e14)",
+                        border: selectedPass.status === "ACTIVE" ? "1.5px solid rgba(16,185,129,0.3)" : "1.5px solid rgba(255,255,255,0.08)",
+                        boxShadow: selectedPass.status === "ACTIVE" ? "0 8px 32px rgba(16,185,129,0.08)" : "none",
+                        borderRadius: "20px",
+                        padding: "20px",
+                        position: "relative",
+                        overflow: "hidden",
+                      }}
+                    >
                     {/* Status and Token header */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -584,8 +591,9 @@ function BookingContent() {
                         Mark Pass as Visited
                       </button>
                     )}
-                  </div>
-                )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {/* ── Active & Upcoming Passes List ── */}
                 {activePasses.length > 0 && (

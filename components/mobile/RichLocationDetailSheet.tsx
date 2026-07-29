@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import type { MapLocation } from "@/components/map/LeafletMobileMap";
 
 interface RichLocationDetailSheetProps {
@@ -111,7 +112,11 @@ export default function RichLocationDetailSheet({
   const [activeTab, setActiveTab] = useState<"overview" | "rt_businesses" | "guides" | "experiences" | "souvenirs" | "tips">("overview");
 
   return (
-    <div
+    <motion.div
+      initial={{ y: "100%", opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: "100%", opacity: 0 }}
+      transition={{ type: "spring", damping: 25, stiffness: 220 }}
       style={{
         position: "fixed",
         bottom: "60px",
@@ -121,7 +126,6 @@ export default function RichLocationDetailSheet({
         zIndex: 45,
         padding: "0 10px",
         paddingBottom: "8px",
-        animation: "slideUp 0.25s ease-out",
         boxSizing: "border-box",
       }}
     >
@@ -613,6 +617,6 @@ export default function RichLocationDetailSheet({
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

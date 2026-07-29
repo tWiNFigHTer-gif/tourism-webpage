@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
+import { AnimatePresence, motion } from "framer-motion"
 import { getLocations, getDangerZones } from "@/lib/db"
 import { useAuth, ProtectedRoute } from "@/lib/hooks/useAuth"
 import { useCapacity } from "@/lib/hooks/useCapacity"
@@ -578,101 +579,115 @@ function MobileMapPage() {
           </button>
 
           {/* Live Search Suggestions Dropdown */}
-          {isSearchFocused && (
-            <div
-              className="absolute left-0 right-0 top-11 z-50 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-[#111820] shadow-2xl backdrop-blur-xl animate-in fade-in duration-200"
-              style={{ maxHeight: "250px", overflowY: "auto" }}
-            >
-              {filteredLocations.length > 0 ? (
-                filteredLocations.map((loc) => (
-                  <button
-                    key={loc.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedLocation(loc)
-                      setIsSearchFocused(false)
-                      setShowAdvancedFilters(false)
-                    }}
-                    className="flex items-center justify-between border-b border-white/5 p-2.5 text-left transition-colors hover:bg-white/5"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <img
-                        src={loc.image}
-                        alt={loc.name}
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = DEFAULT_FALLBACK_IMAGE
-                        }}
-                        className="h-10 w-12 rounded-lg object-cover border border-white/10 shrink-0"
-                      />
-                      <div>
-                        <p className="text-xs font-semibold text-white">{loc.name}</p>
-                        <p className="text-[11px] text-emerald-400 font-medium">{loc.distance}</p>
+          <AnimatePresence>
+            {isSearchFocused && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.15 }}
+                className="absolute left-0 right-0 top-11 z-50 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-[#111820] shadow-2xl backdrop-blur-xl"
+                style={{ maxHeight: "250px", overflowY: "auto" }}
+              >
+                {filteredLocations.length > 0 ? (
+                  filteredLocations.map((loc) => (
+                    <button
+                      key={loc.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedLocation(loc)
+                        setIsSearchFocused(false)
+                        setShowAdvancedFilters(false)
+                      }}
+                      className="flex items-center justify-between border-b border-white/5 p-2.5 text-left transition-colors hover:bg-white/5"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <img
+                          src={loc.image}
+                          alt={loc.name}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = DEFAULT_FALLBACK_IMAGE
+                          }}
+                          className="h-10 w-12 rounded-lg object-cover border border-white/10 shrink-0"
+                        />
+                        <div>
+                          <p className="text-xs font-semibold text-white">{loc.name}</p>
+                          <p className="text-[11px] text-emerald-400 font-medium">{loc.distance}</p>
+                        </div>
                       </div>
-                    </div>
-                    <span className="text-[11px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
-                      Select
-                    </span>
-                  </button>
-                ))
-              ) : (
-                <div className="p-4 text-center text-xs text-[#4a6380]">
-                  No spots found matching "{searchValue}". Try Kozhikode, Wayanad, or Munnar.
-                </div>
-              )}
-            </div>
-          )}
+                      <span className="text-[11px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
+                        Select
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-xs text-[#4a6380]">
+                    No spots found matching "{searchValue}". Try Kozhikode, Wayanad, or Munnar.
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* 🌦️ Traveler Climate & Trip Days Duration Filter Row */}
-        {(isSearchFocused || showAdvancedFilters || selectedClimate !== "all" || selectedDuration !== "all") && (
-          <div className="mt-2 flex flex-col gap-2 rounded-xl border border-white/10 bg-[#0c2132]/90 p-2.5 backdrop-blur-md animate-in slide-in-from-top-2 duration-200">
-            {/* Climate Filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[#4a6380] shrink-0 w-16">
-                Climate:
-              </span>
-              <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
-                {CLIMATE_OPTIONS.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setSelectedClimate(c.id)}
-                    className={`whitespace-nowrap rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${
-                      selectedClimate === c.id
-                        ? "bg-emerald-500 text-[#003824] shadow-sm font-semibold"
-                        : "bg-white/5 text-[#bbcabf] hover:bg-white/10"
-                    }`}
-                  >
-                    {c.label}
-                  </button>
-                ))}
+        <AnimatePresence>
+          {(isSearchFocused || showAdvancedFilters || selectedClimate !== "all" || selectedDuration !== "all") && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 220 }}
+              className="mt-2 flex flex-col gap-2 overflow-hidden rounded-xl border border-white/10 bg-[#0c2132]/90 p-2.5 backdrop-blur-md"
+            >
+              {/* Climate Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-[#4a6380] shrink-0 w-16">
+                  Climate:
+                </span>
+                <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+                  {CLIMATE_OPTIONS.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setSelectedClimate(c.id)}
+                      className={`whitespace-nowrap rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${
+                        selectedClimate === c.id
+                          ? "bg-emerald-500 text-[#003824] shadow-sm font-semibold"
+                          : "bg-white/5 text-[#bbcabf] hover:bg-white/10"
+                      }`}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Trip Days Duration Filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[#4a6380] shrink-0 w-16">
-                Days Plan:
-              </span>
-              <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
-                {DURATION_OPTIONS.map((d) => (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() => setSelectedDuration(d.id)}
-                    className={`whitespace-nowrap rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${
-                      selectedDuration === d.id
-                        ? "bg-emerald-500 text-[#003824] shadow-sm font-semibold"
-                        : "bg-white/5 text-[#bbcabf] hover:bg-white/10"
-                    }`}
-                  >
-                    {d.label}
-                  </button>
-                ))}
+              {/* Trip Days Duration Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-[#4a6380] shrink-0 w-16">
+                  Days Plan:
+                </span>
+                <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+                  {DURATION_OPTIONS.map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setSelectedDuration(d.id)}
+                      className={`whitespace-nowrap rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${
+                        selectedDuration === d.id
+                          ? "bg-emerald-500 text-[#003824] shadow-sm font-semibold"
+                          : "bg-white/5 text-[#bbcabf] hover:bg-white/10"
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Category Pills Row */}
         <div
@@ -820,13 +835,18 @@ function MobileMapPage() {
       )}
 
       {/* ── Connected Multi-Day Trip Itinerary Plan Box (Floating 76px above bottom nav) ── */}
-      {itineraryData && !selectedLocation && activeNav === "map" && (
-        <div
-          className="fixed bottom-[60px] left-3 right-3 z-40 flex flex-col rounded-xl border border-emerald-500/30 bg-[#111820]/95 p-3.5 shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom-4 duration-300"
-        >
-          <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-            <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
+      <AnimatePresence>
+        {itineraryData && !selectedLocation && activeNav === "map" && (
+          <motion.div
+            initial={{ y: "100%", opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: "100%", opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 220 }}
+            className="fixed bottom-[60px] left-3 right-3 z-40 flex flex-col rounded-xl border border-emerald-500/30 bg-[#111820]/95 p-3.5 shadow-2xl backdrop-blur-xl"
+          >
+            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
                 <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>route</span>
               </span>
               <div>
@@ -902,30 +922,33 @@ function MobileMapPage() {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Rich Location Explorer Bottom Sheet with Kerala Responsible Tourism Companion ── */}
-      {selectedLocation && !isCheckingRoute && !safetyResult && activeNav === "map" && (
-        <RichLocationDetailSheet
-          location={selectedLocation}
-          capacityPct={capacityPct}
-          capacityColor={capacityColor}
-          isFull={isFull}
-          slotsRemaining={slotsRemaining}
-          isSaved={savedLocationIds.includes(selectedLocation.id)}
-          onToggleSave={() => toggleSaveLocation(selectedLocation.id)}
-          onClose={() => setSelectedLocation(null)}
-          onPlanTripFromHere={() => {
-            setSelectedAnchorLocation(selectedLocation)
-            if (selectedDuration === "all") {
-              setSelectedDuration("2days")
-            }
-            setSelectedLocation(null)
-          }}
-          onNavigate={() => handleNavigate(selectedLocation)}
-        />
-      )}
+      <AnimatePresence>
+        {selectedLocation && !isCheckingRoute && !safetyResult && activeNav === "map" && (
+          <RichLocationDetailSheet
+            location={selectedLocation}
+            capacityPct={capacityPct}
+            capacityColor={capacityColor}
+            isFull={isFull}
+            slotsRemaining={slotsRemaining}
+            isSaved={savedLocationIds.includes(selectedLocation.id)}
+            onToggleSave={() => toggleSaveLocation(selectedLocation.id)}
+            onClose={() => setSelectedLocation(null)}
+            onPlanTripFromHere={() => {
+              setSelectedAnchorLocation(selectedLocation)
+              if (selectedDuration === "all") {
+                setSelectedDuration("2days")
+              }
+              setSelectedLocation(null)
+            }}
+            onNavigate={() => handleNavigate(selectedLocation)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* ── Route Safety Panel Overlay ───────────────────────────── */}
       <RouteSafetyPanel
