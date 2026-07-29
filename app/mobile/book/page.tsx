@@ -115,6 +115,19 @@ function BookingContent() {
     return DEFAULT_SEED_PASSES
   })
 
+  const [selectedPassId, setSelectedPassId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const passIdParam = searchParams.get("pass_id")
+    if (passIdParam) {
+      setSelectedPassId(passIdParam)
+      setActiveTab("my-passes")
+    } else if (!selectedPassId && myPasses.length > 0) {
+      const active = myPasses.find((p) => p.status === "ACTIVE")
+      setSelectedPassId(active ? active.id : myPasses[0].id)
+    }
+  }, [myPasses, selectedPassId, searchParams])
+
   useEffect(() => {
     const handleSync = () => {
       const stored = localStorage.getItem("terra_my_passes");
@@ -230,6 +243,7 @@ function BookingContent() {
 
   const activePasses = myPasses.filter((p) => p.status === "ACTIVE")
   const visitedPasses = myPasses.filter((p) => p.status === "VISITED")
+  const selectedPass = myPasses.find((p) => p.id === selectedPassId) || myPasses[0]
 
   return (
     <div
@@ -313,160 +327,448 @@ function BookingContent() {
       <main className="flex-1 p-4 pb-12">
         {/* ── VIEW 1: MY PASSES & UPCOMING TRIPS DASHBOARD ────────────── */}
         {activeTab === "my-passes" && (
-          <div className="flex flex-col gap-6 max-w-md mx-auto animate-in fade-in duration-200">
-            {/* Active & Upcoming Passes Section */}
-            <div>
-              <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-emerald-400" style={{ fontSize: "18px" }}>
-                    confirmation_number
-                  </span>
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-white">
-                    Upcoming & Active Passes ({activePasses.length})
-                  </h2>
-                </div>
-                <span className="text-[10.5px] font-semibold text-emerald-400">
-                  Panchayat DPI Authorized
-                </span>
-              </div>
-
-              {activePasses.length > 0 ? (
-                <div className="flex flex-col gap-3">
-                  {activePasses.map((pass) => (
-                    <div
-                      key={pass.id}
-                      className="flex flex-col overflow-hidden rounded-2xl border border-emerald-500/30 bg-[#111820] shadow-xl"
-                    >
-                      {/* Ticket Header */}
-                      <div className="flex items-center justify-between bg-[#0c2132] px-4 py-2.5 border-b border-white/10">
-                        <span className="text-xs font-bold text-emerald-400 font-mono">{pass.pass_token}</span>
-                        <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-[9.5px] font-bold text-emerald-400 border border-emerald-500/30 font-mono">
-                          ACTIVE PASS
+          <div className="flex flex-col gap-6 max-w-md mx-auto animate-in fade-in duration-200" style={{ paddingBottom: "40px" }}>
+            {myPasses.length > 0 ? (
+              <>
+                {/* ── Active Ticket Display Card ── */}
+                {selectedPass && (
+                  <div
+                    style={{
+                      background: "linear-gradient(to bottom, #0d1e2e, #070e14)",
+                      border: selectedPass.status === "ACTIVE" ? "1.5px solid rgba(16,185,129,0.3)" : "1.5px solid rgba(255,255,255,0.08)",
+                      boxShadow: selectedPass.status === "ACTIVE" ? "0 8px 32px rgba(16,185,129,0.08)" : "none",
+                      borderRadius: "20px",
+                      padding: "20px",
+                      position: "relative",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {/* Status and Token header */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span
+                          style={{
+                            width: "8px",
+                            height: "8px",
+                            borderRadius: "50%",
+                            background: selectedPass.status === "ACTIVE" ? "#10B981" : "#4b5563",
+                            boxShadow: selectedPass.status === "ACTIVE" ? "0 0 8px #10B981" : "none",
+                          }}
+                        />
+                        <span
+                          style={{
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            color: selectedPass.status === "ACTIVE" ? "#4edea3" : "#9ca3af",
+                            letterSpacing: "0.04em",
+                          }}
+                        >
+                          {selectedPass.status === "ACTIVE" ? "ACTIVE" : "VISITED"}
                         </span>
                       </div>
+                      <span
+                        style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          fontSize: "11px",
+                          fontWeight: 500,
+                          color: "#4a6380",
+                        }}
+                      >
+                        {selectedPass.pass_token}
+                      </span>
+                    </div>
 
-                      {/* Ticket Content */}
-                      <div className="p-4 flex flex-col gap-3">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={pass.image || "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=600&q=80"}
-                            alt={pass.location_name}
-                            className="h-14 w-16 rounded-xl object-cover border border-white/10 shrink-0"
-                          />
-                          <div>
-                            <h3 className="text-xs font-bold text-white">{pass.location_name}</h3>
-                            <p className="text-[11px] text-emerald-400 font-medium mt-0.5">
-                              ⏰ Slot: {pass.slot_time} | 👥 {pass.visitors} Visitor(s)
-                            </p>
-                            <p className="text-[10px] text-[#4a6380] mt-0.5">
-                              Issued for: {pass.visitor_name} ({pass.booked_at})
-                            </p>
-                          </div>
-                        </div>
+                    {/* QR Code Container */}
+                    <div
+                      style={{
+                        background: "#05090d",
+                        border: "1px solid rgba(255,255,255,0.05)",
+                        borderRadius: "16px",
+                        padding: "24px 16px",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "12px",
+                        marginBottom: "20px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          background: "#fff",
+                          padding: "10px",
+                          borderRadius: "12px",
+                          boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
+                        }}
+                      >
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${selectedPass.pass_token}`}
+                          alt="QR Code"
+                          style={{ width: "130px", height: "130px" }}
+                        />
+                      </div>
+                      <p
+                        style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          fontSize: "10px",
+                          color: "#4a6380",
+                          margin: 0,
+                          letterSpacing: "0.02em",
+                        }}
+                      >
+                        PRESENT TICKET AT CHECKPOINT
+                      </p>
+                    </div>
 
-                        {/* Digital QR Ticket Scanner Visual */}
-                        <div className="flex items-center justify-between rounded-xl border border-dashed border-emerald-500/30 bg-emerald-500/5 p-3">
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${pass.pass_token}`}
-                              alt="QR Ticket"
-                              className="h-12 w-12 rounded bg-white p-0.5 shrink-0 shadow-md"
+                    {/* Destination details */}
+                    <div style={{ marginBottom: "20px" }}>
+                      <span
+                        style={{
+                          fontFamily: "'Inter', sans-serif",
+                          fontSize: "10px",
+                          fontWeight: 600,
+                          color: "#4a6380",
+                          letterSpacing: "0.08em",
+                          display: "block",
+                        }}
+                      >
+                        DESTINATION
+                      </span>
+                      <h3
+                        style={{
+                          fontFamily: "'Space Grotesk', sans-serif",
+                          fontSize: "20px",
+                          fontWeight: 700,
+                          color: "#fff",
+                          margin: "4px 0 0",
+                          letterSpacing: "-0.01em",
+                        }}
+                      >
+                        {selectedPass.location_name}
+                      </h3>
+                    </div>
+
+                    {/* Meta details columns */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                      <div>
+                        <span
+                          style={{
+                            fontFamily: "'Inter', sans-serif",
+                            fontSize: "10px",
+                            fontWeight: 600,
+                            color: "#4a6380",
+                            letterSpacing: "0.08em",
+                            display: "block",
+                          }}
+                        >
+                          DATE & TIME
+                        </span>
+                        <p
+                          style={{
+                            fontFamily: "'Inter', sans-serif",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            color: "#f0f4f8",
+                            margin: "4px 0 0",
+                          }}
+                        >
+                          {selectedPass.booked_at}
+                        </p>
+                        <p
+                          style={{
+                            fontFamily: "'Inter', sans-serif",
+                            fontSize: "11px",
+                            color: "#4a6380",
+                            margin: "2px 0 0",
+                          }}
+                        >
+                          Slot: {selectedPass.slot_time}
+                        </p>
+                      </div>
+
+                      <div>
+                        <span
+                          style={{
+                            fontFamily: "'Inter', sans-serif",
+                            fontSize: "10px",
+                            fontWeight: 600,
+                            color: "#4a6380",
+                            letterSpacing: "0.08em",
+                            display: "block",
+                          }}
+                        >
+                          CAPACITY
+                        </span>
+                        <p
+                          style={{
+                            fontFamily: "'Inter', sans-serif",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            color: "#f0f4f8",
+                            margin: "4px 0 0",
+                          }}
+                        >
+                          {selectedPass.visitors} Passenger{selectedPass.visitors > 1 ? "s" : ""}
+                        </p>
+                        {/* Capacity indicator bars */}
+                        <div style={{ display: "flex", gap: "3px", marginTop: "6px" }}>
+                          {Array.from({ length: 4 }).map((_, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                width: "16px",
+                                height: "3px",
+                                borderRadius: "2px",
+                                background: idx < selectedPass.visitors ? "#10b981" : "rgba(255,255,255,0.06)",
+                              }}
                             />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Pine Tree Watermark SVG */}
+                    <svg
+                      width="100"
+                      height="100"
+                      viewBox="0 0 100 100"
+                      fill="none"
+                      stroke="rgba(16,185,129,0.05)"
+                      strokeWidth="1.2"
+                      style={{
+                        position: "absolute",
+                        bottom: "-10px",
+                        right: "-10px",
+                        pointerEvents: "none",
+                      }}
+                    >
+                      <path d="M50 20 L25 60 L40 60 L15 90 L85 90 L60 60 L75 60 Z" />
+                      <path d="M70 40 L50 70 L60 70 L40 90 L80 90 L65 70 L75 70 Z" />
+                    </svg>
+
+                    {/* Mark Visited Action inside details (if ACTIVE) */}
+                    {selectedPass.status === "ACTIVE" && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMyPasses((prev) => {
+                            const next = prev.map((p) => (p.id === selectedPass.id ? { ...p, status: "VISITED" as const } : p))
+                            if (typeof window !== "undefined") {
+                              localStorage.setItem("terra_my_passes", JSON.stringify(next))
+                            }
+                            return next
+                          });
+                          // Trigger custom event to sync with other windows
+                          window.dispatchEvent(new Event("storage_sync"));
+                        }}
+                        style={{
+                          width: "100%",
+                          marginTop: "20px",
+                          background: "rgba(16,185,129,0.15)",
+                          border: "1px solid rgba(78,222,163,0.3)",
+                          color: "#4edea3",
+                          borderRadius: "10px",
+                          padding: "10px",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                        }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>check_circle</span>
+                        Mark Pass as Visited
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Active & Upcoming Passes List ── */}
+                {activePasses.length > 0 && (
+                  <div>
+                    <h2
+                      style={{
+                        fontFamily: "'Space Grotesk', sans-serif",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        color: "#8fa3b8",
+                        letterSpacing: "0.06em",
+                        marginBottom: "12px",
+                        marginTop: "8px",
+                      }}
+                    >
+                      Active Expeditions ({activePasses.length})
+                    </h2>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {activePasses.map((pass) => (
+                        <div
+                          key={pass.id}
+                          onClick={() => setSelectedPassId(pass.id)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            borderRadius: "14px",
+                            border: selectedPassId === pass.id ? "1.5px solid #10b981" : "1px solid rgba(255,255,255,0.06)",
+                            background: selectedPassId === pass.id ? "rgba(16,185,129,0.04)" : "#111820",
+                            padding: "12px 14px",
+                            cursor: "pointer",
+                            transition: "all 0.2s ease",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                            <div
+                              style={{
+                                width: "40px",
+                                height: "40px",
+                                borderRadius: "10px",
+                                background: "rgba(16,185,129,0.12)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: "#4edea3",
+                              }}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>
+                                {pass.location_name.toLowerCase().includes("forest") ? "forest" : pass.location_name.toLowerCase().includes("canal") || pass.location_name.toLowerCase().includes("wetland") || pass.location_name.toLowerCase().includes("estuary") ? "water" : "terrain"}
+                              </span>
+                            </div>
                             <div>
-                              <p className="text-[11px] font-bold text-white">Digital Checkpoint Pass</p>
-                              <p className="text-[9.5px] text-[#8aa299]">Present QR code at gate checkpoint</p>
+                              <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", fontWeight: 600, color: "#f0f4f8" }}>
+                                {pass.location_name}
+                              </h3>
+                              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "10px", color: "#4a6380", marginTop: "2px" }}>
+                                {pass.booked_at} • {pass.pass_token}
+                              </p>
                             </div>
                           </div>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setMyPasses((prev) => {
-                                const next = prev.map((p) => (p.id === pass.id ? { ...p, status: "VISITED" as const } : p))
-                                if (typeof window !== "undefined") {
-                                  localStorage.setItem("terra_my_passes", JSON.stringify(next))
-                                }
-                                return next
-                              })
-                            }}
-                            className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-[10.5px] font-semibold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 cursor-pointer shrink-0"
-                          >
-                            Mark Visited
-                          </button>
+                          <span className="material-symbols-outlined" style={{ fontSize: "18px", color: selectedPassId === pass.id ? "#4edea3" : "#4a6380" }}>
+                            chevron_right
+                          </span>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+                )}
+
+                {/* ── Past Expeditions History ── */}
+                <div>
+                  <h2
+                    style={{
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      color: "#8fa3b8",
+                      letterSpacing: "0.06em",
+                      marginBottom: "12px",
+                      marginTop: "8px",
+                    }}
+                  >
+                    Past Expeditions ({visitedPasses.length})
+                  </h2>
+
+                  {visitedPasses.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {visitedPasses.map((pass) => (
+                        <div
+                          key={pass.id}
+                          onClick={() => setSelectedPassId(pass.id)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            borderRadius: "14px",
+                            border: selectedPassId === pass.id ? "1.5px solid #10b981" : "1px solid rgba(255,255,255,0.06)",
+                            background: selectedPassId === pass.id ? "rgba(16,185,129,0.04)" : "#111820",
+                            padding: "12px 14px",
+                            cursor: "pointer",
+                            transition: "all 0.2s ease",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                            <div
+                              style={{
+                                width: "40px",
+                                height: "40px",
+                                borderRadius: "10px",
+                                background: "rgba(255,255,255,0.04)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: "#8fa3b8",
+                              }}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>
+                                {pass.location_name.toLowerCase().includes("forest") ? "forest" : pass.location_name.toLowerCase().includes("canal") || pass.location_name.toLowerCase().includes("wetland") || pass.location_name.toLowerCase().includes("estuary") ? "water" : "terrain"}
+                              </span>
+                            </div>
+                            <div>
+                              <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", fontWeight: 600, color: "#f0f4f8" }}>
+                                {pass.location_name}
+                              </h3>
+                              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "10px", color: "#4a6380", marginTop: "2px" }}>
+                                {pass.booked_at} • {pass.pass_token}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="material-symbols-outlined" style={{ fontSize: "18px", color: selectedPassId === pass.id ? "#4edea3" : "#4a6380" }}>
+                            chevron_right
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ padding: "20px", textAlign: "center", fontSize: "12px", color: "#4a6380", border: "1px dashed rgba(255,255,255,0.08)", borderRadius: "12px" }}>
+                      No past expeditions logged yet.
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-center rounded-xl border border-dashed border-white/10 bg-white/5">
-                  <span className="material-symbols-outlined text-3xl text-[#4a6380] mb-1">confirmation_number</span>
-                  <p className="text-xs font-semibold text-white">No Upcoming Passes</p>
-                  <p className="text-[11px] text-[#8aa299] mt-0.5 max-w-xs">
-                    Book entry passes from any place card or generate a multi-day trip on the map to bulk book your passes.
+
+                {/* ── Warden Advisory Warning Banner ── */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    borderRadius: "12px",
+                    border: "1px solid rgba(245,158,11,0.2)",
+                    background: "rgba(245,158,11,0.05)",
+                    padding: "14px",
+                    marginTop: "12px",
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ color: "#F59E0B", fontSize: "20px", fontVariationSettings: "'FILL' 1" }}>
+                    shield
+                  </span>
+                  <p
+                    style={{
+                      fontFamily: "'Inter', sans-serif",
+                      fontSize: "12px",
+                      color: "#F59E0B",
+                      margin: 0,
+                      fontWeight: 500,
+                      lineHeight: "1.4",
+                    }}
+                  >
+                    Please keep your digital pass ready for the forest warden.
                   </p>
                 </div>
-              )}
-            </div>
-
-            {/* Previous Visited History Section */}
-            <div>
-              <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-blue-400" style={{ fontSize: "18px" }}>
-                    history
-                  </span>
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-white">
-                    Previous Visited Places ({visitedPasses.length})
-                  </h2>
-                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center rounded-2xl border border-dashed border-white/10 bg-white/5">
+                <span className="material-symbols-outlined text-4xl text-[#4a6380] mb-2">confirmation_number</span>
+                <p className="text-sm font-semibold text-white">No Expeditions Booked</p>
+                <p className="text-xs text-[#8aa299] mt-1 max-w-xs px-4">
+                  Select a destination on the tourist map to book an entry pass and start your ecosystem expedition.
+                </p>
               </div>
-
-              {visitedPasses.length > 0 ? (
-                <div className="flex flex-col gap-2.5">
-                  {visitedPasses.map((pass) => (
-                    <div
-                      key={pass.id}
-                      className="flex items-center justify-between rounded-xl border border-white/10 bg-[#111820] p-3 shadow-md"
-                    >
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={pass.image || "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=600&q=80"}
-                          alt={pass.location_name}
-                          className="h-12 w-14 rounded-lg object-cover border border-white/10 shrink-0"
-                        />
-                        <div>
-                          <h3 className="text-xs font-bold text-white">{pass.location_name}</h3>
-                          <p className="text-[10.5px] text-[#8aa299]">Visited on {pass.booked_at}</p>
-                          <span className="text-[9.5px] font-mono text-blue-400">PASSED: {pass.pass_token}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => router.push(`/mobile/create-post?location_id=${pass.location_id}&location_name=${encodeURIComponent(pass.location_name)}`)}
-                          className="flex items-center gap-1 rounded-lg bg-emerald-500/20 px-2.5 py-1 text-[10.5px] font-semibold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: "13px" }}>edit_note</span>
-                          Post Review
-                        </button>
-                        <span className="flex items-center gap-1 rounded bg-blue-500/10 px-2 py-1 text-[10px] font-semibold text-blue-400 border border-blue-500/20">
-                          <span className="material-symbols-outlined" style={{ fontSize: "14px", fontVariationSettings: "'FILL' 1" }}>
-                            check_circle
-                          </span>
-                          Visited
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-4 text-center text-xs text-[#4a6380]">
-                  No past visited spots logged yet.
-                </div>
-              )}
-            </div>
+            )}
           </div>
         )}
 

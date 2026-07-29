@@ -566,7 +566,7 @@ function ProfileContent() {
                         <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", fontWeight: 600, color: "#f0f4f8" }}>{pass.location_name}</h3>
                         <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "10px", color: "#4a6380", marginTop: "2px" }}>{pass.booked_at} • {pass.slot_time}</p>
                       </div>
-                      <button type="button" onClick={() => router.push("/mobile/book")} style={{ padding: "6px 10px", borderRadius: "8px", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(78,222,163,0.3)", color: "#4edea3", fontSize: "10px", fontWeight: 700, cursor: "pointer" }}>
+                      <button type="button" onClick={() => router.push(`/mobile/book?pass_id=${pass.id}`)} style={{ padding: "6px 10px", borderRadius: "8px", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(78,222,163,0.3)", color: "#4edea3", fontSize: "10px", fontWeight: 700, cursor: "pointer" }}>
                         VIEW PASS
                       </button>
                     </div>
