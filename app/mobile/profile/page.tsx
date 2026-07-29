@@ -282,7 +282,7 @@ function ProfileContent() {
               <span style={{ position: "relative", width: "6px", height: "6px", borderRadius: "9999px", background: "#4edea3", display: "inline-block" }} />
             </span>
             <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "16px", fontWeight: 700, color: "#4edea3", letterSpacing: "-0.01em" }}>
-              Terra-Pulse
+              STOP !
             </span>
           </div>
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "9px", fontWeight: 700, color: "#4a6380", letterSpacing: "0.10em" }}>
@@ -790,7 +790,7 @@ function ProfileContent() {
 
         <div style={{ marginTop: "20px", textAlign: "center" }}>
           <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "10px", color: "#4a6380" }}>
-            Terra-Pulse SDI • 10.8505° N, 76.2711° E
+            STOP ! SDI • 10.8505° N, 76.2711° E
           </p>
         </div>
       </main>

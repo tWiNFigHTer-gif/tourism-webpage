@@ -475,7 +475,7 @@ function MobileMapPage() {
                 color: "#4edea3",
               }}
             >
-              KERALA WILD
+              STOP !
             </h1>
           </div>
 
