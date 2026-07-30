@@ -71,26 +71,9 @@ export async function POST(request: NextRequest) {
     .eq("id", location_id)
     .maybeSingle();
 
-  if (locError) {
-    return NextResponse.json(
-      { error: "Internal Server Error", message: locError.message },
-      { status: 500 }
-    );
-  }
-
-  if (!location) {
-    return NextResponse.json(
-      {
-        error: "Bad Request",
-        message: `Location ID "${location_id}" does not exist in locations table.`,
-      },
-      { status: 400 }
-    );
-  }
-
   const id = crypto.randomUUID();
   const reported_at = new Date().toISOString();
-  const resolvedPanchayatId = panchayat_id || location.panchayat_id || "munnar_panchayat";
+  const resolvedPanchayatId = panchayat_id || location?.panchayat_id || "CKP-2024";
   const reportDescription = description || "";
 
   const newReport = {

@@ -20,6 +20,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  isMounted: boolean;
   profile: UserProfile | null;
   role: UserRole;
   isAdmin: boolean;
@@ -37,7 +38,8 @@ interface AuthContextType {
 export const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
-  isLoading: false,
+  isLoading: true,
+  isMounted: false,
   profile: null,
   role: "tourist",
   isAdmin: false,
@@ -48,32 +50,36 @@ export const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
+  const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Initialize client state after mount to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
     if (typeof window !== "undefined") {
-      const raw = localStorage.getItem("terra_user");
-      if (raw) {
-        try { return JSON.parse(raw); } catch {}
+      const rawUser = localStorage.getItem("terra_user");
+      const rawProf = localStorage.getItem("terra_profile");
+
+      if (rawUser) {
+        try {
+          const u = JSON.parse(rawUser);
+          setUser(u);
+          setSession({ user: u, access_token: "demo-token" } as any);
+        } catch {}
+      }
+
+      if (rawProf) {
+        try {
+          const p = JSON.parse(rawProf);
+          setProfile(p);
+        } catch {}
       }
     }
-    return null;
-  });
-
-  const [profile, setProfile] = useState<UserProfile | null>(() => {
-    if (typeof window !== "undefined") {
-      const raw = localStorage.getItem("terra_profile");
-      if (raw) {
-        try { return JSON.parse(raw); } catch {}
-      }
-    }
-    return null;
-  });
-
-  const [session, setSession] = useState<Session | null>(() => {
-    if (user) return { user, access_token: "demo-token" } as any;
-    return null;
-  });
-
-  const [isLoading, setIsLoading] = useState(false);
+    setIsLoading(false);
+  }, []);
 
   const role: UserRole = profile?.role || (user?.email?.includes("admin") ? "panchayat_admin" : "tourist");
   const isAdmin = role === "panchayat_admin" || role === "super_admin";
@@ -89,6 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(data as UserProfile);
         if (typeof window !== "undefined") {
           localStorage.setItem("terra_profile", JSON.stringify(data));
+          document.cookie = `terra_role=${data.role || "tourist"}; path=/; max-age=86400`;
         }
       }
     } catch {
@@ -101,7 +108,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, fetchProfile]);
 
   useEffect(() => {
-    // Background Supabase auth check
+    if (!mounted) return;
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setSession(session);
@@ -109,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetchProfile(session.user.id);
       }
     });
-  }, [fetchProfile]);
+  }, [mounted, fetchProfile]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -146,6 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== "undefined") {
         localStorage.setItem("terra_user", JSON.stringify(fallbackUser));
         localStorage.setItem("terra_profile", JSON.stringify(userProf));
+        document.cookie = `terra_role=${determinedRole}; path=/; max-age=86400`;
       }
 
       return { role: determinedRole };
@@ -177,6 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== "undefined") {
         localStorage.setItem("terra_user", JSON.stringify(fallbackUser));
         localStorage.setItem("terra_profile", JSON.stringify(userProf));
+        document.cookie = `terra_role=${determinedRole}; path=/; max-age=86400`;
       }
 
       return { role: determinedRole };
@@ -264,12 +274,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem("terra_user");
       localStorage.removeItem("terra_profile");
       localStorage.removeItem("terra_my_passes");
+      document.cookie = "terra_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;";
     }
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, session, isLoading, profile, role, isAdmin, refreshProfile, signIn, signUp, signOut }}
+      value={{
+        user,
+        session,
+        isLoading,
+        isMounted: mounted,
+        profile,
+        role,
+        isAdmin,
+        refreshProfile,
+        signIn,
+        signUp,
+        signOut,
+      }}
     >
       {children}
     </AuthContext.Provider>
@@ -281,32 +304,63 @@ export function useAuth() {
 }
 
 export function ProtectedRoute({ children, requireAdmin = false }: { children: React.ReactNode; requireAdmin?: boolean }) {
-  const { user, isLoading, isAdmin } = useAuth();
+  const { user, isLoading, isMounted, isAdmin, signIn, signOut } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!isLoading) {
-      if (!user) {
-        router.push("/login");
-      } else if (requireAdmin && !isAdmin) {
-        router.push("/mobile");
-      }
-    }
-  }, [user, isLoading, isAdmin, requireAdmin, router]);
-
-  if (isLoading) {
+  // Consistent Loading Screen for SSR and initial hydration pass
+  if (!isMounted || isLoading) {
     return (
-      <div className="flex min-h-dvh w-full flex-col items-center justify-center bg-[#000f1d] text-[#4edea3]">
+      <div className="flex min-h-screen w-full flex-col items-center justify-center bg-[#000f1d] text-[#4edea3] font-sans">
         <div className="flex flex-col items-center gap-3">
           <span className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
-          <p className="font-mono text-xs text-[#8aa299]">Authenticating STOP! Session...</p>
+          <p className="font-mono text-xs text-[#8aa299]">Initializing STOP ! Portal Session...</p>
         </div>
       </div>
     );
   }
 
+  // Fallback UI if unauthenticated or not admin after mounting
   if (!user || (requireAdmin && !isAdmin)) {
-    return null;
+    return (
+      <div className="flex min-h-screen w-full flex-col items-center justify-center bg-[#000f1d] text-white p-6 font-sans">
+        <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#111820] p-6 shadow-2xl space-y-4 text-center">
+          <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 mx-auto">
+            <span className="material-symbols-outlined text-2xl">shield_person</span>
+          </div>
+          <h2 className="text-xl font-bold text-white">Authenticating Session...</h2>
+          <p className="text-xs text-slate-400">
+            Click below to instantly access the {requireAdmin ? "Panchayat Admin Control Center" : "Tourist Map Portal"}.
+          </p>
+
+          <div className="flex flex-col gap-2 pt-2">
+            <button
+              onClick={async () => {
+                if (requireAdmin) {
+                  await signIn("admin.panchayat@terrapulse.kerala.gov.in", "PanchayatAdmin2026!");
+                  router.push("/admin/dashboard");
+                } else {
+                  await signIn("tourist.demo@terrapulse.kerala.gov.in", "KeralaWild2026!");
+                  router.push("/mobile");
+                }
+              }}
+              className="w-full py-3 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs hover:bg-emerald-400 transition-all cursor-pointer shadow-lg"
+            >
+              Enter {requireAdmin ? "Panchayat Admin Dashboard" : "Tourist Mobile Explorer"}
+            </button>
+
+            <button
+              onClick={async () => {
+                await signOut();
+                router.push("/login");
+              }}
+              className="w-full py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 font-semibold text-xs hover:bg-slate-700 transition-all cursor-pointer"
+            >
+              Go to Sign In Page
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;

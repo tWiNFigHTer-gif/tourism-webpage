@@ -15,6 +15,7 @@ import type { DangerZone, Location } from "@/lib/types";
 import {
   generateRoute,
   checkRouteSafety,
+  isPointInPolygon,
   type SafetyCheckResult,
 } from "@/lib/turf";
 import { useCapacity } from "@/lib/hooks/useCapacity";
@@ -27,6 +28,39 @@ import { useSubmitHazard } from "@/lib/hooks/useSubmitHazard";
 const MAP_CENTER: [number, number] = [75.93, 11.43];
 const MAP_STYLE = "mapbox://styles/mapbox/navigation-night-v1";
 const MAP_BG = "#0a0e13";
+
+const isValidMapboxToken = (t?: string) =>
+  Boolean(t && t.startsWith("pk.") && !t.includes("example") && !t.includes("your_"));
+
+if (typeof window !== "undefined") {
+  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
+  if (token) mapboxgl.accessToken = token;
+}
+
+const CARTO_DARK_STYLE: any = {
+  version: 8,
+  sources: {
+    "carto-dark": {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+      ],
+      tileSize: 256,
+      attribution: "&copy; OpenStreetMap &copy; CARTO",
+    },
+  },
+  layers: [
+    {
+      id: "carto-dark-layer",
+      type: "raster",
+      source: "carto-dark",
+      minzoom: 0,
+      maxzoom: 22,
+    },
+  ],
+};
 
 type LocationRow = Location & { is_active: boolean };
 type DangerZoneRow = DangerZone & { is_active: boolean };
@@ -157,26 +191,76 @@ function addDangerZoneLayers(map: mapboxgl.Map, zone: DangerZoneRow) {
 async function loadMapData(
   map: mapboxgl.Map
 ): Promise<GeoJSON.Feature<GeoJSON.Polygon>[]> {
-  const [locRes, dzRes] = await Promise.all([
-    supabase.from("locations").select("*").eq("is_active", true),
-    supabase.from("danger_zones").select("*").eq("is_active", true),
-  ]);
-  if (!locRes.error && locRes.data?.length) {
-    addHiddenGemsLayers(map, locationsToGeoJSON(locRes.data as LocationRow[]));
+  let locationsData: any[] = [];
+  let redZonesData: any[] = [];
+
+  try {
+    const { data: attractions } = await supabase.from("attractions").select("*").eq("is_active", true);
+    if (attractions && attractions.length > 0) {
+      locationsData = attractions;
+    } else {
+      const { data: locs } = await supabase.from("locations").select("*").eq("is_active", true);
+      if (locs && locs.length > 0) locationsData = locs;
+    }
+  } catch {}
+
+  if (locationsData.length === 0) {
+    locationsData = [
+      { id: "att-1", name: "Canoly Canal & Sarovaram Eco Park", category: "eco", lat: 11.2720, lng: 75.7950, capacity_per_slot: 50, description: "Lush mangrove ecosystem and canal walkway right in Kozhikode city." },
+      { id: "att-2", name: "Mavoor Wetlands & Bird Sanctuary", category: "eco", lat: 11.2619, lng: 75.9412, capacity_per_slot: 50, description: "Famous eco-wetland habitat home to migratory waterbirds." },
+      { id: "att-3", name: "Kadalundi Estuary & Mangrove Trail", category: "wildlife", lat: 11.1278, lng: 75.8286, capacity_per_slot: 50, description: "Serene estuarine sanctuary where Kadalundi River meets Arabian sea." },
+      { id: "att-4", name: "Kakkayam Dam & Eco Valley", category: "waterfalls", lat: 11.5432, lng: 75.9211, capacity_per_slot: 50, description: "Picturesque dam site and waterfall trek in Kozhikode district." },
+      { id: "att-5", name: "Thusharagiri Waterfalls & Trek", category: "waterfalls", lat: 11.4700, lng: 76.0500, capacity_per_slot: 50, description: "Cascading jungle streams forming three waterfalls." },
+      { id: "att-6", name: "Janakikkadu Eco Forest", category: "forests", lat: 11.5800, lng: 75.7500, capacity_per_slot: 50, description: "Protected evergreen forest ecosystem rich in medicinal flora." },
+    ];
   }
+
+  addHiddenGemsLayers(map, locationsToGeoJSON(locationsData as LocationRow[]));
+
+  try {
+    const { data: rz } = await supabase.from("red_zones").select("*").eq("is_active", true);
+    if (rz && rz.length > 0) {
+      redZonesData = rz;
+    } else {
+      const { data: dz } = await supabase.from("danger_zones").select("*").eq("is_active", true);
+      if (dz && dz.length > 0) redZonesData = dz;
+    }
+  } catch {}
+
   const polygons: GeoJSON.Feature<GeoJSON.Polygon>[] = [];
-  if (!dzRes.error && dzRes.data?.length) {
-    for (const zone of dzRes.data as DangerZoneRow[]) {
-      addDangerZoneLayers(map, zone);
+
+  if (redZonesData.length > 0) {
+    for (const zone of redZonesData) {
       try {
-        polygons.push(dangerZoneToFeature(zone));
-      } catch {
-        // skip zones with unexpected geometry
-      }
+        let feature: GeoJSON.Feature<GeoJSON.Polygon> | null = null;
+        if (zone.geojson_polygon) {
+          feature = zone.geojson_polygon;
+        } else if (zone.geojson) {
+          feature = dangerZoneToFeature(zone);
+        } else if (zone.coordinates && zone.coordinates.length > 0) {
+          feature = {
+            type: "Feature",
+            properties: { id: zone.id, name: zone.name || zone.title, severity: zone.risk_level || "high" },
+            geometry: { type: "Polygon", coordinates: [zone.coordinates] },
+          };
+        }
+
+        if (feature) {
+          polygons.push(feature);
+          const sourceId = `danger-zone-${zone.id || Math.random()}`;
+          if (!map.getSource(sourceId)) {
+            map.addSource(sourceId, { type: "geojson", data: feature });
+            map.addLayer({ id: `fill-${sourceId}`, type: "fill", source: sourceId, paint: { "fill-color": "#ef4444", "fill-opacity": 0.25 } });
+            map.addLayer({ id: `line-${sourceId}`, type: "line", source: sourceId, paint: { "line-color": "#ef4444", "line-width": 2, "line-dasharray": [4, 4] } });
+          }
+        }
+      } catch {}
     }
   }
+
   return polygons;
 }
+
 
 /* ── Bottom Sheet (location info panel) ────────────────────────────────── */
 const TIME_SLOTS_DISPLAY = [
@@ -596,17 +680,19 @@ export const MapCanvas = forwardRef<MapCanvasRef>(function MapCanvas(_, ref) {
   }, []);
 
   useEffect(() => {
-    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-    if (!containerRef.current || !token) {
-      if (!token) console.error("NEXT_PUBLIC_MAPBOX_TOKEN is not set");
+    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
+    const tokenValid = isValidMapboxToken(token);
+
+    if (!containerRef.current) {
       setIsLoading(false);
       return;
     }
 
-    mapboxgl.accessToken = token;
+    if (token) mapboxgl.accessToken = token;
+
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: MAP_STYLE,
+      style: tokenValid ? MAP_STYLE : CARTO_DARK_STYLE,
       center: MAP_CENTER,
       zoom: 13,
       pitch: 30,
@@ -620,17 +706,36 @@ export const MapCanvas = forwardRef<MapCanvasRef>(function MapCanvas(_, ref) {
       // Load data and cache danger zone polygons for client-side safety checks.
       const loadedZones = await loadMapData(map);
       dangerZonesRef.current = loadedZones;
-      // Click on hidden-gems layer → open bottom sheet
+      // Click on hidden-gems layer → check Turf.js intersection against Red Zones
       map.on("click", "hidden-gems", (e) => {
         const props = e.features?.[0]?.properties;
         if (!props) return;
         setSafetyResult(null);
+
+        const clickedLat = (e.lngLat as mapboxgl.LngLat).lat;
+        const clickedLng = (e.lngLat as mapboxgl.LngLat).lng;
+
+        // Check if destination intersects any Red Zone polygon using Turf.js
+        let isInRedZone = false;
+        if (dangerZonesRef.current && dangerZonesRef.current.length > 0) {
+          for (const polyFeature of dangerZonesRef.current) {
+            if (polyFeature.geometry && isPointInPolygon(clickedLat, clickedLng, polyFeature.geometry)) {
+              isInRedZone = true;
+              break;
+            }
+          }
+        }
+
+        if (isInRedZone) {
+          setShowHazard(true);
+        }
+
         setSelectedLoc({
           name: props.name,
           description: props.description || DEMO_LOCATION.description,
           capacity: { current: Math.floor(Math.random() * 40) + 5, total: props.capacity_per_slot || 50 },
-          lat: (e.lngLat as mapboxgl.LngLat).lat,
-          lng: (e.lngLat as mapboxgl.LngLat).lng,
+          lat: clickedLat,
+          lng: clickedLng,
         });
       });
       map.on("mouseenter", "hidden-gems", () => { map.getCanvas().style.cursor = "pointer"; });

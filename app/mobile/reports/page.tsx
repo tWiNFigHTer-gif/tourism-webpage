@@ -131,6 +131,12 @@ function ReportsContent() {
     }
 
     loadReports()
+    window.addEventListener("storage", loadReports)
+    window.addEventListener("storage_sync", loadReports)
+    return () => {
+      window.removeEventListener("storage", loadReports)
+      window.removeEventListener("storage_sync", loadReports)
+    }
   }, [user?.id])
 
   return (

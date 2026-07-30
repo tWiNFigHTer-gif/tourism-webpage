@@ -1,11 +1,6 @@
 /**
  * GET /api/init-db
- * Creates the profiles table if it doesn't exist.
- * Uses the Supabase admin client to insert a row; if the table is missing,
- * the error code helps us detect it.
- * 
- * Since we cannot run DDL via the REST API directly, this route returns
- * the SQL script to run in the Supabase dashboard if the table is missing.
+ * Checks database tables (profiles, attractions, red_zones) and returns SQL setup script.
  */
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -17,50 +12,79 @@ const adminSupabase = createClient(
 );
 
 export async function GET() {
-  // Probe the profiles table
-  const { error } = await adminSupabase
-    .from("profiles")
-    .select("id")
-    .limit(1);
+  // Probe database tables
+  const { error: profileErr } = await adminSupabase.from("profiles").select("id").limit(1);
+  const { error: attractionErr } = await adminSupabase.from("attractions").select("id").limit(1);
+  const { error: redZoneErr } = await adminSupabase.from("red_zones").select("id").limit(1);
 
-  if (!error) {
-    return NextResponse.json({ status: "ready", message: "profiles table exists and is ready." });
-  }
+  const isReady = !profileErr && !attractionErr && !redZoneErr;
 
   const sql = `
 -- Run this SQL in your Supabase SQL Editor (https://supabase.com/dashboard/project/lwunotlnczcsynaemjsq/sql/new)
 
+-- 1. Profiles Table
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  username TEXT CHECK (char_length(username) <= 30),
-  bio TEXT CHECK (char_length(bio) <= 160),
-  avatar_url TEXT,
+  role TEXT DEFAULT 'tourist' CHECK (role IN ('admin', 'tourist', 'panchayat_admin', 'super_admin')),
+  username TEXT CHECK (char_length(username) <= 50),
+  panchayat_name TEXT,
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- 2. Attractions Table (Floating lat/lng for speed)
+CREATE TABLE IF NOT EXISTS public.attractions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT,
+  category TEXT,
+  lat FLOAT8 NOT NULL,
+  lng FLOAT8 NOT NULL,
+  capacity_per_slot INT4 DEFAULT 50,
+  district TEXT,
+  region TEXT,
+  panchayat_id TEXT,
+  is_active BOOLEAN DEFAULT true,
+  image_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 3. Red Zones Table (JSONB storing Polygon GeoJSON coordinates)
+CREATE TABLE IF NOT EXISTS public.red_zones (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  name TEXT,
+  risk_level TEXT DEFAULT 'HIGH',
+  description TEXT,
+  coordinates JSONB,
+  geojson_polygon JSONB,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Create Alias Views if locations/danger_zones are referenced
+CREATE OR REPLACE VIEW public.locations AS SELECT * FROM public.attractions;
+CREATE OR REPLACE VIEW public.danger_zones AS SELECT * FROM public.red_zones;
+
+-- Enable RLS & Set Open Policies for MVP
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attractions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.red_zones ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage own profile"
-  ON public.profiles FOR ALL
-  USING (auth.uid() = id)
-  WITH CHECK (auth.uid() = id);
+CREATE POLICY "Public read profiles" ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Users edit own profiles" ON public.profiles FOR ALL USING (auth.uid() = id);
 
--- Storage policies for the already-created 'avatars' bucket
-CREATE POLICY IF NOT EXISTS "Public avatar read"
-  ON storage.objects FOR SELECT
-  USING (bucket_id = 'avatars');
+CREATE POLICY "Public read attractions" ON public.attractions FOR SELECT USING (true);
+CREATE POLICY "Public read red_zones" ON public.red_zones FOR SELECT USING (true);
+CREATE POLICY "Public insert red_zones" ON public.red_zones FOR INSERT WITH CHECK (true);
+`.trim();
 
-CREATE POLICY IF NOT EXISTS "Users can upload own avatar"
-  ON storage.objects FOR INSERT
-  WITH CHECK (bucket_id = 'avatars');
-
-CREATE POLICY IF NOT EXISTS "Users can update own avatar"
-  ON storage.objects FOR UPDATE
-  USING (bucket_id = 'avatars');
-  `.trim();
-
-  return NextResponse.json(
-    { status: "missing", error: error.message, code: error.code, sql_to_run: sql },
-    { status: 200 }
-  );
+  return NextResponse.json({
+    status: isReady ? "ready" : "schema_script_available",
+    tables: {
+      profiles: !profileErr,
+      attractions: !attractionErr,
+      red_zones: !redZoneErr,
+    },
+    sql_to_run: sql,
+  });
 }

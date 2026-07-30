@@ -2,10 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/AuthProvider";
 import { getDashboardData, updateCivicReportStatus } from "@/lib/db";
 import type { HazardReport, RedZone } from "@/lib/types";
 
 export default function PanchayatDashboardPage() {
+  const router = useRouter();
+  const { signOut } = useAuth();
   const [data, setData] = useState<{
     totalPasses: number;
     activeZones: number;
@@ -31,7 +35,13 @@ export default function PanchayatDashboardPage() {
   useEffect(() => {
     loadData();
     const interval = setInterval(loadData, 10000); // 10s live polling
-    return () => clearInterval(interval);
+    window.addEventListener("storage", loadData);
+    window.addEventListener("storage_sync", loadData);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("storage", loadData);
+      window.removeEventListener("storage_sync", loadData);
+    };
   }, []);
 
   const handleStatusChange = async (id: string, newStatus: "pending" | "in_progress" | "resolved") => {
@@ -88,7 +98,7 @@ export default function PanchayatDashboardPage() {
                 fontWeight: 600,
               }}
             >
-              LIVE STOP! SPATIAL STREAM • CKP-2024
+              LIVE STOP ! SPATIAL STREAM • CKP-2024
             </span>
           </div>
           <h1
@@ -152,6 +162,33 @@ export default function PanchayatDashboardPage() {
             </span>
             Refresh
           </button>
+
+          <button
+            type="button"
+            onClick={async () => {
+              await signOut();
+              router.push("/login");
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              background: "rgba(239, 68, 68, 0.15)",
+              color: "#EF4444",
+              border: "1px solid rgba(239, 68, 68, 0.35)",
+              padding: "10px 14px",
+              borderRadius: "10px",
+              cursor: "pointer",
+              fontFamily: "'Inter', sans-serif",
+              fontSize: "13px",
+              fontWeight: 600,
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>
+              logout
+            </span>
+            Logout
+          </button>
         </div>
       </div>
 
@@ -164,11 +201,11 @@ export default function PanchayatDashboardPage() {
           marginBottom: "32px",
         }}
       >
-        {/* Metric 1 */}
+        {/* Metric 1: Total Attractions */}
         <div
           style={{
             background: "rgba(17,24,32,0.9)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            border: "1px solid rgba(78,222,163,0.3)",
             borderRadius: "14px",
             padding: "20px",
             boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
@@ -176,7 +213,7 @@ export default function PanchayatDashboardPage() {
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
             <span style={{ fontFamily: "'Inter', sans-serif", fontSize: "12.5px", color: "#94A3B8", fontWeight: 500 }}>
-              Active Passes Issued
+              Total Attractions
             </span>
             <div
               style={{
@@ -191,25 +228,23 @@ export default function PanchayatDashboardPage() {
               }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>
-                confirmation_number
+                location_on
               </span>
             </div>
           </div>
-          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "28px", fontWeight: 700, color: "#F8FAFC" }}>
-            {data?.totalPasses || 142}{" "}
-            <span style={{ fontSize: "14px", color: "#64748B", fontWeight: 400 }}>/ 200 Slot Max</span>
+          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "28px", fontWeight: 700, color: "#4EDEA3" }}>
+            29 Locations
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "8px" }}>
-            <span style={{ fontSize: "11px", color: "#10B981", fontWeight: 600 }}>↑ +18%</span>
-            <span style={{ fontSize: "11px", color: "#64748B" }}>vs yesterday</span>
+          <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "8px" }}>
+            Kerala Eco-Tourism & Heritage Sites
           </div>
         </div>
 
-        {/* Metric 2 */}
+        {/* Metric 2: Active Red Zones */}
         <div
           style={{
             background: "rgba(17,24,32,0.9)",
-            border: "1px solid rgba(245,158,11,0.2)",
+            border: "1px solid rgba(239,68,68,0.3)",
             borderRadius: "14px",
             padding: "20px",
             boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
@@ -217,30 +252,30 @@ export default function PanchayatDashboardPage() {
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
             <span style={{ fontFamily: "'Inter', sans-serif", fontSize: "12.5px", color: "#94A3B8", fontWeight: 500 }}>
-              Zones Near Capacity
+              Active Red Zones
             </span>
             <div
               style={{
                 width: "32px",
                 height: "32px",
                 borderRadius: "8px",
-                background: "rgba(245,158,11,0.15)",
+                background: "rgba(239,68,68,0.15)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#F59E0B",
+                color: "#EF4444",
               }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>
-                nature_people
+                polyline
               </span>
             </div>
           </div>
-          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "28px", fontWeight: 700, color: "#F59E0B" }}>
-            2 Zones
+          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "28px", fontWeight: 700, color: "#EF4444" }}>
+            {redZones.length} Polygons
           </div>
           <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "8px" }}>
-            Canoly Canal (84%), Kadalundi (95%)
+            PostGIS Danger Boundaries Active
           </div>
         </div>
 

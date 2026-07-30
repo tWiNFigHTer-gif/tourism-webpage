@@ -17,6 +17,23 @@ export function isPointInPolygon(
   return turf.booleanPointInPolygon(turf.point([lng, lat]), polygon);
 }
 
+export function checkRouteIntersection(
+  origin: [number, number],
+  destination: [number, number],
+  polygon: any
+): boolean {
+  try {
+    const routeLine = turf.lineString([origin, destination]);
+    let polyFeature = polygon;
+    if (polygon.type === "Polygon" || polygon.type === "MultiPolygon") {
+      polyFeature = turf.feature(polygon);
+    }
+    return turf.booleanIntersects(routeLine, polyFeature);
+  } catch (err) {
+    return false;
+  }
+}
+
 export { turf };
 
 // ── Terra-Pulse Spatial Safety Engine ─────────────────────────────────────
@@ -99,51 +116,52 @@ export function normalizeDangerZoneFeature(
 // --------------------------------------------------------------------------
 // 1. generateRoute
 // --------------------------------------------------------------------------
+export const isValidMapboxToken = (token?: string) =>
+  Boolean(token && token.startsWith("pk.") && !token.includes("example") && !token.includes("your_"));
+
 /**
  * Calls the Mapbox Directions (walking) API and returns the route geometry
- * as a GeoJSON LineString.
+ * as a GeoJSON LineString. Falls back to direct LineString geometry if token is invalid or API is offline.
  *
  * @param start          [longitude, latitude] of the start point
  * @param end            [longitude, latitude] of the destination
- * @param mapboxToken    A valid Mapbox public access token
+ * @param mapboxToken    A Mapbox public access token string
  */
 export async function generateRoute(
   start: [number, number],
   end: [number, number],
   mapboxToken: string
 ): Promise<GeoJSON.LineString> {
-  const [startLng, startLat] = start;
-  const [endLng, endLat] = end;
-
-  const url =
-    `https://api.mapbox.com/directions/v5/mapbox/walking/` +
-    `${startLng},${startLat};${endLng},${endLat}` +
-    `?geometries=geojson&overview=full&steps=false&access_token=${mapboxToken}`;
-
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(
-      `Mapbox Directions API error: ${response.status} ${response.statusText}`
-    );
+  if (!isValidMapboxToken(mapboxToken)) {
+    return turf.lineString([start, end]).geometry;
   }
 
-  const data = (await response.json()) as {
-    routes?: Array<{ geometry: GeoJSON.LineString }>;
-    code?: string;
-    message?: string;
-  };
+  try {
+    const [startLng, startLat] = start;
+    const [endLng, endLat] = end;
 
-  if (data.code && data.code !== "Ok") {
-    throw new Error(`Mapbox Directions returned code="${data.code}": ${data.message}`);
+    const url =
+      `https://api.mapbox.com/directions/v5/mapbox/walking/` +
+      `${startLng},${startLat};${endLng},${endLat}` +
+      `?geometries=geojson&overview=full&steps=false&access_token=${mapboxToken}`;
+
+    const response = await fetch(url);
+
+    if (response.ok) {
+      const data = (await response.json()) as {
+        routes?: Array<{ geometry: GeoJSON.LineString }>;
+        code?: string;
+      };
+
+      if (data.routes && data.routes.length > 0) {
+        return data.routes[0].geometry;
+      }
+    }
+  } catch (err) {
+    console.warn("Mapbox directions fetch warning, falling back to local spatial line:", err);
   }
 
-  if (!data.routes || data.routes.length === 0) {
-    throw new Error("No routes returned by Mapbox Directions API.");
-  }
-
-  // The first route is always the primary/optimal one.
-  return data.routes[0].geometry;
+  return turf.lineString([start, end]).geometry;
 }
 
 // --------------------------------------------------------------------------

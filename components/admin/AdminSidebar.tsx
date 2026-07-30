@@ -30,10 +30,16 @@ const NAV_ITEMS = [
     badge: "QR",
   },
   {
-    label: "Tourist Map Explorer",
+    label: "Mobile Tourist Portal",
     href: "/mobile",
+    icon: "smartphone",
+    badge: "App",
+  },
+  {
+    label: "Tourist Map Explorer",
+    href: "/map",
     icon: "map",
-    badge: null,
+    badge: "Live",
   },
 ];
 
@@ -41,6 +47,11 @@ export default function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, profile, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push("/login");
+  };
 
   return (
     <aside
@@ -96,7 +107,7 @@ export default function AdminSidebar() {
                 letterSpacing: "-0.02em",
               }}
             >
-              STOP!
+              STOP !
             </h1>
             <p
               style={{
@@ -113,7 +124,7 @@ export default function AdminSidebar() {
         </div>
 
         {/* Navigation Links */}
-        <nav style={{ padding: "16px 12px", display: "flex", flexDirection: "column", gap: "4px" }}>
+        <nav style={{ padding: "16px 12px", display: "flex", flexDirection: "column", gap: "6px" }}>
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -164,12 +175,15 @@ export default function AdminSidebar() {
         </nav>
       </div>
 
-      {/* Admin User Profile Footer */}
+      {/* Admin User Profile & Prominent Logout Footer */}
       <div
         style={{
           padding: "16px",
           borderTop: "1px solid rgba(255,255,255,0.06)",
           background: "rgba(17,24,32,0.8)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "12px",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -215,28 +229,17 @@ export default function AdminSidebar() {
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={async () => {
-              await signOut();
-              router.push("/login");
-            }}
-            title="Sign Out"
-            style={{
-              background: "none",
-              border: "none",
-              color: "#64748B",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              padding: "4px",
-            }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>
-              logout
-            </span>
-          </button>
         </div>
+
+        {/* Dedicated Prominent Logout Button */}
+        <button
+          type="button"
+          onClick={handleSignOut}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 font-semibold text-xs hover:bg-red-500/25 transition-all cursor-pointer shadow-md"
+        >
+          <span className="material-symbols-outlined text-base">logout</span>
+          <span>Sign Out / Logout</span>
+        </button>
       </div>
     </aside>
   );

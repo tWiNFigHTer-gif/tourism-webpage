@@ -30,6 +30,8 @@ export default function RedZoneManagerPage() {
   ]);
   const [saving, setSaving] = useState(false);
 
+  const [drawnGeoJson, setDrawnGeoJson] = useState<any>(null);
+
   const fetchZones = async () => {
     try {
       const data = await getRedZones();
@@ -45,6 +47,13 @@ export default function RedZoneManagerPage() {
     fetchZones();
   }, []);
 
+  const handlePolygonCreated = (feature: any, coords: [number, number][]) => {
+    setDrawnGeoJson(feature);
+    if (coords && coords.length > 0) {
+      setCustomCoords(coords);
+    }
+  };
+
   const handleCreateZone = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!zoneName.trim()) return;
@@ -52,15 +61,22 @@ export default function RedZoneManagerPage() {
     setSaving(true);
     try {
       await insertRedZone({
+        title: zoneName,
         name: zoneName,
         risk_level: riskLevel,
         description: description || "Temporary danger zone created by Panchayat official.",
         coordinates: customCoords,
+        geojson_polygon: drawnGeoJson || {
+          type: "Feature",
+          properties: { title: zoneName, risk_level: riskLevel },
+          geometry: { type: "Polygon", coordinates: [customCoords] },
+        },
         is_active: true,
-      });
+      } as any);
 
       setZoneName("");
       setDescription("");
+      setDrawnGeoJson(null);
       await fetchZones();
       alert(`Red Zone "${zoneName}" successfully published to PostGIS & Spatial Safety Stream!`);
     } catch (e) {
@@ -86,7 +102,7 @@ export default function RedZoneManagerPage() {
           Spatial Red Zone Polygon Manager
         </h1>
         <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", color: "#94A3B8", marginTop: "4px" }}>
-          Draw and publish temporary spatial danger polygons. Any tourist navigating near these boundaries will receive instant real-time route rerouting & hazard warnings.
+          Draw and publish temporary spatial danger polygons using Mapbox GL Draw. Any tourist navigating near these boundaries will receive instant real-time route rerouting & hazard warnings.
         </p>
       </div>
 
@@ -97,7 +113,11 @@ export default function RedZoneManagerPage() {
             <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "15px", fontWeight: 600, color: "#F8FAFC", marginBottom: "12px" }}>
               Active Spatial Red Zones Map
             </h2>
-            <AdminRedZoneMap redZones={redZones} activeCoords={customCoords} />
+            <AdminRedZoneMap
+              redZones={redZones}
+              activeCoords={customCoords}
+              onPolygonCreated={handlePolygonCreated}
+            />
           </div>
         </div>
 

@@ -17,14 +17,7 @@ export default function ExplorerLoginPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  // Clean single-pass auto-redirect if already logged in
-  useEffect(() => {
-    if (user) {
-      const isUserAdmin = isAdmin || user.email?.toLowerCase().includes("admin") || profile?.role === "panchayat_admin";
-      const targetPath = isUserAdmin ? "/admin/dashboard" : "/mobile";
-      router.replace(targetPath);
-    }
-  }, [user, profile, isAdmin, router]);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

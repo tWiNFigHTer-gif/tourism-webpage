@@ -69,9 +69,11 @@ export interface DangerZone {
 export interface RedZone {
   id: string;
   name: string;
+  title?: string;
   risk_level: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   description: string;
   coordinates: [number, number][]; // [[lng, lat], ...]
+  geojson_polygon?: any;
   is_active: boolean;
   created_by?: string;
   created_at?: string;

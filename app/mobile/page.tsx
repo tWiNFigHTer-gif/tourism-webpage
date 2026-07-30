@@ -134,7 +134,7 @@ const KERALA_PLACES_SEED: MapLocation[] = [
 
 function MobileMapPage() {
   const router = useRouter()
-  const { user, signOut, profile } = useAuth()
+  const { user, signOut, profile, isAdmin } = useAuth()
 
   // Profile session menu toggle
   const [showProfileMenu, setShowProfileMenu] = useState(false)
@@ -270,6 +270,16 @@ function MobileMapPage() {
     }
 
     loadDatabaseData()
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", loadDatabaseData)
+      window.addEventListener("storage_sync", loadDatabaseData)
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("storage", loadDatabaseData)
+        window.removeEventListener("storage_sync", loadDatabaseData)
+      }
+    }
   }, [])
 
   // ── Calculate Haversine Distances & Sort Nearest Spots dynamically ─────
@@ -481,6 +491,21 @@ function MobileMapPage() {
           </div>
 
           <div className="flex items-center gap-2 relative">
+            {(isAdmin || user?.email?.toLowerCase().includes("admin") || profile?.role === "panchayat_admin") && (
+              <button
+                type="button"
+                onClick={() => router.push("/admin/dashboard")}
+                className="flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-300 hover:bg-amber-500/30 transition-colors cursor-pointer shadow-lg"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                title="Switch to Admin Dashboard"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
+                  shield_person
+                </span>
+                ADMIN
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => router.push("/mobile/book")}
