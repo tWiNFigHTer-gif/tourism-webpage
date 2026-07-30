@@ -2,30 +2,18 @@
 
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
-import MapboxDraw from "@mapbox/mapbox-gl-draw";
 import "mapbox-gl/dist/mapbox-gl.css";
-import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import type { RedZone } from "@/lib/types";
 
-const MAPBOX_TOKEN =
-  process.env.NEXT_PUBLIC_MAPBOX_TOKEN ||
-  "pk.eyJ1IjoibWFwYm94ZXhhbXBsZSIsImEiOiJja2J4Ynh4eHhhM3V4MnFwZzJ5ZzJ5ZzJ5In0.example";
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
 const isValidMapboxToken = (token?: string) =>
   Boolean(token && token.startsWith("pk.") && !token.includes("example") && !token.includes("your_"));
 
 if (typeof window !== "undefined") {
   try {
-    const origError = console.error;
-    console.error = (...args: any[]) => {
-      if (
-        typeof args[0] === "string" &&
-        (args[0].includes("A valid Mapbox access token is required") || args[0].includes("mapbox.com"))
-      ) {
-        return;
-      }
-      origError.apply(console, args);
-    };
+    (mapboxgl as any).config = (mapboxgl as any).config || {};
+    (mapboxgl as any).config.REQUIRE_ACCESS_TOKEN = false;
   } catch {}
 }
 
@@ -54,173 +42,195 @@ const CARTO_DARK_STYLE: any = {
   ],
 };
 
+export interface TouristDestinationNode {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  category: string;
+  description: string;
+}
+
+export const DEMO_DESTINATIONS: TouristDestinationNode[] = [
+  {
+    id: "canoly-canal",
+    name: "Canoly Canal & Sarovaram Eco Park",
+    lat: 11.272,
+    lng: 75.795,
+    category: "Eco Park & Canal Walkway",
+    description: "Lush mangrove ecosystem and canal walkway in Kozhikode city.",
+  },
+  {
+    id: "kadalundi-birds",
+    name: "Kadalundi Bird Sanctuary & Mangrove Trail",
+    lat: 11.127,
+    lng: 75.828,
+    category: "Estuary & Wildlife Reserve",
+    description: "Estuary mangrove reserve hosting migratory birds and tidal causeway.",
+  },
+  {
+    id: "janakikattu-eco",
+    name: "Janakikattu Eco Tourism & River Path",
+    lat: 11.605,
+    lng: 75.81,
+    category: "River Canopy & Forest Trail",
+    description: "Dense forest riverfront trail with bamboo footbridges.",
+  },
+  {
+    id: "kakkayam-dam",
+    name: "Kakkayam Dam & Elephant Corridor",
+    lat: 11.55,
+    lng: 75.92,
+    category: "Dam Reserve & Trekking Peak",
+    description: "High altitude dam viewpoint and Western Ghats wildlife corridor.",
+  },
+  {
+    id: "vellar-village",
+    name: "Vellar Craft Village & Cultural Park",
+    lat: 11.23,
+    lng: 75.78,
+    category: "Artisan Hub & Cultural Plaza",
+    description: "Traditional artisan craft village displaying indigenous Kerala handicrafts.",
+  },
+  {
+    id: "mavoor-wetlands",
+    name: "Mavoor Wetlands & Bird Habitat",
+    lat: 11.26,
+    lng: 75.91,
+    category: "Wetland Ecology & Marshland",
+    description: "Biodiverse marshland and wetland sanctuary for endemic waterfowl.",
+  },
+];
+
 interface AdminRedZoneMapProps {
   redZones: RedZone[];
-  activeCoords?: [number, number][];
-  onPolygonCreated?: (feature: any, coords: [number, number][]) => void;
+  selectedLocationId?: string;
+  onSelectLocation?: (location: TouristDestinationNode) => void;
+  activeCoords?: any;
+  onPolygonCreated?: any;
 }
 
 export default function AdminRedZoneMap({
   redZones,
-  activeCoords,
-  onPolygonCreated,
+  selectedLocationId,
+  onSelectLocation,
 }: AdminRedZoneMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
-  const drawRef = useRef<MapboxDraw | null>(null);
+  const markersRef = useRef<{ [key: string]: mapboxgl.Marker }>({});
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    const tokenValid = isValidMapboxToken(MAPBOX_TOKEN);
-    try {
-      (mapboxgl as any).config = (mapboxgl as any).config || {};
-      if (!tokenValid) {
-        (mapboxgl as any).config.REQUIRE_ACCESS_TOKEN = false;
-        const origError = console.error;
-        console.error = (...args: any[]) => {
-          if (
-            typeof args[0] === "string" &&
-            args[0].includes("A valid Mapbox access token is required")
-          ) {
-            return;
-          }
-          origError.apply(console, args);
-        };
-      }
-    } catch {}
-
-    mapboxgl.accessToken = tokenValid
-      ? MAPBOX_TOKEN
-      : "pk.eyJ1IjoibWFwYm94ZXhhbXBsZSIsImEiOiJja2J4Ynh4eHhhM3V4MnFwZzJ5ZzJ5ZzJ5In0.example";
-
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: tokenValid ? "mapbox://styles/mapbox/navigation-night-v1" : CARTO_DARK_STYLE,
-      center: [75.775, 11.252], // Kozhikode / Canoly Canal region
-      zoom: 13,
+      style: CARTO_DARK_STYLE,
+      center: [75.82, 11.35],
+      zoom: 10,
       pitch: 20,
     });
 
-    const draw = new MapboxDraw({
-      displayControlsDefault: false,
-      controls: {
-        polygon: true,
-        trash: true,
-      },
-      defaultMode: "draw_polygon",
-    });
-
-    map.addControl(draw, "top-left");
     map.addControl(new mapboxgl.NavigationControl(), "top-right");
-
-    drawRef.current = draw;
     mapRef.current = map;
-
-    const handleDrawChange = () => {
-      const data = draw.getAll();
-      if (data.features.length > 0) {
-        const feature = data.features[data.features.length - 1];
-        if (feature.geometry && feature.geometry.type === "Polygon") {
-          let coords = feature.geometry.coordinates[0] as [number, number][];
-          if (coords.length >= 3) {
-            // Ensure closed polygon shape ring
-            const first = coords[0];
-            const last = coords[coords.length - 1];
-            if (first[0] !== last[0] || first[1] !== last[1]) {
-              coords = [...coords, first];
-            }
-            if (onPolygonCreated) {
-              onPolygonCreated(feature, coords);
-            }
-          }
-        }
-      }
-    };
-
-    map.on("draw.create", handleDrawChange);
-    map.on("draw.update", handleDrawChange);
-    map.on("draw.delete", handleDrawChange);
-    map.on("draw.modechange", (e: any) => {
-      if (e.mode === "simple_select" || e.mode === "direct_select") {
-        handleDrawChange();
-      }
-    });
-    map.on("dblclick", () => {
-      setTimeout(handleDrawChange, 50);
-    });
 
     return () => {
       map.remove();
       mapRef.current = null;
-      drawRef.current = null;
     };
-  }, [onPolygonCreated]);
+  }, []);
 
-  // Load existing red zones onto the map
+  // Update markers & dynamic hazard status overlays
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    map.on("load", () => {
-      renderRedZoneLayers();
-    });
+    // Clear existing markers
+    Object.values(markersRef.current).forEach((m) => m.remove());
+    markersRef.current = {};
 
-    if (map.isStyleLoaded()) {
-      renderRedZoneLayers();
-    }
+    DEMO_DESTINATIONS.forEach((loc) => {
+      // Find active red zone hazard matching this location name or coordinates
+      const activeZone = redZones.find(
+        (rz) =>
+          rz.is_active !== false &&
+          (rz.risk_level as string) !== "RESOLVED" &&
+          (rz.name?.toLowerCase().includes(loc.name.split(" ")[0].toLowerCase()) ||
+            rz.description?.toLowerCase().includes(loc.name.split(" ")[0].toLowerCase()))
+      );
 
-    function renderRedZoneLayers() {
-      if (!map) return;
-      redZones.forEach((rz, idx) => {
-        const sourceId = `admin-rz-src-${rz.id || idx}`;
-        const fillId = `admin-rz-fill-${rz.id || idx}`;
-        const lineId = `admin-rz-line-${rz.id || idx}`;
+      const status = activeZone ? (activeZone.risk_level as string) : "NORMAL";
+      const isSelected = selectedLocationId === loc.id;
 
-        let geojson: GeoJSON.Feature<GeoJSON.Polygon> | null = null;
+      // Marker element
+      const el = document.createElement("div");
+      el.className = "cursor-pointer group flex flex-col items-center";
 
-        if (rz.geojson_polygon) {
-          geojson = rz.geojson_polygon as any;
-        } else if (rz.coordinates && rz.coordinates.length > 0) {
-          geojson = {
-            type: "Feature",
-            properties: { title: rz.name || rz.title, risk_level: rz.risk_level },
-            geometry: {
-              type: "Polygon",
-              coordinates: [rz.coordinates],
-            },
-          };
+      let statusColor = "#10B981"; // Emerald Normal
+      let statusBg = "rgba(16, 185, 129, 0.2)";
+      let statusBorder = "rgba(78, 222, 163, 0.4)";
+      let icon = "location_on";
+
+      if (status === "CRITICAL" || status === "HIGH") {
+        statusColor = "#EF4444";
+        statusBg = "rgba(239, 68, 68, 0.25)";
+        statusBorder = "rgba(239, 68, 68, 0.5)";
+        icon = "warning";
+      } else if (status === "WARNING" || status === "MEDIUM" || status === "LOW") {
+        statusColor = "#F59E0B";
+        statusBg = "rgba(245, 158, 11, 0.25)";
+        statusBorder = "rgba(245, 158, 11, 0.5)";
+        icon = "priority_high";
+      }
+
+      el.innerHTML = `
+        <div style="
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 12px;
+          border-radius: 20px;
+          background: ${isSelected ? "#0F172A" : "rgba(15, 23, 42, 0.85)"};
+          border: 2px solid ${isSelected ? "#4EDEA3" : statusBorder};
+          box-shadow: 0 0 16px ${statusBg};
+          transition: all 0.2s ease;
+        ">
+          <span className="material-symbols-outlined" style="color: ${statusColor}; font-size: 16px;">
+            ${icon}
+          </span>
+          <span style="font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 700; color: #F8FAFC;">
+            ${loc.name.split("&")[0].trim()}
+          </span>
+          <span style="
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 10px;
+            background: ${statusBg};
+            color: ${statusColor};
+            border: 1px solid ${statusBorder};
+          ">
+            ${status}
+          </span>
+        </div>
+      `;
+
+      el.addEventListener("click", () => {
+        if (onSelectLocation) {
+          onSelectLocation(loc);
         }
-
-        if (geojson) {
-          if (map.getSource(sourceId)) {
-            (map.getSource(sourceId) as mapboxgl.GeoJSONSource).setData(geojson);
-          } else {
-            map.addSource(sourceId, { type: "geojson", data: geojson });
-            map.addLayer({
-              id: fillId,
-              type: "fill",
-              source: sourceId,
-              paint: {
-                "fill-color": "#EF4444",
-                "fill-opacity": 0.25,
-              },
-            });
-            map.addLayer({
-              id: lineId,
-              type: "line",
-              source: sourceId,
-              paint: {
-                "line-color": "#EF4444",
-                "line-width": 2,
-                "line-dasharray": [3, 3],
-              },
-            });
-          }
+        if (mapRef.current) {
+          mapRef.current.flyTo({ center: [loc.lng, loc.lat], zoom: 12, pitch: 35 });
         }
       });
-    }
-  }, [redZones]);
+
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat([loc.lng, loc.lat])
+        .addTo(map);
+
+      markersRef.current[loc.id] = marker;
+    });
+  }, [redZones, selectedLocationId, onSelectLocation]);
 
   return (
     <div className="relative w-full rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-slate-950 min-h-[460px]">
@@ -231,9 +241,9 @@ export default function AdminRedZoneMap({
           height: "460px",
         }}
       />
-      <div className="absolute bottom-3 left-3 bg-[#0F172A]/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-emerald-500/30 text-[11px] text-emerald-400 font-mono flex items-center gap-2 z-10">
+      <div className="absolute bottom-3 left-3 bg-[#0F172A]/90 backdrop-blur-md px-3.5 py-2 rounded-lg border border-emerald-500/30 text-[11px] text-emerald-400 font-mono flex items-center gap-2 z-10 shadow-lg">
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-        Double-click nodes to complete &amp; fix shape as zone polygon
+        Click any Tourist Destination Place Node to manage live hazard status
       </div>
     </div>
   );

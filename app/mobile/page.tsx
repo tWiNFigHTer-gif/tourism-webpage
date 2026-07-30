@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import dynamic from "next/dynamic"
 import { AnimatePresence, motion } from "framer-motion"
 import { getLocations, getDangerZones } from "@/lib/db"
@@ -113,27 +113,9 @@ function getPlaceHeroImage(name: string, category: string, district: string, raw
   return ECO_BACKWATER_IMAGES[hash % ECO_BACKWATER_IMAGES.length]
 }
 
-// Fallback seed locations for initial load before Supabase response
-const KERALA_PLACES_SEED: MapLocation[] = [
-  {
-    id: "canoly-canal",
-    name: "Canoly Canal & Sarovaram Eco Park",
-    region: "Kozhikode City",
-    district: "Kozhikode",
-    zone: "ZONE CLT-1",
-    category: "eco",
-    capacity: { current: 12, total: 50 },
-    description: "Lush mangrove ecosystem & canal walkway right in Kozhikode city featuring wooden boardwalks & butterfly park.",
-    distance: "3.8 km",
-    lat: 11.2720,
-    lng: 75.7950,
-    active: true,
-    image: "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=800&q=80",
-  },
-]
-
 function MobileMapPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, signOut, profile, isAdmin } = useAuth()
 
   // Profile session menu toggle
@@ -149,7 +131,7 @@ function MobileMapPage() {
   const [selectedDuration, setSelectedDuration] = useState("all")
 
   // Database Locations state
-  const [rawLocations, setRawLocations] = useState<MapLocation[]>(KERALA_PLACES_SEED)
+  const [rawLocations, setRawLocations] = useState<MapLocation[]>([])
   const [dangerZones, setDangerZones] = useState<GeoJSON.Feature<GeoJSON.Polygon>[]>([])
   const [isDbLoading, setIsDbLoading] = useState(true)
 
@@ -261,6 +243,8 @@ function MobileMapPage() {
             .map((dz: any) => normalizeDangerZoneFeature(dz))
             .filter((f): f is GeoJSON.Feature<GeoJSON.Polygon> => f !== null)
           setDangerZones(mappedDz)
+        } else {
+          setDangerZones([])
         }
       } catch (err) {
         console.error("Failed to load Supabase locations:", err)
@@ -293,6 +277,11 @@ function MobileMapPage() {
       }
     }).sort((a, b) => a.distanceKm - b.distanceKm)
   }, [rawLocations, fromLocation])
+
+  useEffect(() => {
+    const requestedId = searchParams.get("place_id")
+    if (requestedId) setSelectedLocation(locations.find((location) => location.id === requestedId) || null)
+  }, [locations, searchParams])
 
   // Saved locations list
   const savedLocations = useMemo(() => {

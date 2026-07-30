@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Marker, Source, Layer } from "react-map-gl/mapbox";
 import { MapCanvas } from "@/components/maps/MapCanvas";
-import { supabase } from "@/lib/supabase";
+import { getPlaces } from "@/lib/places";
 import { getRedZones } from "@/lib/db";
 import { isPointInPolygon, checkRouteIntersection } from "@/lib/turf";
 import type { RedZone } from "@/lib/types";
@@ -24,17 +24,6 @@ interface Attraction {
   description?: string;
   capacity_per_slot?: number;
 }
-
-const FALLBACK_ATTRACTIONS: Attraction[] = [
-  { id: "att-1", name: "Canoly Canal & Sarovaram Eco Park", lat: 11.2720, lng: 75.7950, category: "eco", description: "Lush mangrove ecosystem and canal walkway right in Kozhikode city." },
-  { id: "att-2", name: "Mavoor Wetlands & Bird Sanctuary", lat: 11.2619, lng: 75.9412, category: "eco", description: "Famous eco-wetland habitat home to migratory waterbirds." },
-  { id: "att-3", name: "Kadalundi Estuary & Mangrove Trail", lat: 11.1278, lng: 75.8286, category: "wildlife", description: "Serene estuarine sanctuary where Kadalundi River meets Arabian sea." },
-  { id: "att-4", name: "Kakkayam Dam & Eco Valley", lat: 11.5432, lng: 75.9211, category: "waterfalls", description: "Picturesque dam site and waterfall trek in Kozhikode district." },
-  { id: "att-5", name: "Thusharagiri Waterfalls & Trek", lat: 11.4700, lng: 76.0500, category: "waterfalls", description: "Cascading jungle streams forming three waterfalls." },
-  { id: "att-6", name: "Janakikkadu Eco Forest", lat: 11.5800, lng: 75.7500, category: "forests", description: "Protected evergreen forest ecosystem rich in medicinal flora." },
-  { id: "att-7", name: "Chembra Peak & Heart Lake", lat: 11.5467, lng: 76.0890, category: "viewpoints", description: "Highest peak in Wayanad with a natural heart-shaped lake." },
-  { id: "att-8", name: "Banasura Sagar Eco Dam", lat: 11.6711, lng: 75.9575, category: "viewpoints", description: "Largest earth dam in India offering boat rides." },
-];
 
 export default function TouristMapPage() {
   const { user, profile, isAdmin } = useAuth();
@@ -65,21 +54,14 @@ export default function TouristMapPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const { data: dbAttractions } = await supabase
-          .from("attractions")
-          .select("id, name, lat, lng, category, description, capacity_per_slot");
-
-        if (dbAttractions && dbAttractions.length > 0) {
-          setAttractions(dbAttractions);
-        } else {
-          setAttractions(FALLBACK_ATTRACTIONS);
-        }
+        const dbAttractions = await getPlaces();
+        setAttractions(dbAttractions);
 
         const rz = await getRedZones();
         setRedZones(rz);
       } catch (err) {
-        console.warn("Using fallback attraction locations:", err);
-        setAttractions(FALLBACK_ATTRACTIONS);
+        console.warn("Unable to load active locations:", err);
+        setAttractions([]);
       } finally {
         setLoading(false);
       }
@@ -170,22 +152,12 @@ export default function TouristMapPage() {
 
         <div className="flex items-center gap-3">
           <Link
-            href="/mobile"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/20 text-xs font-mono font-bold text-emerald-300 hover:bg-emerald-500/30 transition-all cursor-pointer shadow-lg"
+            href="/admin/dashboard"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/20 text-xs font-mono font-bold text-emerald-300 hover:bg-emerald-500/30 transition-all cursor-pointer shadow-lg"
           >
-            <span className="material-symbols-outlined text-sm">explore</span>
-            <span>Mobile Portal</span>
+            <span className="material-symbols-outlined text-sm">arrow_back</span>
+            <span>← Return to Admin Home</span>
           </Link>
-
-          {(isAdmin || user?.email?.toLowerCase().includes("admin") || profile?.role === "panchayat_admin") && (
-            <Link
-              href="/admin/dashboard"
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-amber-500/40 bg-amber-500/20 text-xs font-mono font-bold text-amber-300 hover:bg-amber-500/30 transition-all cursor-pointer shadow-lg"
-            >
-              <span className="material-symbols-outlined text-sm">shield_person</span>
-              <span>Admin Dashboard</span>
-            </Link>
-          )}
 
           <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs font-mono text-slate-300">
             <span className="material-symbols-outlined text-xs text-emerald-400">my_location</span>

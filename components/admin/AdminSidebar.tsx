@@ -12,6 +12,12 @@ const NAV_ITEMS = [
     badge: null,
   },
   {
+    label: "Places Manager",
+    href: "/admin/places",
+    icon: "place",
+    badge: "CRUD",
+  },
+  {
     label: "Civic Incident Triage",
     href: "/admin/reports",
     icon: "warning",
@@ -28,12 +34,6 @@ const NAV_ITEMS = [
     href: "/admin/passes",
     icon: "qr_code_scanner",
     badge: "QR",
-  },
-  {
-    label: "Mobile Tourist Portal",
-    href: "/mobile",
-    icon: "smartphone",
-    badge: "App",
   },
   {
     label: "Tourist Map Explorer",

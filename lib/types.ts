@@ -20,8 +20,15 @@ export interface Location {
   category: string;
   lat: number;
   lng: number;
-  capacity_per_slot: number;
-  panchayat_id: string;
+  capacity_per_slot?: number;
+  capacity_max?: number;
+  panchayat_id?: string;
+  region?: string;
+  district?: string;
+  image_url?: string;
+  is_active?: boolean;
+  status?: "active" | "hidden";
+  updated_at?: string;
   rich_details?: LocationRichDetails;
 }
 
@@ -100,6 +107,8 @@ export interface HazardReport {
   status: "pending" | "in_progress" | "resolved";
   photo_url?: string;
   panchayat_id: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface CapacityStatus {

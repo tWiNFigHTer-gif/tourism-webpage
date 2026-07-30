@@ -7,16 +7,16 @@ import "mapbox-gl/dist/mapbox-gl.css";
 
 import mapboxgl from "mapbox-gl";
 
-const MAPBOX_TOKEN =
-  process.env.NEXT_PUBLIC_MAPBOX_TOKEN ||
-  "pk.eyJ1IjoibWFwYm94ZXhhbXBsZSIsImEiOiJja2J4Ynh4eHhhM3V4MnFwZzJ5ZzJ5ZzJ5In0.example";
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
 const isValidMapboxToken = (token?: string) =>
   Boolean(token && token.startsWith("pk.") && !token.includes("example") && !token.includes("your_"));
 
-const tokenValid = isValidMapboxToken(MAPBOX_TOKEN);
 if (typeof window !== "undefined") {
-  mapboxgl.accessToken = MAPBOX_TOKEN;
+  try {
+    (mapboxgl as any).config = (mapboxgl as any).config || {};
+    (mapboxgl as any).config.REQUIRE_ACCESS_TOKEN = false;
+  } catch {}
 }
 
 // Carto Dark Matter raster style fallback for offline/demo/invalid tokens
@@ -66,7 +66,7 @@ export interface SharedMapCanvasProps {
 export const MapCanvas = forwardRef<MapRef, SharedMapCanvasProps>(function MapCanvas(
   {
     initialViewState = { longitude: 75.85, latitude: 11.35, zoom: 9.5, pitch: 25 },
-    mapStyle = "mapbox://styles/mapbox/navigation-night-v1",
+    mapStyle = CARTO_DARK_STYLE,
     mapboxAccessToken = MAPBOX_TOKEN,
     onClick,
     onLoad,
@@ -77,8 +77,7 @@ export const MapCanvas = forwardRef<MapRef, SharedMapCanvasProps>(function MapCa
   },
   ref
 ) {
-  const isTokenValid = isValidMapboxToken(mapboxAccessToken);
-  const activeStyle = isTokenValid ? mapStyle : CARTO_DARK_STYLE;
+  const activeStyle = CARTO_DARK_STYLE;
 
   return (
     <div className={className} style={style}>

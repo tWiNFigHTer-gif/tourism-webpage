@@ -7,37 +7,9 @@ import type { HazardReport, RedZone, UserRole } from "@/lib/types";
  */
 
 export async function getAttractions() {
-  try {
-    const { data, error } = await supabase
-      .from("attractions")
-      .select("*")
-      .eq("is_active", true);
-    if (!error && data && data.length > 0) return data;
-    throw error || new Error("No data");
-  } catch (e) {
-    try {
-      const { data, error } = await supabase
-        .from("locations")
-        .select("*")
-        .eq("is_active", true);
-      if (!error && data && data.length > 0) return data;
-    } catch {}
-
-    // Fallback Kerala Attractions
-    return [
-      { id: "att-1", name: "Canoly Canal & Sarovaram Eco Park", category: "eco", lat: 11.2720, lng: 75.7950, capacity_per_slot: 50, district: "Kozhikode", is_active: true, description: "Lush mangrove ecosystem and canal walkway in Kozhikode city." },
-      { id: "att-2", name: "Mavoor Wetlands & Bird Sanctuary", category: "eco", lat: 11.2619, lng: 75.9412, capacity_per_slot: 50, district: "Kozhikode", is_active: true, description: "Famous eco-wetland habitat home to migratory waterbirds." },
-      { id: "att-3", name: "Kadalundi Estuary & Mangrove Trail", category: "wildlife", lat: 11.1278, lng: 75.8286, capacity_per_slot: 50, district: "Kozhikode", is_active: true, description: "Serene estuarine sanctuary where Kadalundi River meets Arabian sea." },
-      { id: "att-4", name: "Kakkayam Dam & Eco Valley", category: "waterfalls", lat: 11.5432, lng: 75.9211, capacity_per_slot: 50, district: "Kozhikode", is_active: true, description: "Picturesque dam site and waterfall trek in Kozhikode district." },
-      { id: "att-5", name: "Thusharagiri Waterfalls & Trek", category: "waterfalls", lat: 11.4700, lng: 76.0500, capacity_per_slot: 50, district: "Kozhikode", is_active: true, description: "Cascading jungle streams forming three waterfalls." },
-      { id: "att-6", name: "Janakikkadu Eco Forest", category: "forests", lat: 11.5800, lng: 75.7500, capacity_per_slot: 50, district: "Kozhikode", is_active: true, description: "Protected evergreen forest ecosystem rich in medicinal flora." },
-      { id: "att-7", name: "Chembra Peak & Heart Lake", category: "viewpoints", lat: 11.5467, lng: 76.0890, capacity_per_slot: 50, district: "Wayanad", is_active: true, description: "Highest peak in Wayanad with a natural heart-shaped lake." },
-      { id: "att-8", name: "Banasura Sagar Eco Dam", category: "viewpoints", lat: 11.6711, lng: 75.9575, capacity_per_slot: 60, district: "Wayanad", is_active: true, description: "Largest earth dam in India offering boat rides." },
-      { id: "att-9", name: "Kuruva Dweep Mangrove Island", category: "eco", lat: 11.8219, lng: 76.0911, capacity_per_slot: 45, district: "Wayanad", is_active: true, description: "Protected river delta island on the Kabini river." },
-      { id: "att-10", name: "Silent Valley National Park", category: "forests", lat: 11.0758, lng: 76.4703, capacity_per_slot: 50, district: "Palakkad", is_active: true, description: "Pristine high-altitude shola evergreen rainforest." },
-      { id: "att-11", name: "Athirappilly Waterfalls", category: "waterfalls", lat: 10.2850, lng: 76.5698, capacity_per_slot: 75, district: "Thrissur", is_active: true, description: "Niagara of India cascading 80 feet down Sholayar forest range." },
-    ];
-  }
+  const { data, error } = await supabase.from("locations").select("*").eq("is_active", true).eq("status", "active");
+  if (error) throw error;
+  return data ?? [];
 }
 
 export async function getLocations() {
@@ -119,6 +91,9 @@ export async function insertRedZone(payload: Omit<RedZone, "id" | "created_at">)
       .select()
       .single();
     if (error) throw error;
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "red_zones" } }));
+    }
     return data;
   } catch (e) {
     // Local storage fallback for offline/demo
@@ -328,10 +303,140 @@ export async function getExperiences(locationId: string) {
   return data;
 }
 
+export async function getPassesCount(): Promise<number> {
+  try {
+    const { count, error } = await supabase
+      .from("passes")
+      .select("*", { count: "exact", head: true });
+    if (!error && count !== null && count > 0) return count;
+  } catch {}
+  const raw = typeof window !== "undefined" ? localStorage.getItem("terra_my_passes") : null;
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.length;
+    } catch {}
+  }
+  return 12;
+}
+
+export interface ActivityItem {
+  id: string;
+  type: "pass" | "red_zone" | "report" | "check_in";
+  title: string;
+  description: string;
+  timestamp: string;
+  status?: string;
+  icon: string;
+  color: string;
+}
+
+export async function getLocationsCount(): Promise<number> {
+  try {
+    const { count, error } = await supabase
+      .from("attractions")
+      .select("*", { count: "exact", head: true });
+    if (!error && count !== null && count > 0) return count;
+  } catch {}
+  return 11; // fallback count of attractions
+}
+
+export async function getRecentActivity(): Promise<ActivityItem[]> {
+  const activities: ActivityItem[] = [];
+
+  // 1. Fetch Red Zones
+  try {
+    const zones = await getRedZones();
+    zones.forEach((z) => {
+      activities.push({
+        id: `act-rz-${z.id}`,
+        type: "red_zone",
+        title: `Red Zone Created`,
+        description: `Panchayat Admin created a ${z.risk_level} alert at ${z.name || z.title}`,
+        timestamp: z.created_at || new Date().toISOString(),
+        icon: "polyline",
+        color: z.risk_level === "CRITICAL" ? "#EF4444" : "#F59E0B",
+      });
+    });
+  } catch {}
+
+  // 2. Fetch Civic Reports
+  try {
+    const reports = await getCivicReports();
+    reports.forEach((r) => {
+      activities.push({
+        id: `act-rep-${r.id}`,
+        type: "report",
+        title: `Civic Report Logged`,
+        description: `Hazard "${r.category}" reported at ${r.location_name} by ${r.reporter_name || "Tourist"}`,
+        timestamp: r.created_at || r.reported_at || new Date().toISOString(),
+        status: r.status,
+        icon: "warning",
+        color: r.status === "pending" ? "#EF4444" : r.status === "in_progress" ? "#F59E0B" : "#10B981",
+      });
+    });
+  } catch {}
+
+  // 3. Fetch Passes / Check-Ins
+  try {
+    const { data: dbPasses } = await supabase
+      .from("passes")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(10);
+      
+    if (dbPasses && dbPasses.length > 0) {
+      dbPasses.forEach((p) => {
+        const isScanned = p.status === "scanned" || p.status === "scanned_in" || p.status === "checked_in" || p.status === "CHECKED_IN" || p.status === "VISITED";
+        activities.push({
+          id: `act-pass-${p.id}`,
+          type: isScanned ? "check_in" : "pass",
+          title: isScanned ? `Tourist Checked In` : `Pass Booked`,
+          description: isScanned 
+            ? `Tourist ${p.holder_name || "Explorer"} checked in at ${p.location_name}`
+            : `Tourist ${p.holder_name || "Explorer"} booked entry to ${p.location_name}`,
+          timestamp: p.created_at || new Date().toISOString(),
+          icon: isScanned ? "login" : "qr_code",
+          color: "#4EDEA3",
+        });
+      });
+    } else {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("terra_my_passes") : null;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((p: any) => {
+            const isScanned = p.status === "VISITED" || p.status === "CHECKED_IN" || p.status === "scanned" || p.status === "checked_in";
+            activities.push({
+              id: `act-pass-${p.id}`,
+              type: isScanned ? "check_in" : "pass",
+              title: isScanned ? `Tourist Checked In` : `Pass Booked`,
+              description: isScanned 
+                ? `Tourist ${p.visitor_name || p.tourist_name || "Explorer"} checked in at ${p.location_name}`
+                : `Tourist ${p.visitor_name || p.tourist_name || "Explorer"} booked slot ${p.slot_time || p.time_slot || "entry"} at ${p.location_name}`,
+              timestamp: p.booked_at || p.issued_at || p.created_at || new Date().toISOString(),
+              icon: isScanned ? "login" : "qr_code",
+              color: "#4EDEA3",
+            });
+          });
+        }
+      }
+    }
+  } catch {}
+
+  // Sort by timestamp desc
+  activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  return activities.slice(0, 10);
+}
+
 export async function getDashboardData() {
-  const [reports, redZones] = await Promise.all([
+  const [reports, redZones, passesCount, locationsCount, recentActivity] = await Promise.all([
     getCivicReports(),
     getRedZones(),
+    getPassesCount(),
+    getLocationsCount(),
+    getRecentActivity(),
   ]);
   
   const pendingCount = reports.filter((r) => r.status === "pending").length;
@@ -339,14 +444,36 @@ export async function getDashboardData() {
   const resolvedCount = reports.filter((r) => r.status === "resolved").length;
 
   return {
-    totalPasses: 142,
+    totalPasses: passesCount,
     activeZones: redZones.length,
     pendingReports: pendingCount,
     inProgressReports: inProgressCount,
     resolvedReports: resolvedCount,
+    totalLocations: locationsCount,
     reports,
     redZones,
+    recentActivity,
   };
+}
+
+
+export async function getLiveNotifications(): Promise<any[]> {
+  try {
+    const redZones = await getRedZones();
+    const hazardNotifs = redZones.map((rz, i) => ({
+      id: `notif-rz-${rz.id || i}`,
+      title: `⚠️ ${rz.name || rz.title}`,
+      message: rz.description || "Active hazard advisory issued by Panchayat Official.",
+      time: "Just now",
+      type: "hazard",
+      tagText: rz.risk_level === "CRITICAL" ? "CRITICAL HAZARD" : "SAFETY ADVISORY",
+      locationId: rz.name?.toLowerCase().includes("canoly") ? "canoly-canal" : "kadalundi-birds",
+      read: false,
+    }));
+    return hazardNotifs;
+  } catch {
+    return [];
+  }
 }
 
 export async function resolveHazard(id: string) {

@@ -232,6 +232,8 @@ function BookingContent() {
         if (typeof window !== "undefined") {
           try {
             localStorage.setItem("terra_my_passes", JSON.stringify(next))
+            localStorage.setItem("terra_pulse_passes", JSON.stringify(next))
+            window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "passes" } }))
           } catch (e) {
             console.error("Pass store error:", e)
           }

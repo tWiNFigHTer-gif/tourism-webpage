@@ -6,6 +6,8 @@ import { ProtectedRoute } from "@/components/AuthProvider"
 import CurvedBottomNav from "@/components/mobile/CurvedBottomNav"
 import ReviewCard from "@/components/mobile/ReviewCard"
 import { MOCK_REVIEWS, type ReviewData } from "@/components/mobile/mockReviews"
+import { getPlaces } from "@/lib/places"
+import type { Location } from "@/lib/types"
 
 import { NotificationsDrawer, INITIAL_NOTIFICATIONS, type NotificationItem } from "@/components/mobile/NotificationsDrawer"
 
@@ -384,9 +386,13 @@ function ZoneStatsCard() {
 
 // ── Main Explore Feed ───────────────────────────────────────────────────────
 function ExploreFeedContent() {
+  const router = useRouter()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [allReviews, setAllReviews] = useState<ReviewData[]>(MOCK_REVIEWS)
   const [searchQuery, setSearchQuery] = useState("")
+  const [places, setPlaces] = useState<Location[]>([])
+
+  useEffect(() => { getPlaces().then(setPlaces).catch(() => setPlaces([])) }, [])
   const [selectedTag, setSelectedTag] = useState("all")
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
@@ -465,6 +471,12 @@ function ExploreFeedContent() {
       return matchName || matchDistrict || matchZone || matchReviewer || matchRole || matchText
     })
   }, [allReviews, searchQuery, selectedTag])
+
+  const matchingPlaces = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return places.slice(0, 6)
+    return places.filter((place) => [place.name, place.category, place.region, place.description].filter(Boolean).some((value) => String(value).toLowerCase().includes(q)))
+  }, [places, searchQuery])
 
   // Restore scroll position on mount
   useEffect(() => {
@@ -617,6 +629,15 @@ function ExploreFeedContent() {
               </button>
             </div>
           )}
+
+          <section style={{ marginBottom: "18px" }}>
+            <h2 style={{ fontSize: "14px", color: "#f0f4f8", marginBottom: "10px" }}>Places ({matchingPlaces.length})</h2>
+            {matchingPlaces.map((place) => (
+              <button key={place.id} type="button" onClick={() => router.push(`/mobile?place_id=${place.id}`)} style={{ width: "100%", textAlign: "left", marginBottom: "8px", padding: "12px", borderRadius: "12px", border: "1px solid rgba(78,222,163,.2)", background: "#111820", color: "#f0f4f8" }}>
+                <strong>{place.name}</strong><br /><span style={{ color: "#8fa3b8", fontSize: "11px" }}>{place.category} · {place.region || "Kerala"}</span>
+              </button>
+            ))}
+          </section>
 
           {/* Review cards */}
           {filteredReviews.length > 0 ? (

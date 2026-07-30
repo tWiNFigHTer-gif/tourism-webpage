@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { getRedZones, insertRedZone } from "@/lib/db";
+import { getRedZones, insertRedZone, deleteRedZone } from "@/lib/db";
 import type { RedZone } from "@/lib/types";
+import { DEMO_DESTINATIONS, type TouristDestinationNode } from "@/components/admin/AdminRedZoneMap";
 
-// Dynamic import for Leaflet map component to prevent SSR window issues
 const AdminRedZoneMap = dynamic(() => import("@/components/admin/AdminRedZoneMap"), {
   ssr: false,
   loading: () => (
-    <div style={{ height: "400px", background: "#0F172A", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", color: "#4EDEA3" }}>
-      Loading Spatial Map Canvas...
+    <div style={{ height: "460px", background: "#0F172A", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", color: "#4EDEA3" }}>
+      Loading Spatial Node Map...
     </div>
   ),
 });
@@ -18,19 +18,10 @@ const AdminRedZoneMap = dynamic(() => import("@/components/admin/AdminRedZoneMap
 export default function RedZoneManagerPage() {
   const [redZones, setRedZones] = useState<RedZone[]>([]);
   const [loading, setLoading] = useState(true);
-  const [zoneName, setZoneName] = useState("");
-  const [riskLevel, setRiskLevel] = useState<"LOW" | "MEDIUM" | "HIGH" | "CRITICAL">("HIGH");
-  const [description, setDescription] = useState("");
-  const [customCoords, setCustomCoords] = useState<[number, number][]>([
-    [75.770, 11.250],
-    [75.778, 11.250],
-    [75.778, 11.258],
-    [75.770, 11.258],
-    [75.770, 11.250],
-  ]);
+  const [selectedLocation, setSelectedLocation] = useState<TouristDestinationNode>(DEMO_DESTINATIONS[0]);
+  const [hazardStatus, setHazardStatus] = useState<"NORMAL" | "WARNING" | "CRITICAL" | "RESOLVED">("WARNING");
+  const [hazardDescription, setHazardDescription] = useState("");
   const [saving, setSaving] = useState(false);
-
-  const [drawnGeoJson, setDrawnGeoJson] = useState<any>(null);
 
   const fetchZones = async () => {
     try {
@@ -47,40 +38,82 @@ export default function RedZoneManagerPage() {
     fetchZones();
   }, []);
 
-  const handlePolygonCreated = (feature: any, coords: [number, number][]) => {
-    setDrawnGeoJson(feature);
-    if (coords && coords.length > 0) {
-      setCustomCoords(coords);
+  const handleSelectLocation = (loc: TouristDestinationNode) => {
+    setSelectedLocation(loc);
+    // Find active zone hazard if present
+    const existing = redZones.find(
+      (rz) =>
+        rz.is_active !== false &&
+        (rz.name?.toLowerCase().includes(loc.name.split(" ")[0].toLowerCase()) ||
+          rz.description?.toLowerCase().includes(loc.name.split(" ")[0].toLowerCase()))
+    );
+    if (existing) {
+      setHazardStatus((existing.risk_level as any) || "WARNING");
+      setHazardDescription(existing.description || "");
+    } else {
+      setHazardStatus("NORMAL");
+      setHazardDescription("");
     }
   };
 
-  const handleCreateZone = async (e: React.FormEvent) => {
+  const handleUpdateHazard = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!zoneName.trim()) return;
-
     setSaving(true);
-    try {
-      await insertRedZone({
-        title: zoneName,
-        name: zoneName,
-        risk_level: riskLevel,
-        description: description || "Temporary danger zone created by Panchayat official.",
-        coordinates: customCoords,
-        geojson_polygon: drawnGeoJson || {
-          type: "Feature",
-          properties: { title: zoneName, risk_level: riskLevel },
-          geometry: { type: "Polygon", coordinates: [customCoords] },
-        },
-        is_active: true,
-      } as any);
 
-      setZoneName("");
-      setDescription("");
-      setDrawnGeoJson(null);
+    try {
+      if (hazardStatus === "RESOLVED" || hazardStatus === "NORMAL") {
+        // Resolve hazard: remove active overlays and archive incident
+        const activeZonesToResolve = redZones.filter(
+          (rz) =>
+            rz.is_active !== false &&
+            (rz.name?.toLowerCase().includes(selectedLocation.name.split(" ")[0].toLowerCase()) ||
+              rz.description?.toLowerCase().includes(selectedLocation.name.split(" ")[0].toLowerCase()))
+        );
+
+        for (const zone of activeZonesToResolve) {
+          await deleteRedZone(zone.id);
+        }
+
+        alert(`Hazard for "${selectedLocation.name}" has been marked RESOLVED. All overlays removed, tourists notified, and incident archived.`);
+      } else {
+        // Publish or update warning/critical hazard
+        await insertRedZone({
+          title: `${selectedLocation.name} - ${hazardStatus} Alert`,
+          name: `${selectedLocation.name} - ${hazardStatus} Alert`,
+          risk_level: hazardStatus === "CRITICAL" ? "CRITICAL" : "HIGH",
+          description: hazardDescription || `Temporary ${hazardStatus} alert issued by Panchayat Official for ${selectedLocation.name}.`,
+          coordinates: [
+            [selectedLocation.lng - 0.005, selectedLocation.lat - 0.005],
+            [selectedLocation.lng + 0.005, selectedLocation.lat - 0.005],
+            [selectedLocation.lng + 0.005, selectedLocation.lat + 0.005],
+            [selectedLocation.lng - 0.005, selectedLocation.lat + 0.005],
+            [selectedLocation.lng - 0.005, selectedLocation.lat - 0.005],
+          ],
+          geojson_polygon: {
+            type: "Feature",
+            properties: { title: selectedLocation.name, risk_level: hazardStatus },
+            geometry: {
+              type: "Polygon",
+              coordinates: [
+                [
+                  [selectedLocation.lng - 0.005, selectedLocation.lat - 0.005],
+                  [selectedLocation.lng + 0.005, selectedLocation.lat - 0.005],
+                  [selectedLocation.lng + 0.005, selectedLocation.lat + 0.005],
+                  [selectedLocation.lng - 0.005, selectedLocation.lat + 0.005],
+                  [selectedLocation.lng - 0.005, selectedLocation.lat - 0.005],
+                ],
+              ],
+            },
+          },
+          is_active: true,
+        } as any);
+
+        alert(`Dynamic Hazard Lifecycle for "${selectedLocation.name}" set to ${hazardStatus}. Tourist stream updated in real-time.`);
+      }
+
       await fetchZones();
-      alert(`Red Zone "${zoneName}" successfully published to PostGIS & Spatial Safety Stream!`);
     } catch (e) {
-      alert("Error saving Red Zone");
+      alert("Error updating hazard status");
     } finally {
       setSaving(false);
     }
@@ -92,40 +125,44 @@ export default function RedZoneManagerPage() {
       <div style={{ marginBottom: "24px", paddingBottom: "16px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
           <span className="material-symbols-outlined" style={{ color: "#4EDEA3", fontSize: "18px" }}>
-            polyline
+            location_on
           </span>
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", color: "#4EDEA3", fontWeight: 600 }}>
-            POSTGIS SPATIAL HAZARD BOUNDARY EDITOR
+            DESTINATION NODE HAZARD LIFECYCLE CONTROLLER
           </span>
         </div>
         <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "26px", fontWeight: 700, color: "#F8FAFC", margin: 0 }}>
-          Spatial Red Zone Polygon Manager
+          Tourist Destination Hazard & Safety Manager
         </h1>
         <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", color: "#94A3B8", marginTop: "4px" }}>
-          Draw and publish temporary spatial danger polygons using Mapbox GL Draw. Any tourist navigating near these boundaries will receive instant real-time route rerouting & hazard warnings.
+          Click any destination node on the map to issue temporary warning or critical alerts. Marking a hazard as Resolved immediately clears overlays and restores the destination to normal state.
         </p>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "24px" }}>
-        {/* Left: Map Preview & Polygon Canvas */}
+        {/* Left: Map Preview with Clickable Place Markers */}
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div style={{ background: "rgba(17,24,32,0.9)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "16px" }}>
-            <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "15px", fontWeight: 600, color: "#F8FAFC", marginBottom: "12px" }}>
-              Active Spatial Red Zones Map
-            </h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "15px", fontWeight: 600, color: "#F8FAFC", margin: 0 }}>
+                Spatial Tourist Places Map
+              </h2>
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", color: "#4EDEA3" }}>
+                Selected: {selectedLocation.name}
+              </span>
+            </div>
             <AdminRedZoneMap
               redZones={redZones}
-              activeCoords={customCoords}
-              onPolygonCreated={handlePolygonCreated}
+              selectedLocationId={selectedLocation.id}
+              onSelectLocation={handleSelectLocation}
             />
           </div>
         </div>
 
-        {/* Right: Create Red Zone Form & Active Zone List */}
+        {/* Right: Node Hazard Form & Active Incidents List */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {/* Create Form */}
           <form
-            onSubmit={handleCreateZone}
+            onSubmit={handleUpdateHazard}
             style={{
               background: "rgba(17,24,32,0.9)",
               border: "1px solid rgba(78,222,163,0.3)",
@@ -135,40 +172,20 @@ export default function RedZoneManagerPage() {
             }}
           >
             <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "16px", fontWeight: 700, color: "#4EDEA3", margin: "0 0 16px 0" }}>
-              ➕ Publish New Red Zone Boundary
+              📍 Manage Hazard Lifecycle
             </h2>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               <div>
                 <label style={{ display: "block", fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#CBD5E1", marginBottom: "6px" }}>
-                  Zone Name / Identifier *
-                </label>
-                <input
-                  type="text"
-                  value={zoneName}
-                  onChange={(e) => setZoneName(e.target.value)}
-                  placeholder="e.g. Canoly Canal Monsoonal Runoff Zone"
-                  required
-                  style={{
-                    width: "100%",
-                    background: "#0F172A",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    borderRadius: "8px",
-                    padding: "10px 12px",
-                    color: "#F8FAFC",
-                    fontSize: "13px",
-                    outline: "none",
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#CBD5E1", marginBottom: "6px" }}>
-                  Risk Severity Level
+                  Selected Tourist Destination Node
                 </label>
                 <select
-                  value={riskLevel}
-                  onChange={(e) => setRiskLevel(e.target.value as any)}
+                  value={selectedLocation.id}
+                  onChange={(e) => {
+                    const found = DEMO_DESTINATIONS.find((d) => d.id === e.target.value);
+                    if (found) handleSelectLocation(found);
+                  }}
                   style={{
                     width: "100%",
                     background: "#0F172A",
@@ -180,22 +197,48 @@ export default function RedZoneManagerPage() {
                     outline: "none",
                   }}
                 >
-                  <option value="LOW">LOW - Advisory Notice</option>
-                  <option value="MEDIUM">MEDIUM - Caution / Slow Transit</option>
-                  <option value="HIGH">HIGH - Danger / Reroute Recommended</option>
-                  <option value="CRITICAL">CRITICAL - Strict No-Access Red Zone</option>
+                  {DEMO_DESTINATIONS.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.name} ({loc.category})
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div>
                 <label style={{ display: "block", fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#CBD5E1", marginBottom: "6px" }}>
-                  Hazard Description / Cause
+                  Hazard Lifecycle Status
+                </label>
+                <select
+                  value={hazardStatus}
+                  onChange={(e) => setHazardStatus(e.target.value as any)}
+                  style={{
+                    width: "100%",
+                    background: "#0F172A",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    borderRadius: "8px",
+                    padding: "10px 12px",
+                    color: "#F8FAFC",
+                    fontSize: "13px",
+                    outline: "none",
+                  }}
+                >
+                  <option value="NORMAL">🟢 NORMAL - All Clear (No Hazard Overlay)</option>
+                  <option value="WARNING">🟡 WARNING - Caution Alert (Amber Pulse)</option>
+                  <option value="CRITICAL">🔴 CRITICAL - Strict Danger Alert (Red Pulse)</option>
+                  <option value="RESOLVED">✅ RESOLVED - Clear Overlay & Archive Incident</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#CBD5E1", marginBottom: "6px" }}>
+                  Hazard Details / Official Advisory Note
                 </label>
                 <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  value={hazardDescription}
+                  onChange={(e) => setHazardDescription(e.target.value)}
                   rows={3}
-                  placeholder="Describe reason for temporary closure or safety alert..."
+                  placeholder="Enter details regarding water level, trail obstruction, or high-tide advisory..."
                   style={{
                     width: "100%",
                     background: "#0F172A",
@@ -215,7 +258,7 @@ export default function RedZoneManagerPage() {
                 disabled={saving}
                 style={{
                   width: "100%",
-                  background: "#10B981",
+                  background: hazardStatus === "RESOLVED" || hazardStatus === "NORMAL" ? "#10B981" : hazardStatus === "CRITICAL" ? "#EF4444" : "#F59E0B",
                   color: "#000F1D",
                   border: "none",
                   borderRadius: "10px",
@@ -232,53 +275,59 @@ export default function RedZoneManagerPage() {
                 }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>
-                  send
+                  {hazardStatus === "RESOLVED" ? "check_circle" : "published_with_changes"}
                 </span>
-                {saving ? "Publishing GeoJSON..." : "Publish PostGIS Red Zone"}
+                {saving ? "Updating Status..." : `Update ${selectedLocation.name.split(" ")[0]} Status`}
               </button>
             </div>
           </form>
 
-          {/* Active Red Zone List */}
+          {/* Active Hazards Stream */}
           <div style={{ background: "rgba(17,24,32,0.9)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "20px" }}>
             <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "15px", fontWeight: 600, color: "#F8FAFC", marginBottom: "14px" }}>
-              Published Active Red Zones ({redZones.length})
+              Active Destination Hazards ({redZones.length})
             </h2>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {redZones.map((rz) => (
-                <div
-                  key={rz.id}
-                  style={{
-                    background: "#0F172A",
-                    border: "1px solid rgba(239,68,68,0.25)",
-                    borderRadius: "10px",
-                    padding: "12px 14px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 600, color: "#F1F5F9", fontSize: "13px" }}>{rz.name}</div>
-                    <div style={{ fontSize: "11px", color: "#94A3B8" }}>{rz.description}</div>
-                  </div>
-                  <span
+              {redZones.length === 0 ? (
+                <div style={{ fontSize: "12px", color: "#64748B", textAlign: "center", padding: "12px" }}>
+                  No active destination hazards. All locations in Normal state.
+                </div>
+              ) : (
+                redZones.map((rz) => (
+                  <div
+                    key={rz.id}
                     style={{
-                      fontFamily: "'JetBrains Mono', monospace",
-                      fontSize: "10px",
-                      fontWeight: 600,
-                      background: "rgba(239,68,68,0.2)",
-                      color: "#EF4444",
-                      padding: "2px 8px",
-                      borderRadius: "4px",
-                      border: "1px solid rgba(239,68,68,0.3)",
+                      background: "#0F172A",
+                      border: "1px solid rgba(239,68,68,0.25)",
+                      borderRadius: "10px",
+                      padding: "12px 14px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
                     }}
                   >
-                    {rz.risk_level}
-                  </span>
-                </div>
-              ))}
+                    <div>
+                      <div style={{ fontWeight: 600, color: "#F1F5F9", fontSize: "13px" }}>{rz.name || rz.title}</div>
+                      <div style={{ fontSize: "11px", color: "#94A3B8" }}>{rz.description}</div>
+                    </div>
+                    <span
+                      style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: "10px",
+                        fontWeight: 600,
+                        background: "rgba(239,68,68,0.2)",
+                        color: "#EF4444",
+                        padding: "2px 8px",
+                        borderRadius: "4px",
+                        border: "1px solid rgba(239,68,68,0.3)",
+                      }}
+                    >
+                      {rz.risk_level}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

@@ -26,15 +26,16 @@ import HazardReportDrawer from "@/components/HazardReportDrawer";
 import { useSubmitHazard } from "@/lib/hooks/useSubmitHazard";
 
 const MAP_CENTER: [number, number] = [75.93, 11.43];
-const MAP_STYLE = "mapbox://styles/mapbox/navigation-night-v1";
 const MAP_BG = "#0a0e13";
 
 const isValidMapboxToken = (t?: string) =>
   Boolean(t && t.startsWith("pk.") && !t.includes("example") && !t.includes("your_"));
 
 if (typeof window !== "undefined") {
-  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
-  if (token) mapboxgl.accessToken = token;
+  try {
+    (mapboxgl as any).config = (mapboxgl as any).config || {};
+    (mapboxgl as any).config.REQUIRE_ACCESS_TOKEN = false;
+  } catch {}
 }
 
 const CARTO_DARK_STYLE: any = {
@@ -194,26 +195,7 @@ async function loadMapData(
   let locationsData: any[] = [];
   let redZonesData: any[] = [];
 
-  try {
-    const { data: attractions } = await supabase.from("attractions").select("*").eq("is_active", true);
-    if (attractions && attractions.length > 0) {
-      locationsData = attractions;
-    } else {
-      const { data: locs } = await supabase.from("locations").select("*").eq("is_active", true);
-      if (locs && locs.length > 0) locationsData = locs;
-    }
-  } catch {}
-
-  if (locationsData.length === 0) {
-    locationsData = [
-      { id: "att-1", name: "Canoly Canal & Sarovaram Eco Park", category: "eco", lat: 11.2720, lng: 75.7950, capacity_per_slot: 50, description: "Lush mangrove ecosystem and canal walkway right in Kozhikode city." },
-      { id: "att-2", name: "Mavoor Wetlands & Bird Sanctuary", category: "eco", lat: 11.2619, lng: 75.9412, capacity_per_slot: 50, description: "Famous eco-wetland habitat home to migratory waterbirds." },
-      { id: "att-3", name: "Kadalundi Estuary & Mangrove Trail", category: "wildlife", lat: 11.1278, lng: 75.8286, capacity_per_slot: 50, description: "Serene estuarine sanctuary where Kadalundi River meets Arabian sea." },
-      { id: "att-4", name: "Kakkayam Dam & Eco Valley", category: "waterfalls", lat: 11.5432, lng: 75.9211, capacity_per_slot: 50, description: "Picturesque dam site and waterfall trek in Kozhikode district." },
-      { id: "att-5", name: "Thusharagiri Waterfalls & Trek", category: "waterfalls", lat: 11.4700, lng: 76.0500, capacity_per_slot: 50, description: "Cascading jungle streams forming three waterfalls." },
-      { id: "att-6", name: "Janakikkadu Eco Forest", category: "forests", lat: 11.5800, lng: 75.7500, capacity_per_slot: 50, description: "Protected evergreen forest ecosystem rich in medicinal flora." },
-    ];
-  }
+  try { const { data } = await supabase.from("locations").select("*").eq("is_active", true).eq("status", "active"); locationsData = data ?? []; } catch {}
 
   addHiddenGemsLayers(map, locationsToGeoJSON(locationsData as LocationRow[]));
 
@@ -680,19 +662,15 @@ export const MapCanvas = forwardRef<MapCanvasRef>(function MapCanvas(_, ref) {
   }, []);
 
   useEffect(() => {
-    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
-    const tokenValid = isValidMapboxToken(token);
-
+    let isMounted = true;
     if (!containerRef.current) {
       setIsLoading(false);
       return;
     }
 
-    if (token) mapboxgl.accessToken = token;
-
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: tokenValid ? MAP_STYLE : CARTO_DARK_STYLE,
+      style: CARTO_DARK_STYLE,
       center: MAP_CENTER,
       zoom: 13,
       pitch: 30,
@@ -700,14 +678,28 @@ export const MapCanvas = forwardRef<MapCanvasRef>(function MapCanvas(_, ref) {
     });
     mapRef.current = map;
 
+    const refreshHazardData = async () => {
+      if (!isMounted || !mapRef.current) return;
+      const loadedZones = await loadMapData(mapRef.current);
+      if (isMounted) {
+        dangerZonesRef.current = loadedZones;
+      }
+    };
+
     map.on("load", async () => {
+      if (!isMounted) return;
       applyDarkPoiFilter(map);
-      map.getCanvas().style.backgroundColor = MAP_BG;
-      // Load data and cache danger zone polygons for client-side safety checks.
-      const loadedZones = await loadMapData(map);
-      dangerZonesRef.current = loadedZones;
+      if (map.getCanvas()) {
+        map.getCanvas().style.backgroundColor = MAP_BG;
+      }
+      
+      await refreshHazardData();
+
+      if (!isMounted) return;
+
       // Click on hidden-gems layer → check Turf.js intersection against Red Zones
       map.on("click", "hidden-gems", (e) => {
+        if (!isMounted) return;
         const props = e.features?.[0]?.properties;
         if (!props) return;
         setSafetyResult(null);
@@ -738,14 +730,37 @@ export const MapCanvas = forwardRef<MapCanvasRef>(function MapCanvas(_, ref) {
           lng: clickedLng,
         });
       });
-      map.on("mouseenter", "hidden-gems", () => { map.getCanvas().style.cursor = "pointer"; });
-      map.on("mouseleave", "hidden-gems", () => { map.getCanvas().style.cursor = ""; });
-      setIsLoading(false);
+
+      map.on("mouseenter", "hidden-gems", () => {
+        if (map.getCanvas()) map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "hidden-gems", () => {
+        if (map.getCanvas()) map.getCanvas().style.cursor = "";
+      });
+
+      if (isMounted) {
+        setIsLoading(false);
+      }
     });
 
+    const handleSync = () => {
+      refreshHazardData();
+    };
+
+    window.addEventListener("storage_sync", handleSync);
+    window.addEventListener("storage", handleSync);
+
     return () => {
-      mapRef.current = null;
-      map.remove();
+      isMounted = false;
+      window.removeEventListener("storage_sync", handleSync);
+      window.removeEventListener("storage", handleSync);
+
+      if (mapRef.current) {
+        try {
+          mapRef.current.remove();
+        } catch {}
+        mapRef.current = null;
+      }
     };
   }, []);
 

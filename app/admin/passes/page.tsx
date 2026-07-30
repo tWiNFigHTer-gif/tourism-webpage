@@ -138,13 +138,15 @@ export default function AdminPassesPage() {
   useEffect(() => {
     setPasses(loadAllPasses());
 
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === "terra_my_passes" || e.key === "stop_admin_passes") {
-        setPasses(loadAllPasses());
-      }
+    const handleStorage = (e: Event) => {
+      setPasses(loadAllPasses());
     };
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    window.addEventListener("storage_sync", handleStorage);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("storage_sync", handleStorage);
+    };
   }, []);
 
   const savePasses = (updated: PassRecord[]) => {
