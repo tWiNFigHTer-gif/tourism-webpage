@@ -144,7 +144,7 @@ export default function RedZoneManagerPage() {
             DESTINATION NODE HAZARD LIFECYCLE CONTROLLER
           </span>
         </div>
-        <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "26px", fontWeight: 700, color: "#F8FAFC", margin: 0 }}>
+        <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "26px", fontWeight: 700, background: "linear-gradient(135deg, #059669 0%, #34d399 60%, #6ee7b7 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", margin: 0 }}>
           Tourist Destination Hazard & Safety Manager
         </h1>
         <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", color: "#94A3B8", marginTop: "4px" }}>
@@ -320,7 +320,7 @@ export default function RedZoneManagerPage() {
                       borderRadius: "10px",
                       padding: "12px 14px",
                       display: "flex",
-                      justifySpace: "between",
+                      justifyContent: "space-between",
                       alignItems: "center",
                     }}
                   >

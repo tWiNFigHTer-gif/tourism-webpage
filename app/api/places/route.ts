@@ -17,19 +17,25 @@ async function requireAdmin() {
 import { DEFAULT_LOCATIONS } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClientServer();
   const includeHidden = request.nextUrl.searchParams.get("include_hidden") === "true";
+
+  // Use service role client to bypass RLS so tourists always see live data
+  const { createClient } = await import("@supabase/supabase-js");
+  const adminSupabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ""
+  );
 
   let data: any[] | null = null;
   let redZones: any[] | null = null;
 
   try {
-    let query = supabase.from("locations").select("*").order("name");
+    let query = adminSupabase.from("locations").select("*").order("name");
     if (!includeHidden) query = query.eq("is_active", true).eq("status", "active");
 
     const [locationsRes, redZonesRes] = await Promise.all([
       query,
-      supabase.from("red_zones").select("*").eq("is_active", true).order("created_at", { ascending: false }),
+      adminSupabase.from("red_zones").select("*").eq("is_active", true).order("created_at", { ascending: false }),
     ]);
 
     data = locationsRes.data;

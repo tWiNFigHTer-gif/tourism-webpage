@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import dynamic from "next/dynamic"
 import { AnimatePresence, motion } from "framer-motion"
-import { getLocations, getDangerZones, DEFAULT_LOCATIONS } from "@/lib/db"
+import { DEFAULT_LOCATIONS } from "@/lib/db"
 import { useAuth, ProtectedRoute } from "@/lib/hooks/useAuth"
 import { useCapacity } from "@/lib/hooks/useCapacity"
 import { useSubmitHazard } from "@/lib/hooks/useSubmitHazard"
@@ -200,10 +200,24 @@ function MobileMapPage() {
     async function loadDatabaseData() {
       try {
         setIsDbLoading(true)
-        const [dbLocations, dbDangerZones] = await Promise.all([
-          getLocations().catch(() => null),
-          getDangerZones().catch(() => null),
+
+        // Fetch from the public API endpoints which:
+        // - /api/places: returns locations already enriched with live hazard data from Supabase
+        // - /api/red-zones: returns the raw red zones for spatial overlay on the map
+        const [placesRes, zonesRes] = await Promise.all([
+          fetch("/api/places", { cache: "no-store" }).catch(() => null),
+          fetch("/api/red-zones", { cache: "no-store" }).catch(() => null),
         ])
+
+        let dbLocations: any[] | null = null
+        let dbDangerZones: any[] | null = null
+
+        if (placesRes && placesRes.ok) {
+          dbLocations = await placesRes.json().catch(() => null)
+        }
+        if (zonesRes && zonesRes.ok) {
+          dbDangerZones = await zonesRes.json().catch(() => null)
+        }
 
         const locationsToMap = (dbLocations && dbLocations.length > 0) ? dbLocations : DEFAULT_LOCATIONS
 
@@ -475,8 +489,7 @@ function MobileMapPage() {
         <div className="flex h-10 items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push("/mobile")}>
             <span className="relative flex h-3 w-3 items-center justify-center">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
             </span>
             <h1
               style={{
@@ -492,20 +505,18 @@ function MobileMapPage() {
           </div>
 
           <div className="flex items-center gap-2 relative">
-            {(isAdmin || user?.email?.toLowerCase().includes("admin") || profile?.role === "panchayat_admin") && (
-              <button
-                type="button"
-                onClick={() => router.push("/admin/dashboard")}
-                className="flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-300 hover:bg-amber-500/30 transition-colors cursor-pointer shadow-lg"
-                style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                title="Switch to Admin Dashboard"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
-                  shield_person
-                </span>
-                ADMIN
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => router.push("/admin/dashboard")}
+              className="flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-300 hover:bg-amber-500/30 transition-colors cursor-pointer shadow-lg"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              title="Switch to Admin Dashboard"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
+                shield_person
+              </span>
+              ADMIN
+            </button>
 
             <button
               type="button"
@@ -591,7 +602,6 @@ function MobileMapPage() {
           <button
             type="button"
             onClick={() => {
-              setIsSearchFocused(true)
               setShowAdvancedFilters(!showAdvancedFilters)
             }}
             className={`flex h-10 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-all cursor-pointer shrink-0 ${
@@ -658,7 +668,7 @@ function MobileMapPage() {
 
         {/* 🌦️ Traveler Climate & Trip Days Duration Filter Row */}
         <AnimatePresence>
-          {(isSearchFocused || showAdvancedFilters || selectedClimate !== "all" || selectedDuration !== "all") && (
+          {showAdvancedFilters && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}

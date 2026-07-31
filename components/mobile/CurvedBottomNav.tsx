@@ -80,7 +80,7 @@ export default function CurvedBottomNav({ onCreatePress }: CurvedBottomNavProps)
         <div
           style={{
             position: "absolute",
-            bottom: "28px",
+            bottom: "38px",
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 60,
@@ -107,10 +107,10 @@ export default function CurvedBottomNav({ onCreatePress }: CurvedBottomNavProps)
               transition: "transform 0.15s ease, box-shadow 0.15s ease",
             }}
             onMouseDown={(e) => {
-              e.currentTarget.style.transform = "translateX(-50%) scale(0.92)"
+              e.currentTarget.style.transform = "scale(0.92)"
             }}
             onMouseUp={(e) => {
-              e.currentTarget.style.transform = "translateX(-50%) scale(1)"
+              e.currentTarget.style.transform = "scale(1)"
             }}
           >
             {/* Breathing glow ring */}

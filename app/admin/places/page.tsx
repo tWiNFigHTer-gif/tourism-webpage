@@ -21,7 +21,7 @@ export default function AdminPlacesPage() {
         <p style={{ color: "#64748B", fontSize: 13, marginTop: 4 }}>Create, update, hide, or delete destinations used by every tourist discovery surface.</p>
       </header>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(310px, .8fr) 1.4fr", gap: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: 24 }}>
         <form onSubmit={submit} style={{ background: "#FFFFFF", padding: 20, borderRadius: 14, border: "1px solid #E2E8F0", display: "grid", gap: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#059669" }}>{editing ? "Edit place" : "New place"}</h2>
           
@@ -33,16 +33,18 @@ export default function AdminPlacesPage() {
             <input value={form.category} onChange={e=>setForm({...form,category:e.target.value})} style={adminInputStyle} />
           </label>
           
-          <label style={adminLabelStyle}>Latitude
-            <input type="number" step="any" value={form.lat} onChange={e=>setForm({...form,lat:Number(e.target.value)})} style={adminInputStyle} required />
-          </label>
-          
-          <label style={adminLabelStyle}>Longitude
-            <input type="number" step="any" value={form.lng} onChange={e=>setForm({...form,lng:Number(e.target.value)})} style={adminInputStyle} required />
-          </label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <label style={adminLabelStyle}>Latitude
+              <input type="number" step="any" value={form.lat} onChange={e=>setForm({...form,lat:Number(e.target.value)})} style={adminInputStyle} required />
+            </label>
+            
+            <label style={adminLabelStyle}>Longitude
+              <input type="number" step="any" value={form.lng} onChange={e=>setForm({...form,lng:Number(e.target.value)})} style={adminInputStyle} required />
+            </label>
+          </div>
           
           <label style={adminLabelStyle}>Status
-            <select value={form.status} onChange={e=>setForm({...form,status:e.target.value as "active"|"hidden"})} style={adminInputStyle}>
+            <select value={form.status} onChange={e=>setForm({...form,status:e.target.value as "active"|"hidden"})} style={{ ...adminInputStyle, height: 38 }}>
               <option value="active" style={{ background: "#FFFFFF", color: "#0F172A" }}>Active</option>
               <option value="hidden" style={{ background: "#FFFFFF", color: "#0F172A" }}>Hidden</option>
             </select>
@@ -54,20 +56,22 @@ export default function AdminPlacesPage() {
           
           {error && <p style={{ color: "#DC2626", fontSize: 12, margin: 0 }}>{error}</p>}
           
-          <button disabled={saving} style={{ background: "#059669", color: "#FFFFFF", border: "none", padding: "10px 16px", borderRadius: 8, fontWeight: 700, cursor: "pointer" }}>
-            {saving ? "Saving…" : editing ? "Save changes" : "Create place"}
-          </button>
-          
-          {editing && (
-            <button type="button" onClick={()=>{setEditing(null);setForm(empty)}} style={{ background: "#F1F5F9", color: "#475569", border: "1px solid #CBD5E1", padding: "8px 16px", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>
-              Cancel
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <button disabled={saving} style={{ flex: 1, background: "#059669", color: "#FFFFFF", border: "none", padding: "10px 16px", borderRadius: 8, fontWeight: 700, cursor: "pointer", height: 38 }}>
+              {saving ? "Saving…" : editing ? "Save changes" : "Create place"}
             </button>
-          )}
+            
+            {editing && (
+              <button type="button" onClick={()=>{setEditing(null);setForm(empty)}} style={{ background: "#F1F5F9", color: "#475569", border: "1px solid #CBD5E1", padding: "8px 16px", borderRadius: 8, fontWeight: 600, cursor: "pointer", height: 38 }}>
+                Cancel
+              </button>
+            )}
+          </div>
         </form>
 
-        <section style={{ background: "#FFFFFF", padding: 20, borderRadius: 14, border: "1px solid #E2E8F0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+        <section style={{ background: "#FFFFFF", padding: 20, borderRadius: 14, border: "1px solid #E2E8F0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", overflowX: "auto" }}>
           <h2 style={{ marginTop: 0, fontSize: 16, fontWeight: 700, color: "#0F172A" }}>All places ({places.length})</h2>
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+          <table style={{ width: "100%", minWidth: 600, borderCollapse: "collapse", textAlign: "left" }}>
             <thead>
               <tr style={{ color: "#64748B", borderBottom: "1px solid #E2E8F0", fontSize: 12 }}>
                 <th style={{ padding: "8px 4px" }}>Name</th>

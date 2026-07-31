@@ -38,8 +38,13 @@ async function buildSyncPayload(supabase: Awaited<ReturnType<typeof createClient
 
 export async function GET() {
   try {
-    const supabase = await createClientServer();
-    const { data, error } = await supabase.from("red_zones").select("*").order("created_at", { ascending: false });
+    // Use service role to bypass RLS for public tourist reads
+    const { createClient } = await import("@supabase/supabase-js");
+    const adminSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+      process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ""
+    );
+    const { data, error } = await adminSupabase.from("red_zones").select("*").order("created_at", { ascending: false });
 
     if (error) throw error;
     return NextResponse.json(data ?? [], { status: 200 });

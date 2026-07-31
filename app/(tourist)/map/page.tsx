@@ -258,7 +258,7 @@ export default function TouristMapPage() {
               <button
                 onClick={() => {
                   setSelectedAttraction(null);
-                  setSimulatedRoute(null);
+                  setSimulatedRouteCoords(null);
                 }}
                 className="rounded-full p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
               >

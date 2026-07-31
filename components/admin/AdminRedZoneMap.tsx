@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { RedZone } from "@/lib/types";
@@ -111,6 +111,83 @@ export default function AdminRedZoneMap({
     };
   }, []);
 
+  // Helper: build marker icon HTML for a destination
+  const buildMarkerIcon = useCallback(
+    (loc: TouristDestinationNode, isSelected: boolean, status: string) => {
+      let statusColor = "#059669";
+      let statusBg = "#ecfdf5";
+      let statusBorder = "#a7f3d0";
+      let icon = "location_on";
+
+      if (status === "CRITICAL" || status === "HIGH") {
+        statusColor = "#dc2626";
+        statusBg = "#fef2f2";
+        statusBorder = "#fecaca";
+        icon = "warning";
+      } else if (status === "WARNING" || status === "MEDIUM" || status === "LOW") {
+        statusColor = "#d97706";
+        statusBg = "#fffbe6";
+        statusBorder = "#fde68a";
+        icon = "priority_high";
+      }
+
+      const iconHtml = `
+        <div style="
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 10px 4px 4px;
+          border-radius: 20px;
+          background: ${isSelected ? "#0F172A" : "#FFFFFF"};
+          color: ${isSelected ? "#FFFFFF" : "#0F172A"};
+          border: ${isSelected ? "2.5px solid #059669" : `1.5px solid ${statusBorder}`};
+          box-shadow: ${isSelected ? "0 0 0 3px rgba(5,150,105,0.25), 0 4px 14px rgba(0,0,0,0.18)" : "0 4px 14px rgba(0,0,0,0.12)"};
+          cursor: pointer;
+          white-space: nowrap;
+          transition: all 0.2s ease;
+        ">
+          <div style="
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: ${isSelected ? "#059669" : statusColor};
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+          ">
+            <span class="material-symbols-outlined" style="color: #FFFFFF; font-size: 14px; font-weight: 700;">
+              ${isSelected ? "check_circle" : icon}
+            </span>
+          </div>
+          <span style="font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 700;">
+            ${loc.name.split("&")[0].trim()}
+          </span>
+          <span style="
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 8px;
+            background: ${isSelected ? "rgba(5,150,105,0.15)" : statusBg};
+            color: ${isSelected ? "#059669" : statusColor};
+            border: 1px solid ${isSelected ? "#059669" : statusBorder};
+          ">
+            ${isSelected ? "SELECTED" : status}
+          </span>
+        </div>
+      `;
+
+      return L.divIcon({
+        html: iconHtml,
+        className: "custom-leaflet-admin-marker",
+        iconSize: [160, 36],
+        iconAnchor: [80, 18],
+      });
+    },
+    []
+  );
+
   // Update spot markers & red-zone polygons
   useEffect(() => {
     const map = mapRef.current;
@@ -166,89 +243,30 @@ export default function AdminRedZoneMap({
       const status = activeZone ? (activeZone.risk_level as string) : "NORMAL";
       const isSelected = selectedLocationId === loc.id;
 
-      let statusColor = "#059669";
-      let statusBg = "#ecfdf5";
-      let statusBorder = "#a7f3d0";
-      let icon = "location_on";
-
-      if (status === "CRITICAL" || status === "HIGH") {
-        statusColor = "#dc2626";
-        statusBg = "#fef2f2";
-        statusBorder = "#fecaca";
-        icon = "warning";
-      } else if (status === "WARNING" || status === "MEDIUM" || status === "LOW") {
-        statusColor = "#d97706";
-        statusBg = "#fffbe6";
-        statusBorder = "#fde68a";
-        icon = "priority_high";
-      }
-
-      const iconHtml = `
-        <div style="
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 4px 10px 4px 4px;
-          border-radius: 20px;
-          background: ${isSelected ? "#0F172A" : "#FFFFFF"};
-          color: ${isSelected ? "#FFFFFF" : "#0F172A"};
-          border: 1.5px solid ${isSelected ? "#059669" : statusBorder};
-          box-shadow: 0 4px 14px rgba(0,0,0,0.12);
-          cursor: pointer;
-          white-space: nowrap;
-          transition: all 0.2s ease;
-        ">
-          <div style="
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: ${statusColor};
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-          ">
-            <span class="material-symbols-outlined" style="color: #FFFFFF; font-size: 14px; font-weight: 700;">
-              ${icon}
-            </span>
-          </div>
-          <span style="font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 700;">
-            ${loc.name.split("&")[0].trim()}
-          </span>
-          <span style="
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 9px;
-            font-weight: 700;
-            padding: 2px 6px;
-            border-radius: 8px;
-            background: ${statusBg};
-            color: ${statusColor};
-            border: 1px solid ${statusBorder};
-          ">
-            ${status}
-          </span>
-        </div>
-      `;
-
-      const customIcon = L.divIcon({
-        html: iconHtml,
-        className: "custom-leaflet-admin-marker",
-        iconSize: [160, 36],
-        iconAnchor: [80, 18],
-      });
-
+      const customIcon = buildMarkerIcon(loc, isSelected, status);
       const marker = L.marker([loc.lat, loc.lng], { icon: customIcon }).addTo(map);
 
       marker.on("click", () => {
         if (onSelectLocation) {
           onSelectLocation(loc);
         }
-        map.setView([loc.lat, loc.lng], 12);
+        map.flyTo([loc.lat, loc.lng], 13, { animate: true, duration: 0.8 });
       });
 
       markersRef.current[loc.id] = marker;
     });
-  }, [redZones, selectedLocationId, onSelectLocation]);
+  }, [redZones, selectedLocationId, onSelectLocation, buildMarkerIcon]);
+
+  // Pan map to selected location when selectedLocationId changes (dropdown → map sync)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !selectedLocationId) return;
+
+    const loc = DEMO_DESTINATIONS.find((d) => d.id === selectedLocationId);
+    if (loc) {
+      map.flyTo([loc.lat, loc.lng], 13, { animate: true, duration: 0.8 });
+    }
+  }, [selectedLocationId]);
 
   return (
     <div className="relative w-full rounded-xl overflow-hidden border border-slate-200 shadow-md bg-slate-50 min-h-[460px]">

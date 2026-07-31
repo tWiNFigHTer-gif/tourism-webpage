@@ -445,7 +445,7 @@ export default function PanchayatDashboardPage() {
               </Link>
 
               <Link
-                href="/map"
+                href="/mobile"
                 style={{
                   display: "flex",
                   flexDirection: "column",

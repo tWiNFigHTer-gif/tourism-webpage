@@ -259,133 +259,6 @@ function ExploreHeader({
   )
 }
 
-// ── Zone stats mini-card ────────────────────────────────────────────────────
-function ZoneStatsCard() {
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gap: "12px",
-        margin: "0 0 16px",
-      }}
-    >
-      <div
-        style={{
-          background: "#0c2132",
-          border: "1px solid rgba(255,255,255,0.05)",
-          borderRadius: "16px",
-          padding: "14px",
-        }}
-      >
-        <p
-          style={{
-            fontFamily: "'Inter', sans-serif",
-            fontSize: "10px",
-            fontWeight: 500,
-            letterSpacing: "0.04em",
-            color: "#4a6380",
-            textTransform: "uppercase",
-            marginBottom: "4px",
-          }}
-        >
-          Zone Status
-        </p>
-        <p
-          style={{
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontSize: "20px",
-            fontWeight: 600,
-            letterSpacing: "-0.02em",
-            color: "#f0f4f8",
-            marginBottom: "8px",
-          }}
-        >
-          Active
-        </p>
-        <div
-          style={{
-            height: "4px",
-            width: "100%",
-            background: "#233748",
-            borderRadius: "9999px",
-            overflow: "hidden",
-            marginBottom: "4px",
-          }}
-        >
-          <div
-            style={{
-              height: "100%",
-              width: "28%",
-              background: "#4edea3",
-              borderRadius: "9999px",
-            }}
-          />
-        </div>
-        <p
-          style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: "9.5px",
-            color: "#4a6380",
-          }}
-        >
-          14/50 CAPACITY
-        </p>
-      </div>
-
-      <div
-        style={{
-          background: "#0c2132",
-          border: "1px solid rgba(255,255,255,0.05)",
-          borderRadius: "16px",
-          padding: "14px",
-        }}
-      >
-        <p
-          style={{
-            fontFamily: "'Inter', sans-serif",
-            fontSize: "10px",
-            fontWeight: 500,
-            letterSpacing: "0.04em",
-            color: "#4a6380",
-            textTransform: "uppercase",
-            marginBottom: "4px",
-          }}
-        >
-          Local Temp
-        </p>
-        <p
-          style={{
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontSize: "20px",
-            fontWeight: 600,
-            letterSpacing: "-0.02em",
-            color: "#f0f4f8",
-            marginBottom: "12px",
-          }}
-        >
-          24.5°C
-        </p>
-        <p
-          style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: "9.5px",
-            color: "#4a6380",
-            display: "flex",
-            alignItems: "center",
-            gap: "4px",
-          }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: "12px" }}>
-            humidity_low
-          </span>
-          78% HUMIDITY
-        </p>
-      </div>
-    </div>
-  )
-}
-
 // ── Main Explore Feed ───────────────────────────────────────────────────────
 function ExploreFeedContent() {
   const router = useRouter()
@@ -645,7 +518,6 @@ function ExploreFeedContent() {
             ))}
           </div>
 
-          <ZoneStatsCard />
 
           {/* Search Result Count Banner when searching */}
           {(searchQuery || selectedTag !== "all") && (
@@ -684,14 +556,6 @@ function ExploreFeedContent() {
             </div>
           )}
 
-          <section style={{ marginBottom: "18px" }}>
-            <h2 style={{ fontSize: "14px", color: "#f0f4f8", marginBottom: "10px" }}>Places ({matchingPlaces.length})</h2>
-            {matchingPlaces.map((place) => (
-              <button key={place.id} type="button" onClick={() => router.push(`/mobile?place_id=${place.id}`)} style={{ width: "100%", textAlign: "left", marginBottom: "8px", padding: "12px", borderRadius: "12px", border: "1px solid rgba(78,222,163,.2)", background: "#111820", color: "#f0f4f8" }}>
-                <strong>{place.name}</strong><br /><span style={{ color: "#8fa3b8", fontSize: "11px" }}>{place.category} · {place.region || "Kerala"}</span>
-              </button>
-            ))}
-          </section>
 
           {/* Review cards */}
           {filteredReviews.length > 0 ? (
