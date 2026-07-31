@@ -156,7 +156,10 @@ export default function SpatialEngineLeafletMap({
     });
 
     // Render Attraction Pin Markers
-    attractions.forEach((att) => {
+    const validAttractions = (attractions || []).filter(
+      (att) => att && Number.isFinite(Number(att.lat)) && Number.isFinite(Number(att.lng))
+    );
+    validAttractions.forEach((att) => {
       const isSelected = selectedAttraction?.id === att.id;
 
       const markerHtml = `

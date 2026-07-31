@@ -134,7 +134,10 @@ export default function LeafletMobileMap({
     Object.values(markersRef.current).forEach((marker) => marker.remove());
     markersRef.current = {};
 
-    locations.forEach((loc) => {
+    const validLocations = (locations || []).filter(
+      (loc) => loc && Number.isFinite(Number(loc.lat)) && Number.isFinite(Number(loc.lng))
+    );
+    validLocations.forEach((loc) => {
       const isSelected = selectedLocation?.id === loc.id;
 
       const customHtml = `

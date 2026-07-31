@@ -105,9 +105,12 @@ function applyDarkPoiFilter(map: mapboxgl.Map) {
 function locationsToGeoJSON(
   locations: LocationRow[]
 ): GeoJSON.FeatureCollection {
+  const validLocations = (locations || []).filter(
+    (loc) => loc && Number.isFinite(Number(loc.lat)) && Number.isFinite(Number(loc.lng))
+  );
   return {
     type: "FeatureCollection",
-    features: locations.map((loc) => ({
+    features: validLocations.map((loc) => ({
       type: "Feature",
       properties: {
         id: loc.id,
@@ -117,7 +120,7 @@ function locationsToGeoJSON(
         capacity_per_slot: loc.capacity_per_slot,
         panchayat_id: loc.panchayat_id,
       },
-      geometry: { type: "Point", coordinates: [loc.lng, loc.lat] },
+      geometry: { type: "Point", coordinates: [Number(loc.lng), Number(loc.lat)] },
     })),
   };
 }

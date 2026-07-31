@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
   try {
     let query = adminSupabase.from("locations").select("*").order("name");
-    if (!includeHidden) query = query.eq("is_active", true).eq("status", "active");
+    if (!includeHidden) query = query.neq("status", "hidden");
 
     const [locationsRes, redZonesRes] = await Promise.all([
       query,
