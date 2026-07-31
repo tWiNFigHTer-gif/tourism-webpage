@@ -11,7 +11,7 @@ export default function AdminPlacesPage() {
   const [places, setPlaces] = useState<Location[]>([]); const [form, setForm] = useState<PlaceInput>(empty); const [editing, setEditing] = useState<string | null>(null); const [error, setError] = useState(""); const [saving, setSaving] = useState(false);
   const load = async () => { try { const res = await getPlaces(true); setPlaces(res && res.length > 0 ? res : (DEFAULT_LOCATIONS as any)); } catch (e) { setPlaces(DEFAULT_LOCATIONS as any); } };
   useEffect(() => { load(); }, []);
-  const submit = async (event: FormEvent) => { event.preventDefault(); setSaving(true); setError(""); try { if (editing) await updatePlace(editing, form); else await createPlace(form); setForm(empty); setEditing(null); await load(); } catch (e) { setError(e instanceof Error ? e.message : "Unable to save place."); } finally { setSaving(false); } };
+  const submit = async (event: FormEvent) => { event.preventDefault(); setSaving(true); setError(""); try { if (editing) await updatePlace(editing, form); else await createPlace(form); if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "places" } })); setForm(empty); setEditing(null); await load(); } catch (e) { setError(e instanceof Error ? e.message : "Unable to save place."); } finally { setSaving(false); } };
   const edit = (place: Location) => { setEditing(place.id); setForm({ name: place.name, description: place.description || "", category: place.category || "Ecotourism", lat: place.lat, lng: place.lng, region: place.region || "Kerala", capacity_max: place.capacity_max || 50, status: place.status || (place.is_active === false ? "hidden" : "active") }); };
   return (
     <div style={{ maxWidth: 1180, margin: "0 auto", color: "#0F172A", fontFamily: "'Inter', sans-serif" }}>
@@ -21,8 +21,8 @@ export default function AdminPlacesPage() {
         <p style={{ color: "#64748B", fontSize: 13, marginTop: 4 }}>Create, update, hide, or delete destinations used by every tourist discovery surface.</p>
       </header>
 
-      <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: 24 }}>
-        <form onSubmit={submit} style={{ background: "#FFFFFF", padding: 20, borderRadius: 14, border: "1px solid #E2E8F0", display: "grid", gap: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: 24, alignItems: "start" }}>
+        <form onSubmit={submit} style={{ background: "#FFFFFF", padding: 20, borderRadius: 14, border: "1px solid #E2E8F0", display: "grid", gap: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.04)", height: "fit-content" }}>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#059669" }}>{editing ? "Edit place" : "New place"}</h2>
           
           <label style={adminLabelStyle}>Name
@@ -101,7 +101,7 @@ export default function AdminPlacesPage() {
                     <button onClick={()=>edit(place)} style={{ background: "#F1F5F9", border: "1px solid #CBD5E1", borderRadius: 6, padding: "4px 10px", fontSize: 12, fontWeight: 600, color: "#0F172A", cursor: "pointer" }}>
                       Edit
                     </button>
-                    <button onClick={async()=>{if(confirm(`Delete ${place.name}?`)){try{await deletePlace(place.id);await load()}catch(e){setError(e instanceof Error?e.message:"Unable to delete place.")}}}} style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, padding: "4px 10px", fontSize: 12, fontWeight: 600, color: "#DC2626", cursor: "pointer" }}>
+                    <button onClick={async()=>{if(confirm(`Delete ${place.name}?`)){try{await deletePlace(place.id);if(typeof window!=="undefined")window.dispatchEvent(new CustomEvent("storage_sync",{detail:{key:"places"}}));await load()}catch(e){setError(e instanceof Error?e.message:"Unable to delete place.")}}}} style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, padding: "4px 10px", fontSize: 12, fontWeight: 600, color: "#DC2626", cursor: "pointer" }}>
                       Delete
                     </button>
                   </td>

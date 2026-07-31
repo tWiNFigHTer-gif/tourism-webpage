@@ -146,11 +146,10 @@ export default function TouristMapPage() {
   return (
     <div className="relative h-screen w-full bg-slate-950 text-white overflow-hidden font-sans">
       {/* Top Header */}
-      <header className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 py-4 bg-slate-900/85 backdrop-blur-md border-b border-slate-800">
+      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 shadow-xl pointer-events-auto">
         <div className="flex items-center gap-3">
           <span className="relative flex h-3 w-3 items-center justify-center">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
           </span>
           <h1 className="text-lg font-bold text-emerald-400 font-mono tracking-wide">
             STOP ! • TOURIST SPATIAL ENGINE
@@ -160,7 +159,7 @@ export default function TouristMapPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/admin/dashboard"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/20 text-xs font-mono font-bold text-emerald-300 hover:bg-emerald-500/30 transition-all cursor-pointer shadow-lg"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/20 text-xs font-mono font-bold text-emerald-300 hover:bg-emerald-500/30 transition-all cursor-pointer shadow-lg shrink-0"
           >
             <span className="material-symbols-outlined text-sm">arrow_back</span>
             <span>← Return to Admin Home</span>

@@ -117,6 +117,9 @@ export default function BusinessesManagerPage() {
       } else {
         await insertBusiness(payload);
       }
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "businesses" } }));
+      }
       setShowForm(false);
       setEditingId(null);
       await fetchItems();
@@ -131,6 +134,9 @@ export default function BusinessesManagerPage() {
     const nextStatus = item.status === "verified" ? "hidden" : "verified";
     try {
       await updateBusiness(item.id, { status: nextStatus });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "businesses" } }));
+      }
       await fetchItems();
     } catch (e: any) {
       setError(e.message || "Status toggle failed.");
@@ -141,6 +147,9 @@ export default function BusinessesManagerPage() {
     if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
     try {
       await deleteBusiness(id);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "businesses" } }));
+      }
       await fetchItems();
     } catch (e: any) {
       setError(e.message || "Delete failed.");

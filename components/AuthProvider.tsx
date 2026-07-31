@@ -282,10 +282,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
 
       if (user?.id) {
-        await supabase
-          .from("profiles")
-          .upsert({ id: user.id, ...patch, updated_at: new Date().toISOString() })
-          .catch(() => null);
+        try {
+          await supabase
+            .from("profiles")
+            .upsert({ id: user.id, ...patch, updated_at: new Date().toISOString() });
+        } catch {}
       }
 
       setProfile(nextProf);

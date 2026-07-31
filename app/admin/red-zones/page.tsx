@@ -124,6 +124,9 @@ export default function RedZoneManagerPage() {
         alert(`Dynamic Hazard Lifecycle for "${selectedLocation.name}" set to ${hazardStatus}. Tourist stream updated in real-time.`);
       }
 
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "redzones" } }));
+      }
       await fetchZones();
     } catch (e) {
       alert("Error updating hazard status");

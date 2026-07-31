@@ -116,6 +116,9 @@ export default function EventsManagerPage() {
       } else {
         await insertEvent(payload);
       }
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "events" } }));
+      }
       setShowForm(false);
       setEditingId(null);
       await fetchEvents();
@@ -130,6 +133,9 @@ export default function EventsManagerPage() {
     if (!confirm(`Delete event "${title}"? This cannot be undone.`)) return;
     try {
       await deleteEvent(id);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "events" } }));
+      }
       await fetchEvents();
     } catch (e: any) {
       setError(e.message || "Delete failed.");
@@ -289,8 +295,8 @@ export default function EventsManagerPage() {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {events.map((ev) => {
-            const st = getStatusKey(ev);
-            const badge = STATUS_BADGES[st];
+            const st = eventStatus(ev);
+            const badge = STATUS_STYLE[st];
             return (
               <div
                 key={ev.id}
