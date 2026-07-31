@@ -29,9 +29,7 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // 2. Single Source of Truth for Auth & Role Resolution:
-  // Prefer live Supabase session user metadata over client-settable cookie
-  let isAuthenticated = false;
+  // 2. Single Source of Truth for Auth & Role Resolution
   let userRole: string | undefined = undefined;
 
   try {
@@ -40,7 +38,6 @@ export async function middleware(request: NextRequest) {
     } = await supabase.auth.getSession();
 
     if (session?.user) {
-      isAuthenticated = true;
       userRole = session.user.user_metadata?.role;
     }
   } catch {
@@ -51,14 +48,12 @@ export async function middleware(request: NextRequest) {
   const cookieRole = request.cookies.get("terra_role")?.value;
   if (!userRole && cookieRole && cookieRole.trim().length > 0) {
     userRole = cookieRole;
-    isAuthenticated = true;
   }
 
   const isAdmin =
     userRole === "admin" ||
     userRole === "panchayat_admin" ||
     userRole === "super_admin";
-  const isTourist = userRole === "tourist";
 
   const isAdminRoute =
     pathname.startsWith("/admin") ||
@@ -66,22 +61,12 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/red-zones");
 
   // 3. Route Guard Enforcement:
-  if (isAdminRoute) {
-    // Unauthenticated requests hitting admin routes -> redirect to /login
-    if (!isAuthenticated) {
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("redirectTo", pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-
-    // Authenticated tourists attempting to access admin routes -> redirect to tourist portal entry /mobile
-    if (isTourist && !isAdmin) {
-      return NextResponse.redirect(new URL("/mobile", request.url));
-    }
+  // Non-admin attempts to access admin routes -> redirect directly to /login (never to /mobile)
+  if (isAdminRoute && !isAdmin) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirectTo", pathname);
+    return NextResponse.redirect(loginUrl);
   }
-
-  // Authenticated admins hitting tourist routes (/mobile, /map) are ALLOWED through
-  // so admins can freely preview and inspect the tourist experience without being blocked.
 
   return response;
 }
