@@ -671,6 +671,11 @@ export const MapCanvas = forwardRef<MapCanvasRef>(function MapCanvas(_, ref) {
       return;
     }
 
+    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+    if (token) {
+      mapboxgl.accessToken = token;
+    }
+
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: CARTO_DARK_STYLE,
