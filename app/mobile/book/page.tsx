@@ -173,6 +173,57 @@ function BookingContent() {
   // Real Pass Booking Hook
   const { bookPass, isBooking, error: bookingError, result: confirmedPass } = useBookPass()
 
+  // Mark Pass as Visited state & handler
+  const [markingVisitedPassId, setMarkingVisitedPassId] = useState<string | null>(null)
+  const [markVisitedError, setMarkVisitedError] = useState<string | null>(null)
+
+  const handleMarkAsVisited = async (passToUpdate: StoredPass) => {
+    if (!passToUpdate || markingVisitedPassId === passToUpdate.id) return
+    setMarkingVisitedPassId(passToUpdate.id)
+    setMarkVisitedError(null)
+
+    try {
+      const res = await fetch("/api/passes", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: passToUpdate.id,
+          pass_code: passToUpdate.pass_token,
+          status: "VISITED",
+          visited: true,
+          visited_at: new Date().toISOString(),
+        }),
+      })
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null)
+        throw new Error(errData?.message || "Failed to update pass status on server.")
+      }
+
+      setMyPasses((prev) => {
+        const next = prev.map((p) =>
+          p.id === passToUpdate.id ? { ...p, status: "VISITED" as const } : p
+        )
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem("terra_my_passes", JSON.stringify(next))
+            localStorage.setItem("terra_pulse_passes", JSON.stringify(next))
+          } catch (e) {}
+        }
+        return next
+      })
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("storage_sync"))
+      }
+    } catch (err: any) {
+      console.error("Mark as visited error:", err)
+      setMarkVisitedError(err?.message || "Failed to mark pass as visited. Tap to retry.")
+    } finally {
+      setMarkingVisitedPassId(null)
+    }
+  }
+
   // Auto handle Bulk Booking if bulk_names query param exists
   useEffect(() => {
     if (bulkNamesRaw) {
@@ -569,43 +620,84 @@ function BookingContent() {
                       <path d="M70 40 L50 70 L60 70 L40 90 L80 90 L65 70 L75 70 Z" />
                     </svg>
 
-                    {/* Mark Visited Action inside details (if ACTIVE) */}
-                    {selectedPass.status === "ACTIVE" && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setMyPasses((prev) => {
-                            const next = prev.map((p) => (p.id === selectedPass.id ? { ...p, status: "VISITED" as const } : p))
-                            if (typeof window !== "undefined") {
-                              localStorage.setItem("terra_my_passes", JSON.stringify(next))
-                            }
-                            return next
-                          });
-                          // Trigger custom event to sync with other windows
-                          window.dispatchEvent(new Event("storage_sync"));
-                        }}
-                        style={{
-                          width: "100%",
-                          marginTop: "20px",
-                          background: "rgba(16,185,129,0.15)",
-                          border: "1px solid rgba(78,222,163,0.3)",
-                          color: "#4edea3",
-                          borderRadius: "10px",
-                          padding: "10px",
-                          fontSize: "12px",
-                          fontWeight: 700,
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "6px",
-                        }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>check_circle</span>
-                        Mark Pass as Visited
-                      </button>
-                    )}
+                    {/* Mark Visited Action inside details */}
+                    <div style={{ width: "100%", marginTop: "16px" }}>
+                      {selectedPass.status === "VISITED" ? (
+                        <button
+                          type="button"
+                          disabled
+                          style={{
+                            width: "100%",
+                            background: "rgba(16,185,129,0.12)",
+                            border: "1px solid rgba(78,222,163,0.35)",
+                            color: "#4edea3",
+                            borderRadius: "10px",
+                            padding: "10px",
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            cursor: "default",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "6px",
+                            opacity: 0.9,
+                          }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>check_circle</span>
+                          Pass Visited ✓
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={markingVisitedPassId === selectedPass.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkAsVisited(selectedPass);
+                          }}
+                          style={{
+                            width: "100%",
+                            background: markingVisitedPassId === selectedPass.id ? "rgba(16,185,129,0.08)" : "rgba(16,185,129,0.2)",
+                            border: "1px solid rgba(78,222,163,0.4)",
+                            color: "#4edea3",
+                            borderRadius: "10px",
+                            padding: "10px",
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            cursor: markingVisitedPassId === selectedPass.id ? "wait" : "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "6px",
+                            transition: "all 0.2s ease",
+                          }}
+                        >
+                          {markingVisitedPassId === selectedPass.id ? (
+                            <>
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+                              <span>Marking as Visited...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>check_circle</span>
+                              <span>Mark Pass as Visited</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+
+                      {markVisitedError && (
+                        <div className="mt-2 flex items-center justify-between rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+                          <span>{markVisitedError}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleMarkAsVisited(selectedPass)}
+                            className="font-bold underline cursor-pointer hover:text-red-300 ml-2 shrink-0"
+                          >
+                            Retry
+                          </button>
+                        </div>
+                      )}
+                    </div>
 
                     {selectedPass && (selectedPass.location_id || selectedPass.location_name) && (
                       <button

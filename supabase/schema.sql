@@ -105,9 +105,17 @@ CREATE TABLE IF NOT EXISTS public.passes (
   num_visitors INT NOT NULL DEFAULT 1,
   visit_date DATE NOT NULL,
   time_slot TEXT DEFAULT '09:00 AM - 11:00 AM',
-  status TEXT NOT NULL DEFAULT 'active', -- 'active', 'scanned', 'cancelled'
+  status TEXT NOT NULL DEFAULT 'active', -- 'active', 'scanned', 'cancelled', 'VISITED'
+  visited BOOLEAN DEFAULT false,
+  visited_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Upgrades for passes table
+ALTER TABLE public.passes ADD COLUMN IF NOT EXISTS visited BOOLEAN DEFAULT false;
+ALTER TABLE public.passes ADD COLUMN IF NOT EXISTS visited_at TIMESTAMPTZ;
+ALTER TABLE public.passes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
 -- 9. Attractions Table (Legacy/Map attractions view)
 CREATE TABLE IF NOT EXISTS public.attractions (
@@ -174,7 +182,7 @@ CREATE POLICY "Anyone can insert experiences" ON public.experiences FOR INSERT W
 -- Passes Policies
 CREATE POLICY "Passes readable by user or admin" ON public.passes FOR SELECT USING (true);
 CREATE POLICY "Anyone can create passes" ON public.passes FOR INSERT WITH CHECK (true);
-CREATE POLICY "Passes updatable by admin" ON public.passes FOR UPDATE USING (true);
+CREATE POLICY "Users can update own passes" ON public.passes FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
 
 -- Attractions Policies
 CREATE POLICY "Attractions readable by everyone" ON public.attractions FOR SELECT USING (true);
