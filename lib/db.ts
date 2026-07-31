@@ -1,15 +1,113 @@
 import { supabase } from "@/lib/supabase";
-import type { HazardReport, RedZone, UserRole } from "@/lib/types";
+import type { HazardReport, RedZone, UserRole, TourismEvent, LocalBusiness } from "@/lib/types";
+import { buildHazardNotifications, enrichLocationsWithHazards } from "@/lib/hazards";
 
 /**
  * Typed database query helpers for Terra-Pulse.
  * All UI components & hooks import from here instead of calling Supabase directly.
  */
 
+export const DEFAULT_LOCATIONS = [
+  {
+    id: "canoly-canal",
+    name: "Canoly Canal & Sarovaram Eco Park (Eco Park & Canal Walkway)",
+    description: "Lush mangrove ecosystem and canal walkway right in Kozhikode city featuring wooden boardwalks & butterfly park.",
+    category: "eco",
+    lat: 11.2720,
+    lng: 75.7950,
+    capacity_per_slot: 50,
+    district: "Kozhikode",
+    region: "Kozhikode City",
+    panchayat_id: "CKP-2026",
+    is_active: true,
+    status: "active",
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/3/30/Kerala_backwaters.jpg",
+  },
+  {
+    id: "kadalundi-birds",
+    name: "Kadalundi Bird Sanctuary & Mangrove Trail (Estuary & Wildlife Reserve)",
+    description: "Serene estuarine sanctuary where Kadalundi River meets Arabian sea ideal for birdwatching and kayaking.",
+    category: "wildlife",
+    lat: 11.1278,
+    lng: 75.8286,
+    capacity_per_slot: 50,
+    district: "Kozhikode",
+    region: "Kadalundi",
+    panchayat_id: "KDL-2026",
+    is_active: true,
+    status: "active",
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/3/30/Kerala_backwaters.jpg",
+  },
+  {
+    id: "janakikattu-eco",
+    name: "Janakikattu Eco Tourism & River Path (River Canopy & Forest Trail)",
+    description: "Protected evergreen forest ecosystem rich in medicinal flora along the Kuttiyadi riverbank.",
+    category: "forests",
+    lat: 11.6215,
+    lng: 75.7892,
+    capacity_per_slot: 30,
+    district: "Kozhikode",
+    region: "Perambra",
+    panchayat_id: "PRM-2026",
+    is_active: true,
+    status: "active",
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/6/67/Muthanga_Wildlife_Sanctuary.jpg",
+  },
+  {
+    id: "kakkayam-dam",
+    name: "Kakkayam Dam & Elephant Corridor (Dam Reserve & Trekking Peak)",
+    description: "Picturesque dam site and waterfall trek in Kozhikode district surrounded by dense Malabar forests.",
+    category: "eco",
+    lat: 11.5542,
+    lng: 75.9211,
+    capacity_per_slot: 45,
+    district: "Kozhikode",
+    region: "Koorachundu",
+    panchayat_id: "KRC-2027",
+    is_active: true,
+    status: "active",
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/3/30/Kerala_backwaters.jpg",
+  },
+  {
+    id: "vellar-craft",
+    name: "Vellar Craft Village & Cultural Park (Artisan Hub & Cultural Plaza)",
+    description: "Dedicated artisan village in Kovalam showcasing traditional Kerala crafts, handlooms, and a Kalaripayattu academy.",
+    category: "eco",
+    lat: 8.3848,
+    lng: 76.9859,
+    capacity_per_slot: 100,
+    district: "Thiruvananthapuram",
+    region: "Kovalam",
+    panchayat_id: "KVL-2026",
+    is_active: true,
+    status: "active",
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/3/30/Kerala_backwaters.jpg",
+  },
+  {
+    id: "mavoor-wetlands",
+    name: "Mavoor Wetlands & Bird Habitat (Wetland Ecology & Marshland)",
+    description: "Famous eco-wetland habitat near Kozhikode home to migratory waterbirds and peaceful bamboo trails.",
+    category: "eco",
+    lat: 11.2619,
+    lng: 75.9412,
+    capacity_per_slot: 50,
+    district: "Kozhikode",
+    region: "Mavoor",
+    panchayat_id: "MVR-2026",
+    is_active: true,
+    status: "active",
+    image_url: "https://upload.wikimedia.org/wikipedia/commons/3/30/Kerala_backwaters.jpg",
+  },
+];
+
 export async function getAttractions() {
-  const { data, error } = await supabase.from("locations").select("*").eq("is_active", true).eq("status", "active");
-  if (error) throw error;
-  return data ?? [];
+  try {
+    const { data, error } = await supabase.from("locations").select("*");
+    if (!error && data && data.length > 0) {
+      return data;
+    }
+  } catch {}
+  return DEFAULT_LOCATIONS;
 }
 
 export async function getLocations() {
@@ -28,6 +126,40 @@ export async function getDangerZones(): Promise<any[]> {
     geojson_polygon: z.geojson_polygon,
     is_active: z.is_active,
   }));
+}
+
+async function requestRedZoneMutation<T>(method: "POST" | "PATCH" | "DELETE", body: Record<string, unknown>) {
+  const response = await fetch("/api/red-zones", {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(data?.message || data?.error || "Unable to save red zone.");
+  }
+
+  return data as T;
+}
+
+function persistHazardSnapshot(snapshot: { redZones?: RedZone[]; places?: any[]; notifications?: any[] } | null | undefined) {
+  if (typeof window === "undefined" || !snapshot) return;
+
+  try {
+    if (snapshot.redZones) {
+      localStorage.setItem("terra_red_zones", JSON.stringify(snapshot.redZones));
+    }
+    if (snapshot.places) {
+      localStorage.setItem("terra_hazard_places", JSON.stringify(snapshot.places));
+    }
+    if (snapshot.notifications) {
+      localStorage.setItem("terra_notifications", JSON.stringify(snapshot.notifications));
+    }
+    window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "red_zones" } }));
+  } catch {
+    // Ignore cache write failures; the API response is still authoritative.
+  }
 }
 
 
@@ -85,16 +217,9 @@ export async function getRedZones(): Promise<RedZone[]> {
 
 export async function insertRedZone(payload: Omit<RedZone, "id" | "created_at">) {
   try {
-    const { data, error } = await supabase
-      .from("red_zones")
-      .insert(payload)
-      .select()
-      .single();
-    if (error) throw error;
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "red_zones" } }));
-    }
-    return data;
+    const data = await requestRedZoneMutation<{ data?: RedZone; sync?: { redZones?: RedZone[]; places?: any[]; notifications?: any[] } }>("POST", payload as Record<string, unknown>);
+    persistHazardSnapshot(data.sync);
+    return data.data ?? data;
   } catch (e) {
     // Local storage fallback for offline/demo
     const existing = await getRedZones();
@@ -106,27 +231,40 @@ export async function insertRedZone(payload: Omit<RedZone, "id" | "created_at">)
     const updated = [newZone, ...existing];
     if (typeof window !== "undefined") {
       localStorage.setItem("terra_red_zones", JSON.stringify(updated));
+      localStorage.setItem("terra_notifications", JSON.stringify(buildHazardNotifications(updated as RedZone[])));
       window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "red_zones" } }));
     }
     return newZone;
   }
 }
 
-export async function deleteRedZone(id: string) {
+export async function updateRedZone(id: string, payload: Partial<Omit<RedZone, "id" | "created_at">>) {
   try {
-    const { error } = await supabase
-      .from("red_zones")
-      .delete()
-      .eq("id", id);
-    if (error) throw error;
+    const data = await requestRedZoneMutation<{ data?: RedZone; sync?: { redZones?: RedZone[]; places?: any[]; notifications?: any[] } }>("PATCH", { id, ...payload });
+    persistHazardSnapshot(data.sync);
+    return data.data ?? data;
+  } catch (e) {
+    const existing = await getRedZones();
+    const updated = existing.map((zone) => (zone.id === id ? { ...zone, ...payload } as RedZone : zone));
     if (typeof window !== "undefined") {
+      localStorage.setItem("terra_red_zones", JSON.stringify(updated));
+      localStorage.setItem("terra_notifications", JSON.stringify(buildHazardNotifications(updated as RedZone[])));
       window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "red_zones" } }));
     }
+    return updated.find((zone) => zone.id === id) ?? null;
+  }
+}
+
+export async function deleteRedZone(id: string) {
+  try {
+    const data = await requestRedZoneMutation<{ sync?: { redZones?: RedZone[]; places?: any[]; notifications?: any[] } }>("DELETE", { id });
+    persistHazardSnapshot(data.sync);
   } catch (e) {
     const existing = await getRedZones();
     const updated = existing.filter((z) => z.id !== id);
     if (typeof window !== "undefined") {
       localStorage.setItem("terra_red_zones", JSON.stringify(updated));
+      localStorage.setItem("terra_notifications", JSON.stringify(buildHazardNotifications(updated as RedZone[])));
       window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "red_zones" } }));
     }
   }
@@ -480,8 +618,23 @@ export async function resolveHazard(id: string) {
   await updateCivicReportStatus(id, "resolved");
 }
 
-export async function getUserHazardReports(userId?: string) {
-  return await getCivicReports();
+export async function getUserHazardReports(userId?: string): Promise<HazardReport[]> {
+  if (!userId) return [];
+  try {
+    const { data, error } = await supabase
+      .from("civic_reports")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (!error && data) return data as HazardReport[];
+  } catch {}
+
+  const userKey = `terra_civic_reports_${userId}`;
+  const raw = typeof window !== "undefined" ? localStorage.getItem(userKey) : null;
+  if (raw) {
+    try { return JSON.parse(raw); } catch {}
+  }
+  return [];
 }
 
 export async function upsertLocationRating(locationId: string, rating: number, userId?: string) {
@@ -500,3 +653,185 @@ export async function upsertLocationRating(locationId: string, rating: number, u
     return null;
   }
 }
+
+// ── Tourism Events CRUD ─────────────────────────────────────────────────────
+
+/**
+ * Fetch active events. Pass a locationId to restrict to a single place.
+ * Falls back to an empty array if the table does not exist yet.
+ */
+export async function getEvents(locationId?: string): Promise<TourismEvent[]> {
+  try {
+    const url = locationId
+      ? `/api/events?location_id=${encodeURIComponent(locationId)}`
+      : "/api/events";
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return [];
+    return (await res.json()) as TourismEvent[];
+  } catch {
+    return [];
+  }
+}
+
+export async function insertEvent(
+  payload: Omit<TourismEvent, "id" | "created_at" | "updated_at" | "created_by">
+): Promise<TourismEvent | null> {
+  const res = await fetch("/api/events", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.message || "Failed to create event.");
+  return body?.data ?? null;
+}
+
+export async function updateEvent(
+  id: string,
+  patch: Partial<Omit<TourismEvent, "id" | "created_at" | "created_by">>
+): Promise<TourismEvent | null> {
+  const res = await fetch("/api/events", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, ...patch }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.message || "Failed to update event.");
+  return body?.data ?? null;
+}
+
+export async function deleteEvent(id: string): Promise<void> {
+  const res = await fetch(`/api/events?id=${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message || "Failed to delete event.");
+  }
+}
+
+// ── Businesses, Guides & Services CRUD ────────────────────────────────────────
+
+/**
+ * Fetch local businesses/guides. Pass locationId to restrict to a single place.
+ * Pass includeHidden = true to fetch pending/hidden items for admin view.
+ */
+export async function getBusinesses(
+  locationId?: string,
+  includeHidden = false
+): Promise<LocalBusiness[]> {
+  try {
+    const params = new URLSearchParams();
+    if (locationId) params.set("location_id", locationId);
+    if (includeHidden) params.set("admin", "true");
+    const qs = params.toString();
+    const url = qs ? `/api/businesses?${qs}` : "/api/businesses";
+
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return [];
+    return (await res.json()) as LocalBusiness[];
+  } catch {
+    return [];
+  }
+}
+
+export async function insertBusiness(
+  payload: Omit<LocalBusiness, "id" | "created_at" | "updated_at" | "created_by">
+): Promise<LocalBusiness | null> {
+  const res = await fetch("/api/businesses", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.message || "Failed to create business entry.");
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "businesses" } }));
+  }
+  return body?.data ?? null;
+}
+
+export async function updateBusiness(
+  id: string,
+  patch: Partial<Omit<LocalBusiness, "id" | "created_at" | "created_by">>
+): Promise<LocalBusiness | null> {
+  const res = await fetch("/api/businesses", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, ...patch }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.message || "Failed to update business entry.");
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "businesses" } }));
+  }
+  return body?.data ?? null;
+}
+
+export async function deleteBusiness(id: string): Promise<void> {
+  const res = await fetch(`/api/businesses?id=${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message || "Failed to delete business entry.");
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "businesses" } }));
+  }
+}
+
+// ── Pass & Booking Management Helpers ─────────────────────────────────────────
+
+export async function getAllPasses(): Promise<any[]> {
+  try {
+    const res = await fetch("/api/passes?all=true", { cache: "no-store" });
+    if (!res.ok) return [];
+    return (await res.json()) as any[];
+  } catch {
+    return [];
+  }
+}
+
+export async function updatePassStatus(
+  id: string,
+  status: "VALID" | "CHECKED_IN" | "REVOKED" | "EXPIRED"
+): Promise<any> {
+  const res = await fetch("/api/passes", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, status }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.message || "Failed to update pass status.");
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "passes" } }));
+  }
+  return body?.data ?? null;
+}
+
+export async function uploadAvatar(userId: string, file: File): Promise<{ url?: string; error?: string }> {
+  try {
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const path = `${userId}/avatar.${ext}`;
+    const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+
+    if (uploadError) {
+      const reader = new FileReader();
+      const dataUrl = await new Promise<string>((resolve) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+      return { url: dataUrl };
+    }
+
+    const { data: publicData } = supabase.storage.from("avatars").getPublicUrl(path);
+    return { url: publicData.publicUrl };
+  } catch (e: any) {
+    return { error: e.message || "Avatar upload failed." };
+  }
+}
+

@@ -1,46 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import type { RedZone } from "@/lib/types";
-
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
-
-const isValidMapboxToken = (token?: string) =>
-  Boolean(token && token.startsWith("pk.") && !token.includes("example") && !token.includes("your_"));
-
-if (typeof window !== "undefined") {
-  try {
-    (mapboxgl as any).config = (mapboxgl as any).config || {};
-    (mapboxgl as any).config.REQUIRE_ACCESS_TOKEN = false;
-  } catch {}
-}
-
-const CARTO_DARK_STYLE: any = {
-  version: 8,
-  sources: {
-    "carto-dark": {
-      type: "raster",
-      tiles: [
-        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-      ],
-      tileSize: 256,
-      attribution: "&copy; OpenStreetMap &copy; CARTO",
-    },
-  },
-  layers: [
-    {
-      id: "carto-dark-layer",
-      type: "raster",
-      source: "carto-dark",
-      minzoom: 0,
-      maxzoom: 22,
-    },
-  ],
-};
 
 export interface TouristDestinationNode {
   id: string;
@@ -58,45 +21,45 @@ export const DEMO_DESTINATIONS: TouristDestinationNode[] = [
     lat: 11.272,
     lng: 75.795,
     category: "Eco Park & Canal Walkway",
-    description: "Lush mangrove ecosystem and canal walkway in Kozhikode city.",
+    description: "Lush mangrove ecosystem and canal walkway right in Kozhikode city featuring wooden boardwalks & butterfly park.",
   },
   {
     id: "kadalundi-birds",
-    name: "Kadalundi Bird Sanctuary & Mangrove Trail",
-    lat: 11.127,
-    lng: 75.828,
+    name: "Kadalundi Bird Sanctuary",
+    lat: 11.1278,
+    lng: 75.8286,
     category: "Estuary & Wildlife Reserve",
-    description: "Estuary mangrove reserve hosting migratory birds and tidal causeway.",
+    description: "Serene estuarine sanctuary where Kadalundi River meets Arabian sea ideal for birdwatching and kayaking.",
   },
   {
     id: "janakikattu-eco",
-    name: "Janakikattu Eco Tourism & River Path",
-    lat: 11.605,
-    lng: 75.81,
+    name: "Janakikattu Eco Tourism",
+    lat: 11.6215,
+    lng: 75.7892,
     category: "River Canopy & Forest Trail",
-    description: "Dense forest riverfront trail with bamboo footbridges.",
+    description: "Protected evergreen forest ecosystem rich in medicinal flora along the Kuttiyadi riverbank.",
   },
   {
     id: "kakkayam-dam",
-    name: "Kakkayam Dam & Elephant Corridor",
-    lat: 11.55,
-    lng: 75.92,
+    name: "Kakkayam Dam & Reserve Peak",
+    lat: 11.5542,
+    lng: 75.9211,
     category: "Dam Reserve & Trekking Peak",
-    description: "High altitude dam viewpoint and Western Ghats wildlife corridor.",
+    description: "Picturesque dam site and waterfall trek in Kozhikode district surrounded by dense Malabar forests.",
   },
   {
-    id: "vellar-village",
-    name: "Vellar Craft Village & Cultural Park",
-    lat: 11.23,
-    lng: 75.78,
+    id: "vellar-craft",
+    name: "Vellar Craft Village",
+    lat: 8.3848,
+    lng: 76.9859,
     category: "Artisan Hub & Cultural Plaza",
-    description: "Traditional artisan craft village displaying indigenous Kerala handicrafts.",
+    description: "Dedicated artisan village in Kovalam showcasing traditional Kerala crafts, handlooms, and a Kalaripayattu academy.",
   },
   {
     id: "mavoor-wetlands",
     name: "Mavoor Wetlands & Bird Habitat",
-    lat: 11.26,
-    lng: 75.91,
+    lat: 11.2619,
+    lng: 75.9412,
     category: "Wetland Ecology & Marshland",
     description: "Biodiverse marshland and wetland sanctuary for endemic waterfowl.",
   },
@@ -116,21 +79,30 @@ export default function AdminRedZoneMap({
   onSelectLocation,
 }: AdminRedZoneMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<{ [key: string]: mapboxgl.Marker }>({});
+  const mapRef = useRef<L.Map | null>(null);
+  const markersRef = useRef<{ [key: string]: L.Marker }>({});
+  const polygonsRef = useRef<L.Polygon[]>([]);
 
+  // Initialize Leaflet map
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    const map = new mapboxgl.Map({
-      container: containerRef.current,
-      style: CARTO_DARK_STYLE,
-      center: [75.82, 11.35],
+    const map = L.map(containerRef.current, {
+      center: [11.28, 75.82],
       zoom: 10,
-      pitch: 20,
+      zoomControl: true,
+      scrollWheelZoom: true,
     });
 
-    map.addControl(new mapboxgl.NavigationControl(), "top-right");
+    L.tileLayer(
+      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+      {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: "abcd",
+        maxZoom: 19,
+      }
+    ).addTo(map);
+
     mapRef.current = map;
 
     return () => {
@@ -139,17 +111,50 @@ export default function AdminRedZoneMap({
     };
   }, []);
 
-  // Update markers & dynamic hazard status overlays
+  // Update spot markers & red-zone polygons
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    // Clear existing markers
+    // Clear existing markers & polygons
     Object.values(markersRef.current).forEach((m) => m.remove());
     markersRef.current = {};
+    polygonsRef.current.forEach((p) => p.remove());
+    polygonsRef.current = [];
 
+    // Render Red Zone Polygons
+    redZones.forEach((rz) => {
+      if (rz.is_active === false) return;
+      let coords: [number, number][] = [];
+
+      if (rz.geojson_polygon?.coordinates?.[0]) {
+        coords = rz.geojson_polygon.coordinates[0].map((pt: [number, number]) => [pt[1], pt[0]]);
+      } else if (Array.isArray(rz.coordinates)) {
+        coords = rz.coordinates.map((pt: any) => [pt.lat || pt[1], pt.lng || pt[0]]);
+      }
+
+      if (coords.length > 2) {
+        const poly = L.polygon(coords, {
+          color: "#dc2626",
+          weight: 2,
+          fillColor: "#ef4444",
+          fillOpacity: 0.2,
+          dashArray: "6, 6",
+        }).addTo(map);
+
+        poly.bindPopup(`
+          <div style="padding: 4px; font-family: sans-serif;">
+            <strong style="color: #dc2626;">HAZARD RED ZONE: ${rz.title || rz.name}</strong>
+            <p style="margin: 4px 0 0; font-size: 11px; color: #475569;">${rz.description || "Active risk zone."}</p>
+          </div>
+        `);
+
+        polygonsRef.current.push(poly);
+      }
+    });
+
+    // Render Destination Markers
     DEMO_DESTINATIONS.forEach((loc) => {
-      // Find active red zone hazard matching this location name or coordinates
       const activeZone = redZones.find(
         (rz) =>
           rz.is_active !== false &&
@@ -161,51 +166,61 @@ export default function AdminRedZoneMap({
       const status = activeZone ? (activeZone.risk_level as string) : "NORMAL";
       const isSelected = selectedLocationId === loc.id;
 
-      // Marker element
-      const el = document.createElement("div");
-      el.className = "cursor-pointer group flex flex-col items-center";
-
-      let statusColor = "#10B981"; // Emerald Normal
-      let statusBg = "rgba(16, 185, 129, 0.2)";
-      let statusBorder = "rgba(78, 222, 163, 0.4)";
+      let statusColor = "#059669";
+      let statusBg = "#ecfdf5";
+      let statusBorder = "#a7f3d0";
       let icon = "location_on";
 
       if (status === "CRITICAL" || status === "HIGH") {
-        statusColor = "#EF4444";
-        statusBg = "rgba(239, 68, 68, 0.25)";
-        statusBorder = "rgba(239, 68, 68, 0.5)";
+        statusColor = "#dc2626";
+        statusBg = "#fef2f2";
+        statusBorder = "#fecaca";
         icon = "warning";
       } else if (status === "WARNING" || status === "MEDIUM" || status === "LOW") {
-        statusColor = "#F59E0B";
-        statusBg = "rgba(245, 158, 11, 0.25)";
-        statusBorder = "rgba(245, 158, 11, 0.5)";
+        statusColor = "#d97706";
+        statusBg = "#fffbe6";
+        statusBorder = "#fde68a";
         icon = "priority_high";
       }
 
-      el.innerHTML = `
+      const iconHtml = `
         <div style="
           display: flex;
           align-items: center;
           gap: 6px;
-          padding: 6px 12px;
+          padding: 4px 10px 4px 4px;
           border-radius: 20px;
-          background: ${isSelected ? "#0F172A" : "rgba(15, 23, 42, 0.85)"};
-          border: 2px solid ${isSelected ? "#4EDEA3" : statusBorder};
-          box-shadow: 0 0 16px ${statusBg};
+          background: ${isSelected ? "#0F172A" : "#FFFFFF"};
+          color: ${isSelected ? "#FFFFFF" : "#0F172A"};
+          border: 1.5px solid ${isSelected ? "#059669" : statusBorder};
+          box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+          cursor: pointer;
+          white-space: nowrap;
           transition: all 0.2s ease;
         ">
-          <span className="material-symbols-outlined" style="color: ${statusColor}; font-size: 16px;">
-            ${icon}
-          </span>
-          <span style="font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 700; color: #F8FAFC;">
+          <div style="
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: ${statusColor};
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+          ">
+            <span class="material-symbols-outlined" style="color: #FFFFFF; font-size: 14px; font-weight: 700;">
+              ${icon}
+            </span>
+          </div>
+          <span style="font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 700;">
             ${loc.name.split("&")[0].trim()}
           </span>
           <span style="
             font-family: 'JetBrains Mono', monospace;
             font-size: 9px;
             font-weight: 700;
-            padding: 1px 6px;
-            border-radius: 10px;
+            padding: 2px 6px;
+            border-radius: 8px;
             background: ${statusBg};
             color: ${statusColor};
             border: 1px solid ${statusBorder};
@@ -215,25 +230,28 @@ export default function AdminRedZoneMap({
         </div>
       `;
 
-      el.addEventListener("click", () => {
+      const customIcon = L.divIcon({
+        html: iconHtml,
+        className: "custom-leaflet-admin-marker",
+        iconSize: [160, 36],
+        iconAnchor: [80, 18],
+      });
+
+      const marker = L.marker([loc.lat, loc.lng], { icon: customIcon }).addTo(map);
+
+      marker.on("click", () => {
         if (onSelectLocation) {
           onSelectLocation(loc);
         }
-        if (mapRef.current) {
-          mapRef.current.flyTo({ center: [loc.lng, loc.lat], zoom: 12, pitch: 35 });
-        }
+        map.setView([loc.lat, loc.lng], 12);
       });
-
-      const marker = new mapboxgl.Marker({ element: el })
-        .setLngLat([loc.lng, loc.lat])
-        .addTo(map);
 
       markersRef.current[loc.id] = marker;
     });
   }, [redZones, selectedLocationId, onSelectLocation]);
 
   return (
-    <div className="relative w-full rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-slate-950 min-h-[460px]">
+    <div className="relative w-full rounded-xl overflow-hidden border border-slate-200 shadow-md bg-slate-50 min-h-[460px]">
       <div
         ref={containerRef}
         style={{
@@ -241,8 +259,8 @@ export default function AdminRedZoneMap({
           height: "460px",
         }}
       />
-      <div className="absolute bottom-3 left-3 bg-[#0F172A]/90 backdrop-blur-md px-3.5 py-2 rounded-lg border border-emerald-500/30 text-[11px] text-emerald-400 font-mono flex items-center gap-2 z-10 shadow-lg">
-        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+      <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-lg border border-emerald-300 text-[11px] text-emerald-800 font-mono flex items-center gap-2 z-[1000] shadow-md">
+        <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
         Click any Tourist Destination Place Node to manage live hazard status
       </div>
     </div>

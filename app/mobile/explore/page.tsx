@@ -8,6 +8,8 @@ import ReviewCard from "@/components/mobile/ReviewCard"
 import { MOCK_REVIEWS, type ReviewData } from "@/components/mobile/mockReviews"
 import { getPlaces } from "@/lib/places"
 import type { Location } from "@/lib/types"
+import { getRedZones } from "@/lib/db"
+import { buildHazardNotifications } from "@/lib/hazards"
 
 import { NotificationsDrawer, INITIAL_NOTIFICATIONS, type NotificationItem } from "@/components/mobile/NotificationsDrawer"
 
@@ -395,16 +397,53 @@ function ExploreFeedContent() {
   useEffect(() => { getPlaces().then(setPlaces).catch(() => setPlaces([])) }, [])
   const [selectedTag, setSelectedTag] = useState("all")
   const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [isNotifOpen, setIsNotifOpen] = useState(false)
+
+  const loadNotifications = useCallback(async () => {
+    let storedNotifs: NotificationItem[] = [];
     if (typeof window !== "undefined") {
       try {
-        const stored = localStorage.getItem("terra_notifications")
-        if (stored) return JSON.parse(stored)
+        const stored = localStorage.getItem("terra_notifications");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            storedNotifs = parsed;
+          }
+        }
       } catch {/* ignore */}
     }
-    return INITIAL_NOTIFICATIONS
-  })
-  const [isNotifOpen, setIsNotifOpen] = useState(false)
+
+    try {
+      const zones = await getRedZones();
+      const hazardNotifications = buildHazardNotifications(zones, places);
+      
+      const nonHazard = storedNotifs.length > 0
+        ? storedNotifs.filter((n) => n.type !== "hazard")
+        : INITIAL_NOTIFICATIONS.filter((n) => n.type !== "hazard");
+        
+      const mergedHazard = hazardNotifications.map((ln) => {
+        const existing = storedNotifs.find((s) => s.id === ln.id);
+        return {
+          ...ln,
+          read: existing ? existing.read : false,
+        };
+      });
+
+      const next = [...mergedHazard, ...nonHazard];
+      setNotifications(next);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("terra_notifications", JSON.stringify(next));
+      }
+    } catch (e) {
+      console.error("Error loading notifications:", e);
+      if (storedNotifs.length > 0) {
+        setNotifications(storedNotifs);
+      } else {
+        setNotifications(INITIAL_NOTIFICATIONS);
+      }
+    }
+  }, [places]);
 
   const handleMarkRead = useCallback((id: string) => {
     setNotifications((prev) => {
@@ -426,6 +465,21 @@ function ExploreFeedContent() {
       } catch {/* ignore */}
     }
   }, [])
+
+  useEffect(() => {
+    loadNotifications()
+  }, [loadNotifications])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const refresh = () => loadNotifications()
+    window.addEventListener("storage", refresh)
+    window.addEventListener("storage_sync", refresh)
+    return () => {
+      window.removeEventListener("storage", refresh)
+      window.removeEventListener("storage_sync", refresh)
+    }
+  }, [loadNotifications])
 
   useEffect(() => {
     if (typeof window !== "undefined") {

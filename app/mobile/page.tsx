@@ -4,11 +4,12 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import dynamic from "next/dynamic"
 import { AnimatePresence, motion } from "framer-motion"
-import { getLocations, getDangerZones } from "@/lib/db"
+import { getLocations, getDangerZones, DEFAULT_LOCATIONS } from "@/lib/db"
 import { useAuth, ProtectedRoute } from "@/lib/hooks/useAuth"
 import { useCapacity } from "@/lib/hooks/useCapacity"
 import { useSubmitHazard } from "@/lib/hooks/useSubmitHazard"
-import { generateRoute, checkRouteSafety, normalizeDangerZoneFeature, type SafetyCheckResult } from "@/lib/turf"
+import { generateRoute, checkRouteSafety, normalizeDangerZoneFeature, isPointInPolygon, type SafetyCheckResult } from "@/lib/turf"
+import { enrichLocationsWithHazards } from "@/lib/hazards"
 import { generateItinerary, calculateHaversineDistance, type DayItinerary } from "@/lib/itinerary"
 import HazardReportDrawer from "@/components/HazardReportDrawer"
 import { HazardAlertModal } from "@/components/hazard-alert-modal"
@@ -133,6 +134,7 @@ function MobileMapPage() {
   // Database Locations state
   const [rawLocations, setRawLocations] = useState<MapLocation[]>([])
   const [dangerZones, setDangerZones] = useState<GeoJSON.Feature<GeoJSON.Polygon>[]>([])
+  const [rawRedZones, setRawRedZones] = useState<any[]>([])
   const [isDbLoading, setIsDbLoading] = useState(true)
 
   // Saved / Bookmarked Places state
@@ -203,48 +205,57 @@ function MobileMapPage() {
           getDangerZones().catch(() => null),
         ])
 
-        if (dbLocations && dbLocations.length > 0) {
-          const mappedLocations: MapLocation[] = dbLocations.map((loc: any, idx: number) => {
-            const cap = Number(loc.capacity_per_slot) || 50
-            const rawCat = (loc.category || "eco").toLowerCase()
-            const normalizedCat = rawCat.includes("waterfall")
-              ? "waterfalls"
-              : rawCat.includes("forest") || rawCat.includes("trail")
-              ? "forests"
-              : rawCat.includes("wildlife")
-              ? "wildlife"
-              : rawCat.includes("viewpoint")
-              ? "viewpoints"
-              : "eco"
+        const locationsToMap = (dbLocations && dbLocations.length > 0) ? dbLocations : DEFAULT_LOCATIONS
 
-            const heroImage = getPlaceHeroImage(loc.name, normalizedCat, loc.district, loc.image_url)
+        const mappedLocations: MapLocation[] = locationsToMap.map((loc: any, idx: number) => {
+          const cap = Number(loc.capacity_per_slot) || 50
+          const rawCat = (loc.category || "eco").toLowerCase()
+          const normalizedCat = rawCat.includes("waterfall")
+            ? "waterfalls"
+            : rawCat.includes("forest") || rawCat.includes("trail")
+            ? "forests"
+            : rawCat.includes("wildlife")
+            ? "wildlife"
+            : rawCat.includes("viewpoint")
+            ? "viewpoints"
+            : "eco"
 
-            return {
-              id: loc.id || `db-loc-${idx}`,
-              name: loc.name || "Kerala Ecotourism Spot",
-              region: loc.region || loc.district || "Kerala",
-              district: loc.district || "Kerala",
-              zone: loc.panchayat_id ? `ZONE ${loc.panchayat_id.toUpperCase()}` : `ZONE ${idx + 1}A`,
-              category: normalizedCat,
-              capacity: { current: Math.floor(Math.random() * (cap * 0.6)) + 5, total: cap },
-              description: loc.description || "Protected ecotourism zone under Panchayat carrying capacity monitoring.",
-              distance: "0 km",
-              lat: Number(loc.lat) || 11.2480,
-              lng: Number(loc.lng) || 75.7838,
-              active: idx === 0,
-              image: heroImage,
-            }
-          })
-          setRawLocations(mappedLocations)
-        }
+          const heroImage = getPlaceHeroImage(loc.name, normalizedCat, loc.district, loc.image_url)
+
+          return {
+            id: loc.id || `db-loc-${idx}`,
+            name: loc.name || "Kerala Ecotourism Spot",
+            region: loc.region || loc.district || "Kerala",
+            district: loc.district || "Kerala",
+            zone: loc.panchayat_id ? `ZONE ${loc.panchayat_id.toUpperCase()}` : `ZONE ${idx + 1}A`,
+            category: normalizedCat,
+            capacity: { current: Math.floor(Math.random() * (cap * 0.6)) + 5, total: cap },
+            description: loc.description || "Protected ecotourism zone under Panchayat carrying capacity monitoring.",
+            distance: "0 km",
+            lat: Number(loc.lat) || 11.2480,
+            lng: Number(loc.lng) || 75.7838,
+            active: idx === 0,
+            image: heroImage,
+            hazard_status: loc.hazard_status,
+            hazard_level: loc.hazard_level,
+            hazard_zone_ids: loc.hazard_zone_ids,
+            hazard_zone_names: loc.hazard_zone_names,
+            hazard_exposure: loc.hazard_exposure,
+            hazard_message: loc.hazard_message,
+            hazard_distance_km: loc.hazard_distance_km,
+          }
+        })
+        setRawLocations(mappedLocations)
 
         if (dbDangerZones && dbDangerZones.length > 0) {
           const mappedDz = dbDangerZones
             .map((dz: any) => normalizeDangerZoneFeature(dz))
             .filter((f): f is GeoJSON.Feature<GeoJSON.Polygon> => f !== null)
           setDangerZones(mappedDz)
+          setRawRedZones(dbDangerZones)
         } else {
           setDangerZones([])
+          setRawRedZones([])
         }
       } catch (err) {
         console.error("Failed to load Supabase locations:", err)
@@ -268,7 +279,8 @@ function MobileMapPage() {
 
   // ── Calculate Haversine Distances & Sort Nearest Spots dynamically ─────
   const locations = useMemo(() => {
-    return rawLocations.map((loc) => {
+    const enriched = enrichLocationsWithHazards(rawLocations, rawRedZones)
+    return enriched.map((loc) => {
       const dist = calculateHaversineDistance(fromLocation.lat, fromLocation.lng, loc.lat, loc.lng)
       return {
         ...loc,
@@ -276,7 +288,7 @@ function MobileMapPage() {
         distance: `${dist} km from ${fromLocation.name.split(" ")[0]}`,
       }
     }).sort((a, b) => a.distanceKm - b.distanceKm)
-  }, [rawLocations, fromLocation])
+  }, [rawLocations, fromLocation, rawRedZones])
 
   useEffect(() => {
     const requestedId = searchParams.get("place_id")

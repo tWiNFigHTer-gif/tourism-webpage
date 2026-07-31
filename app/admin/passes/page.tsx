@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { getAllPasses, updatePassStatus } from "@/lib/db";
 
 interface PassRecord {
   id: string;
@@ -10,7 +10,7 @@ interface PassRecord {
   tourist_name: string;
   time_slot: string;
   issued_at: string;
-  status: "VALID" | "CHECKED_IN" | "EXPIRED";
+  status: "VALID" | "CHECKED_IN" | "EXPIRED" | "REVOKED";
 }
 
 const DEMO_PASSES: PassRecord[] = [
@@ -58,28 +58,35 @@ export default function AdminPassesPage() {
   const [scanResult, setScanResult] = useState<PassRecord | null>(null);
   const [scanError, setScanError] = useState("");
   const [filterLocation, setFilterLocation] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const mapTouristToAdmin = (tp: any): PassRecord => {
-    let statusMapped: "VALID" | "CHECKED_IN" | "EXPIRED" = "VALID";
-    if (tp.status === "VISITED") {
+    let statusMapped: "VALID" | "CHECKED_IN" | "EXPIRED" | "REVOKED" = "VALID";
+    if (tp.status === "VISITED" || tp.status === "CHECKED_IN") {
       statusMapped = "CHECKED_IN";
+    } else if (tp.status === "REVOKED") {
+      statusMapped = "REVOKED";
+    } else if (tp.status === "EXPIRED") {
+      statusMapped = "EXPIRED";
     }
     return {
-      id: tp.id,
-      pass_code: tp.pass_token,
-      location_name: tp.location_name,
-      tourist_name: tp.visitor_name || "Tourist Explorer",
-      time_slot: tp.slot_time,
-      issued_at: tp.booked_at,
+      id: tp.id || tp.pass_id || `pass-${Date.now()}`,
+      pass_code: tp.pass_token || tp.pass_code || "STOP-PASS",
+      location_name: tp.location_name || "Canoly Canal Walkway",
+      tourist_name: tp.visitor_name || tp.tourist_name || "Tourist Explorer",
+      time_slot: tp.slot_time || tp.time_slot || "10:00 AM",
+      issued_at: tp.booked_at || tp.issued_at || new Date().toISOString(),
       status: statusMapped,
     };
   };
 
   const mapAdminToTourist = (pr: PassRecord, existingTp?: any): any => {
-    let statusMapped: "ACTIVE" | "VISITED" = "ACTIVE";
-    if (pr.status === "CHECKED_IN" || pr.status === "EXPIRED") {
-      statusMapped = "VISITED";
-    }
+    let statusMapped: "ACTIVE" | "VISITED" | "REVOKED" | "EXPIRED" = "ACTIVE";
+    if (pr.status === "CHECKED_IN") statusMapped = "VISITED";
+    if (pr.status === "REVOKED") statusMapped = "REVOKED";
+    if (pr.status === "EXPIRED") statusMapped = "EXPIRED";
+
     return {
       id: pr.id,
       pass_token: pr.pass_code,
@@ -96,8 +103,13 @@ export default function AdminPassesPage() {
     };
   };
 
-  const loadAllPasses = () => {
-    // 1. Read tourist passes
+  const loadAllPasses = async () => {
+    let dbPasses: any[] = [];
+    try {
+      dbPasses = await getAllPasses();
+    } catch {/* ignore */}
+
+    // 1. Read tourist passes from local storage
     const touristRaw = typeof window !== "undefined" ? localStorage.getItem("terra_my_passes") : null;
     let touristPasses: any[] = [];
     if (touristRaw) {
@@ -108,7 +120,7 @@ export default function AdminPassesPage() {
       }
     }
 
-    // 2. Read admin passes
+    // 2. Read admin passes from local storage
     const adminRaw = typeof window !== "undefined" ? localStorage.getItem("stop_admin_passes") : null;
     let adminPasses: PassRecord[] = [];
     if (adminRaw) {
@@ -121,25 +133,34 @@ export default function AdminPassesPage() {
       adminPasses = DEMO_PASSES;
     }
 
-    // 3. Merge them. We use a Map to keep unique pass codes (case-insensitive)
     const mergedMap = new Map<string, PassRecord>();
 
-    // Add admin passes first (e.g. demo passes)
+    // Add admin demo passes
     adminPasses.forEach((p) => mergedMap.set(p.pass_code.toUpperCase(), p));
 
-    // Overwrite or append tourist passes
+    // Add database passes
+    dbPasses.forEach((dp) => {
+      if (dp.pass_token) {
+        mergedMap.set(dp.pass_token.toUpperCase(), mapTouristToAdmin(dp));
+      }
+    });
+
+    // Overwrite with tourist local passes
     touristPasses.forEach((tp) => {
-      mergedMap.set(tp.pass_token.toUpperCase(), mapTouristToAdmin(tp));
+      if (tp.pass_token) {
+        mergedMap.set(tp.pass_token.toUpperCase(), mapTouristToAdmin(tp));
+      }
     });
 
     return Array.from(mergedMap.values());
   };
 
   useEffect(() => {
-    setPasses(loadAllPasses());
+    loadAllPasses().then(setPasses);
 
-    const handleStorage = (e: Event) => {
-      setPasses(loadAllPasses());
+    const handleStorage = async () => {
+      const updated = await loadAllPasses();
+      setPasses(updated);
     };
     window.addEventListener("storage", handleStorage);
     window.addEventListener("storage_sync", handleStorage);
@@ -152,10 +173,8 @@ export default function AdminPassesPage() {
   const savePasses = (updated: PassRecord[]) => {
     setPasses(updated);
     if (typeof window !== "undefined") {
-      // 1. Save to stop_admin_passes
       localStorage.setItem("stop_admin_passes", JSON.stringify(updated));
 
-      // 2. Sync to terra_my_passes (preserving existing extra tourist fields)
       const touristRaw = localStorage.getItem("terra_my_passes");
       let touristPasses: any[] = [];
       if (touristRaw) {
@@ -172,8 +191,18 @@ export default function AdminPassesPage() {
       });
 
       localStorage.setItem("terra_my_passes", JSON.stringify(updatedTouristPasses));
-      // Dispatch storage event manually for same-tab updates
-      window.dispatchEvent(new Event("storage_sync"));
+      window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "passes" } }));
+    }
+  };
+
+  const handleStatusChange = async (id: string, nextStatus: "VALID" | "CHECKED_IN" | "REVOKED" | "EXPIRED") => {
+    try {
+      await updatePassStatus(id, nextStatus).catch(() => null);
+    } catch {}
+    const updated = passes.map((p) => (p.id === id ? { ...p, status: nextStatus } : p));
+    savePasses(updated);
+    if (scanResult?.id === id) {
+      setScanResult({ ...scanResult, status: nextStatus });
     }
   };
 
@@ -191,7 +220,6 @@ export default function AdminPassesPage() {
     if (matched) {
       setScanResult(matched);
     } else {
-      // Generate a dynamic demo valid pass if arbitrary code entered
       const newPass: PassRecord = {
         id: `p-${Date.now()}`,
         pass_code: scanInput.toUpperCase(),
@@ -206,21 +234,22 @@ export default function AdminPassesPage() {
     }
   };
 
-  const handleCheckIn = (id: string) => {
-    const updated = passes.map((p) => (p.id === id ? { ...p, status: "CHECKED_IN" as const } : p));
-    savePasses(updated);
-    if (scanResult?.id === id) {
-      setScanResult({ ...scanResult, status: "CHECKED_IN" });
-    }
-  };
+  // Analytics Metrics
+  const totalIssued = passes.length;
+  const totalCheckedIn = passes.filter((p) => p.status === "CHECKED_IN").length;
+  const totalValid = passes.filter((p) => p.status === "VALID").length;
+  const totalRevoked = passes.filter((p) => p.status === "REVOKED").length;
 
   const filteredPasses = passes.filter((p) => {
-    if (filterLocation === "all") return true;
-    return p.location_name.toLowerCase().includes(filterLocation.toLowerCase());
+    const matchesLoc = filterLocation === "all" || p.location_name.toLowerCase().includes(filterLocation.toLowerCase());
+    const matchesStatus = filterStatus === "all" || p.status === filterStatus;
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch = !q || p.pass_code.toLowerCase().includes(q) || p.tourist_name.toLowerCase().includes(q) || p.location_name.toLowerCase().includes(q);
+    return matchesLoc && matchesStatus && matchesSearch;
   });
 
   return (
-    <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
+    <div style={{ maxWidth: "1280px", margin: "0 auto", fontFamily: "'Inter', sans-serif" }}>
       {/* Header */}
       <div style={{ marginBottom: "24px", paddingBottom: "16px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
@@ -232,11 +261,38 @@ export default function AdminPassesPage() {
           </span>
         </div>
         <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "26px", fontWeight: 700, color: "#F8FAFC", margin: 0 }}>
-          Digital Pass Verification & Gate Scanner
+          Digital Pass Verification &amp; Analytics Dashboard
         </h1>
-        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", color: "#94A3B8", marginTop: "4px" }}>
-          Verify tourist entry passes, scan QR codes, and monitor carrying capacity turnstile check-ins in real-time.
+        <p style={{ fontSize: "13px", color: "#94A3B8", marginTop: "4px" }}>
+          Monitor tourist bookings, scan QR entry passes, review telemetry analytics, and manage pass revocation in real-time.
         </p>
+      </div>
+
+      {/* Analytics KPI Row */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "24px" }}>
+        <div style={{ background: "rgba(17,24,32,0.9)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "14px", padding: "16px 20px" }}>
+          <div style={{ fontSize: "11px", fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em" }}>Total Issued Passes</div>
+          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "24px", fontWeight: 700, color: "#F8FAFC", marginTop: "6px" }}>{totalIssued}</div>
+          <div style={{ fontSize: "11px", color: "#4EDEA3", marginTop: "4px" }}>Tourist Entry Requests</div>
+        </div>
+
+        <div style={{ background: "rgba(17,24,32,0.9)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "14px", padding: "16px 20px" }}>
+          <div style={{ fontSize: "11px", fontWeight: 600, color: "#F59E0B", textTransform: "uppercase", letterSpacing: "0.05em" }}>Checked In / Verified</div>
+          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "24px", fontWeight: 700, color: "#F59E0B", marginTop: "6px" }}>{totalCheckedIn}</div>
+          <div style={{ fontSize: "11px", color: "#F59E0B", marginTop: "4px" }}>Turnstile Gate Entries</div>
+        </div>
+
+        <div style={{ background: "rgba(17,24,32,0.9)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: "14px", padding: "16px 20px" }}>
+          <div style={{ fontSize: "11px", fontWeight: 600, color: "#4EDEA3", textTransform: "uppercase", letterSpacing: "0.05em" }}>Active / Valid</div>
+          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "24px", fontWeight: 700, color: "#4EDEA3", marginTop: "6px" }}>{totalValid}</div>
+          <div style={{ fontSize: "11px", color: "#4EDEA3", marginTop: "4px" }}>Pending Tourist Arrivals</div>
+        </div>
+
+        <div style={{ background: "rgba(17,24,32,0.9)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "14px", padding: "16px 20px" }}>
+          <div style={{ fontSize: "11px", fontWeight: 600, color: "#EF4444", textTransform: "uppercase", letterSpacing: "0.05em" }}>Revoked / Cancelled</div>
+          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "24px", fontWeight: 700, color: "#EF4444", marginTop: "6px" }}>{totalRevoked}</div>
+          <div style={{ fontSize: "11px", color: "#EF4444", marginTop: "4px" }}>Revoked by Admin</div>
+        </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1.6fr", gap: "24px" }}>
@@ -245,20 +301,20 @@ export default function AdminPassesPage() {
           <form
             onSubmit={handleVerifyPass}
             style={{
-              background: "rgba(17,24,32,0.9)",
-              border: "1px solid rgba(78,222,163,0.3)",
+              background: "#FFFFFF",
+              border: "1px solid #E2E8F0",
               borderRadius: "16px",
               padding: "20px",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
             }}
           >
-            <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "16px", fontWeight: 700, color: "#4EDEA3", margin: "0 0 14px 0" }}>
+            <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "16px", fontWeight: 700, color: "#059669", margin: "0 0 14px 0" }}>
               🔍 Gate Pass Verification
             </h2>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               <div>
-                <label style={{ display: "block", fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#CBD5E1", marginBottom: "6px" }}>
+                <label style={{ display: "block", fontSize: "12px", color: "#475569", fontWeight: 600, marginBottom: "6px" }}>
                   Enter or Scan Digital Pass Token
                 </label>
                 <div style={{ display: "flex", gap: "8px" }}>
@@ -269,27 +325,27 @@ export default function AdminPassesPage() {
                     placeholder="e.g. STOP-8921-CANOLY"
                     style={{
                       flex: 1,
-                      background: "#0F172A",
-                      border: "1px solid rgba(255,255,255,0.12)",
+                      background: "#FFFFFF",
+                      border: "1px solid #CBD5E1",
                       borderRadius: "8px",
                       padding: "10px 12px",
-                      color: "#F8FAFC",
-                      fontSize: "13px",
+                      color: "#0F172A",
+                      fontSize: "13.5px",
                       fontFamily: "'JetBrains Mono', monospace",
+                      fontWeight: 600,
                       outline: "none",
                     }}
                   />
                   <button
                     type="submit"
                     style={{
-                      background: "#10B981",
-                      color: "#000F1D",
+                      background: "#059669",
+                      color: "#FFFFFF",
                       border: "none",
                       borderRadius: "8px",
-                      padding: "0 16px",
-                      fontFamily: "'Inter', sans-serif",
-                      fontSize: "13px",
+                      padding: "10px 16px",
                       fontWeight: 700,
+                      fontSize: "13px",
                       cursor: "pointer",
                     }}
                   >
@@ -331,8 +387,8 @@ export default function AdminPassesPage() {
           {scanResult && (
             <div
               style={{
-                background: scanResult.status === "EXPIRED" ? "rgba(239,68,68,0.15)" : "rgba(16,185,129,0.15)",
-                border: scanResult.status === "EXPIRED" ? "1px solid rgba(239,68,68,0.4)" : "1px solid rgba(16,185,129,0.4)",
+                background: scanResult.status === "REVOKED" || scanResult.status === "EXPIRED" ? "rgba(239,68,68,0.15)" : "rgba(16,185,129,0.15)",
+                border: scanResult.status === "REVOKED" || scanResult.status === "EXPIRED" ? "1px solid rgba(239,68,68,0.4)" : "1px solid rgba(16,185,129,0.4)",
                 borderRadius: "16px",
                 padding: "20px",
               }}
@@ -343,10 +399,10 @@ export default function AdminPassesPage() {
                     fontFamily: "'JetBrains Mono', monospace",
                     fontSize: "11px",
                     fontWeight: 700,
-                    color: scanResult.status === "EXPIRED" ? "#EF4444" : "#10B981",
+                    color: scanResult.status === "REVOKED" || scanResult.status === "EXPIRED" ? "#EF4444" : "#10B981",
                   }}
                 >
-                  {scanResult.status === "EXPIRED" ? "❌ PASS EXPIRED" : "✅ PASS VALID & ACTIVE"}
+                  {scanResult.status === "REVOKED" ? "⛔ PASS REVOKED" : scanResult.status === "EXPIRED" ? "❌ PASS EXPIRED" : "✅ PASS VALID & ACTIVE"}
                 </span>
                 <span
                   style={{
@@ -367,37 +423,54 @@ export default function AdminPassesPage() {
                 <div><strong>Zone:</strong> {scanResult.location_name}</div>
                 <div><strong>Time Slot:</strong> {scanResult.time_slot}</div>
                 <div>
-                  <strong>Check-in Status:</strong>{" "}
-                  <span style={{ color: scanResult.status === "CHECKED_IN" ? "#F59E0B" : "#10B981", fontWeight: 700 }}>
+                  <strong>Status:</strong>{" "}
+                  <span style={{ color: scanResult.status === "CHECKED_IN" ? "#F59E0B" : scanResult.status === "REVOKED" ? "#EF4444" : "#10B981", fontWeight: 700 }}>
                     {scanResult.status}
                   </span>
                 </div>
               </div>
 
               {scanResult.status === "VALID" && (
-                <button
-                  type="button"
-                  onClick={() => handleCheckIn(scanResult.id)}
-                  style={{
-                    width: "100%",
-                    marginTop: "14px",
-                    background: "#10B981",
-                    color: "#000F1D",
-                    border: "none",
-                    borderRadius: "10px",
-                    padding: "10px",
-                    fontSize: "13px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "6px",
-                  }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>check_circle</span>
-                  Confirm Turnstile Entry Check-in
-                </button>
+                <div style={{ display: "flex", gap: "8px", marginTop: "14px" }}>
+                  <button
+                    type="button"
+                    onClick={() => handleStatusChange(scanResult.id, "CHECKED_IN")}
+                    style={{
+                      flex: 1,
+                      background: "#10B981",
+                      color: "#000F1D",
+                      border: "none",
+                      borderRadius: "10px",
+                      padding: "10px",
+                      fontSize: "12.5px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>check_circle</span>
+                    Confirm Entry Check-in
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleStatusChange(scanResult.id, "REVOKED")}
+                    style={{
+                      background: "rgba(239,68,68,0.2)",
+                      border: "1px solid rgba(239,68,68,0.4)",
+                      color: "#f87171",
+                      borderRadius: "10px",
+                      padding: "10px 14px",
+                      fontSize: "12.5px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Revoke
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -412,29 +485,46 @@ export default function AdminPassesPage() {
             padding: "20px",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", gap: "12px", flexWrap: "wrap" }}>
             <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "16px", fontWeight: 700, color: "#F8FAFC", margin: 0 }}>
               Live Entry Pass Registry ({filteredPasses.length})
             </h2>
 
-            <select
-              value={filterLocation}
-              onChange={(e) => setFilterLocation(e.target.value)}
-              style={{
-                background: "#0F172A",
-                color: "#94A3B8",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: "6px",
-                padding: "6px 10px",
-                fontSize: "11px",
-              }}
-            >
-              <option value="all">All Locations</option>
-              <option value="Canoly">Canoly Canal</option>
-              <option value="Kadalundi">Kadalundi</option>
-              <option value="Janakikattu">Janakikattu</option>
-              <option value="Kakkayam">Kakkayam</option>
-            </select>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <input
+                type="text"
+                placeholder="Search pass / tourist..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  background: "#0F172A",
+                  color: "#F8FAFC",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: "6px",
+                  padding: "6px 10px",
+                  fontSize: "11px",
+                  outline: "none",
+                }}
+              />
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                style={{
+                  background: "#0F172A",
+                  color: "#94A3B8",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: "6px",
+                  padding: "6px 10px",
+                  fontSize: "11px",
+                }}
+              >
+                <option value="all">All Statuses</option>
+                <option value="VALID">VALID</option>
+                <option value="CHECKED_IN">CHECKED IN</option>
+                <option value="REVOKED">REVOKED</option>
+                <option value="EXPIRED">EXPIRED</option>
+              </select>
+            </div>
           </div>
 
           <div style={{ overflowX: "auto" }}>
@@ -442,9 +532,10 @@ export default function AdminPassesPage() {
               <thead>
                 <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", color: "#64748B", fontSize: "11px" }}>
                   <th style={{ padding: "10px 12px" }}>PASS TOKEN</th>
-                  <th style={{ padding: "10px 12px" }}>TOURIST & ZONE</th>
+                  <th style={{ padding: "10px 12px" }}>TOURIST &amp; ZONE</th>
                   <th style={{ padding: "10px 12px" }}>TIME SLOT</th>
-                  <th style={{ padding: "10px 12px", textAlign: "right" }}>STATUS</th>
+                  <th style={{ padding: "10px 12px" }}>STATUS</th>
+                  <th style={{ padding: "10px 12px", textAlign: "right" }}>ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
@@ -454,7 +545,6 @@ export default function AdminPassesPage() {
                     style={{
                       borderBottom: "1px solid rgba(255,255,255,0.04)",
                       fontSize: "13px",
-                      fontFamily: "'Inter', sans-serif",
                     }}
                   >
                     <td style={{ padding: "12px", fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", color: "#4EDEA3", fontWeight: 600 }}>
@@ -465,7 +555,7 @@ export default function AdminPassesPage() {
                       <div style={{ fontSize: "11px", color: "#64748B" }}>{p.location_name}</div>
                     </td>
                     <td style={{ padding: "12px", color: "#CBD5E1", fontSize: "12px" }}>{p.time_slot}</td>
-                    <td style={{ padding: "12px", textAlign: "right" }}>
+                    <td style={{ padding: "12px" }}>
                       <span
                         style={{
                           fontFamily: "'JetBrains Mono', monospace",
@@ -476,19 +566,53 @@ export default function AdminPassesPage() {
                           background:
                             p.status === "CHECKED_IN"
                               ? "rgba(245,158,11,0.2)"
-                              : p.status === "EXPIRED"
+                              : p.status === "REVOKED" || p.status === "EXPIRED"
                               ? "rgba(239,68,68,0.2)"
                               : "rgba(16,185,129,0.2)",
                           color:
                             p.status === "CHECKED_IN"
                               ? "#F59E0B"
-                              : p.status === "EXPIRED"
+                              : p.status === "REVOKED" || p.status === "EXPIRED"
                               ? "#EF4444"
                               : "#10B981",
                         }}
                       >
                         {p.status}
                       </span>
+                    </td>
+                    <td style={{ padding: "12px", textAlign: "right" }}>
+                      <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+                        {p.status === "VALID" && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(p.id, "CHECKED_IN")}
+                              title="Confirm Turnstile Entry Check-in"
+                              style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "6px", padding: "4px 8px", color: "#fbbf24", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}
+                            >
+                              Check-In
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(p.id, "REVOKED")}
+                              title="Revoke tourist pass"
+                              style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "6px", padding: "4px 8px", color: "#f87171", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}
+                            >
+                              Revoke
+                            </button>
+                          </>
+                        )}
+                        {p.status === "REVOKED" && (
+                          <button
+                            type="button"
+                            onClick={() => handleStatusChange(p.id, "VALID")}
+                            title="Re-validate pass"
+                            style={{ background: "rgba(78,222,163,0.15)", border: "1px solid rgba(78,222,163,0.3)", borderRadius: "6px", padding: "4px 8px", color: "#4edea3", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}
+                          >
+                            Re-validate
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

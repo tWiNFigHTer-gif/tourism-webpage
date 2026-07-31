@@ -25,6 +25,7 @@ interface AuthContextType {
   role: UserRole;
   isAdmin: boolean;
   refreshProfile: () => Promise<void>;
+  updateProfile: (patch: Partial<UserProfile>) => Promise<{ error?: string }>;
   signIn: (email: string, password: string) => Promise<{ error?: string; role?: UserRole }>;
   signUp: (
     email: string,
@@ -44,6 +45,7 @@ export const AuthContext = createContext<AuthContextType>({
   role: "tourist",
   isAdmin: false,
   refreshProfile: async () => {},
+  updateProfile: async () => ({}),
   signIn: async () => ({}),
   signUp: async () => ({}),
   signOut: async () => {},
@@ -263,6 +265,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateProfile = async (patch: Partial<UserProfile>): Promise<{ error?: string }> => {
+    try {
+      const nextProf: UserProfile = {
+        ...(profile || {
+          id: user?.id || `usr-${Date.now()}`,
+          username: user?.email?.split("@")[0] || "User",
+          bio: "Explorer User",
+          avatar_url: null,
+          role: "tourist",
+          panchayat_name: "CKP-2024",
+          updated_at: new Date().toISOString(),
+        }),
+        ...patch,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (user?.id) {
+        await supabase
+          .from("profiles")
+          .upsert({ id: user.id, ...patch, updated_at: new Date().toISOString() })
+          .catch(() => null);
+      }
+
+      setProfile(nextProf);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("terra_profile", JSON.stringify(nextProf));
+        if (nextProf.role) {
+          document.cookie = `terra_role=${nextProf.role}; path=/; max-age=86400`;
+        }
+      }
+      return {};
+    } catch (e: any) {
+      return { error: e.message || "Failed to update profile." };
+    }
+  };
+
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
@@ -274,7 +312,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem("terra_user");
       localStorage.removeItem("terra_profile");
       localStorage.removeItem("terra_my_passes");
-      document.cookie = "terra_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;";
+      localStorage.removeItem("terra_my_reports");
+      localStorage.removeItem("terra_civic_reports");
+      localStorage.removeItem("terra_notifications");
+      document.cookie = "terra_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0;";
     }
   };
 
@@ -289,6 +330,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role,
         isAdmin,
         refreshProfile,
+        updateProfile,
         signIn,
         signUp,
         signOut,
@@ -310,10 +352,10 @@ export function ProtectedRoute({ children, requireAdmin = false }: { children: R
   // Consistent Loading Screen for SSR and initial hydration pass
   if (!isMounted || isLoading) {
     return (
-      <div className="flex min-h-screen w-full flex-col items-center justify-center bg-[#000f1d] text-[#4edea3] font-sans">
+      <div className="flex min-h-screen w-full flex-col items-center justify-center bg-[#F8FAFC] text-[#059669] font-sans">
         <div className="flex flex-col items-center gap-3">
-          <span className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
-          <p className="font-mono text-xs text-[#8aa299]">Initializing STOP ! Portal Session...</p>
+          <span className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+          <p className="font-mono text-xs text-slate-500">Initializing STOP ! Portal Session...</p>
         </div>
       </div>
     );
@@ -322,13 +364,13 @@ export function ProtectedRoute({ children, requireAdmin = false }: { children: R
   // Fallback UI if unauthenticated or not admin after mounting
   if (!user || (requireAdmin && !isAdmin)) {
     return (
-      <div className="flex min-h-screen w-full flex-col items-center justify-center bg-[#000f1d] text-white p-6 font-sans">
-        <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#111820] p-6 shadow-2xl space-y-4 text-center">
-          <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 mx-auto">
+      <div className="flex min-h-screen w-full flex-col items-center justify-center bg-[#F8FAFC] text-slate-900 p-6 font-sans">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-4 text-center">
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 mx-auto">
             <span className="material-symbols-outlined text-2xl">shield_person</span>
           </div>
-          <h2 className="text-xl font-bold text-white">Authenticating Session...</h2>
-          <p className="text-xs text-slate-400">
+          <h2 className="text-xl font-bold text-slate-900">Authenticating Session...</h2>
+          <p className="text-xs text-slate-500">
             Click below to instantly access the {requireAdmin ? "Panchayat Admin Control Center" : "Tourist Map Portal"}.
           </p>
 
@@ -343,7 +385,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: { children: R
                   router.push("/mobile");
                 }
               }}
-              className="w-full py-3 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs hover:bg-emerald-400 transition-all cursor-pointer shadow-lg"
+              className="w-full py-3 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition-all cursor-pointer shadow-md"
             >
               Enter {requireAdmin ? "Panchayat Admin Dashboard" : "Tourist Mobile Explorer"}
             </button>
@@ -353,7 +395,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: { children: R
                 await signOut();
                 router.push("/login");
               }}
-              className="w-full py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 font-semibold text-xs hover:bg-slate-700 transition-all cursor-pointer"
+              className="w-full py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 font-semibold text-xs hover:bg-slate-200 transition-all cursor-pointer"
             >
               Go to Sign In Page
             </button>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClientServer } from "@/lib/supabase-server";
+import { enrichLocationsWithHazards } from "@/lib/hazards";
 
 const editable = ["name", "description", "category", "lat", "lng", "region", "capacity_max", "status"] as const;
 
@@ -13,14 +14,32 @@ async function requireAdmin() {
   return { supabase, user };
 }
 
+import { DEFAULT_LOCATIONS } from "@/lib/db";
+
 export async function GET(request: NextRequest) {
   const supabase = await createClientServer();
   const includeHidden = request.nextUrl.searchParams.get("include_hidden") === "true";
-  let query = supabase.from("locations").select("*").order("name");
-  if (!includeHidden) query = query.eq("is_active", true).eq("status", "active");
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ message: error.message }, { status: 500 });
-  return NextResponse.json(data ?? []);
+
+  let data: any[] | null = null;
+  let redZones: any[] | null = null;
+
+  try {
+    let query = supabase.from("locations").select("*").order("name");
+    if (!includeHidden) query = query.eq("is_active", true).eq("status", "active");
+
+    const [locationsRes, redZonesRes] = await Promise.all([
+      query,
+      supabase.from("red_zones").select("*").eq("is_active", true).order("created_at", { ascending: false }),
+    ]);
+
+    data = locationsRes.data;
+    redZones = redZonesRes.data;
+  } catch (err) {
+    console.warn("Places API error, using DEFAULT_LOCATIONS fallback:", err);
+  }
+
+  const placesToReturn = (data && data.length > 0) ? data : DEFAULT_LOCATIONS;
+  return NextResponse.json(enrichLocationsWithHazards(placesToReturn as any, redZones ?? []));
 }
 
 export async function POST(request: NextRequest) {

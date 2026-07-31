@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import type { MapLocation } from "@/components/map/LeafletMobileMap";
+import { getEvents, getBusinesses } from "@/lib/db";
+import type { TourismEvent, LocalBusiness } from "@/lib/types";
 
 interface RichLocationDetailSheetProps {
   location: MapLocation;
@@ -109,7 +111,61 @@ export default function RichLocationDetailSheet({
   onNavigate,
 }: RichLocationDetailSheetProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"overview" | "rt_businesses" | "guides" | "experiences" | "souvenirs" | "tips">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "rt_businesses" | "guides" | "experiences" | "souvenirs" | "tips" | "events">("overview");
+  const [events, setEvents] = useState<TourismEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsFetched, setEventsFetched] = useState<string | null>(null); // locationId of last fetch
+
+  // Fetch events lazily when the tab is opened, re-fetch on storage_sync
+  useEffect(() => {
+    if (activeTab !== "events") return;
+    if (eventsFetched === location.id) return; // already loaded for this location
+    setEventsLoading(true);
+    getEvents(location.id)
+      .then((data) => { setEvents(data); setEventsFetched(location.id); })
+      .catch(() => setEvents([]))
+      .finally(() => setEventsLoading(false));
+  }, [activeTab, location.id, eventsFetched]);
+
+  // Re-sync when admin pushes a storage_sync event
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const refresh = () => {
+      setEventsFetched(null); // invalidate cache → next tab open re-fetches
+      setBusinessesFetched(null);
+      if (activeTab === "events") {
+        setEventsLoading(true);
+        getEvents(location.id)
+          .then((data) => { setEvents(data); setEventsFetched(location.id); })
+          .catch(() => setEvents([]))
+          .finally(() => setEventsLoading(false));
+      }
+      if (activeTab === "rt_businesses" || activeTab === "guides") {
+        setBusinessesLoading(true);
+        getBusinesses(location.id)
+          .then((data) => { setDbBusinesses(data); setBusinessesFetched(location.id); })
+          .catch(() => setDbBusinesses([]))
+          .finally(() => setBusinessesLoading(false));
+      }
+    };
+    window.addEventListener("storage_sync", refresh);
+    return () => window.removeEventListener("storage_sync", refresh);
+  }, [activeTab, location.id]);
+
+  const [dbBusinesses, setDbBusinesses] = useState<LocalBusiness[]>([]);
+  const [businessesLoading, setBusinessesLoading] = useState(false);
+  const [businessesFetched, setBusinessesFetched] = useState<string | null>(null);
+
+  // Fetch businesses lazily when rt_businesses or guides tab is opened
+  useEffect(() => {
+    if (activeTab !== "rt_businesses" && activeTab !== "guides") return;
+    if (businessesFetched === location.id) return;
+    setBusinessesLoading(true);
+    getBusinesses(location.id)
+      .then((data) => { setDbBusinesses(data); setBusinessesFetched(location.id); })
+      .catch(() => setDbBusinesses([]))
+      .finally(() => setBusinessesLoading(false));
+  }, [activeTab, location.id, businessesFetched]);
 
   return (
     <motion.div
@@ -229,6 +285,17 @@ export default function RichLocationDetailSheet({
               <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "11px", color: "#4edea3", fontWeight: 600, margin: "2px 0 0" }}>
                 📍 {location.distance} • {location.region}
               </p>
+              {location.hazard_status && location.hazard_status !== "NORMAL" && (
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginTop: "8px", padding: "5px 10px", borderRadius: "999px", border: location.hazard_status === "CRITICAL" ? "1px solid rgba(239,68,68,0.45)" : "1px solid rgba(245,158,11,0.35)", background: location.hazard_status === "CRITICAL" ? "rgba(239,68,68,0.14)" : "rgba(245,158,11,0.14)", color: location.hazard_status === "CRITICAL" ? "#fca5a5" : "#fbbf24", fontFamily: "'JetBrains Mono', monospace", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em" }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: "13px" }}>
+                    warning
+                  </span>
+                  <span>
+                    {location.hazard_status === "CRITICAL" ? "ACTIVE HAZARD ZONE" : "HAZARD ADVISORY"}
+                  </span>
+                  {location.hazard_zone_names?.[0] ? <span style={{ opacity: 0.9 }}>• {location.hazard_zone_names[0]}</span> : null}
+                </div>
+              )}
             </div>
 
             <button
@@ -268,6 +335,7 @@ export default function RichLocationDetailSheet({
         >
           {[
             { id: "overview", label: "Overview", icon: "info" },
+            { id: "events", label: "Upcoming Events", icon: "event" },
             { id: "rt_businesses", label: "Local Farms & Eateries", icon: "store" },
             { id: "guides", label: "Local Guides", icon: "person_pin" },
             { id: "experiences", label: "Eco Activities", icon: "rowing" },
@@ -307,6 +375,33 @@ export default function RichLocationDetailSheet({
           {/* TAB 1: OVERVIEW */}
           {activeTab === "overview" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {location.hazard_status && location.hazard_status !== "NORMAL" && (
+                <div
+                  style={{
+                    background: location.hazard_status === "CRITICAL" ? "rgba(239, 68, 68, 0.12)" : "rgba(245, 158, 11, 0.12)",
+                    border: location.hazard_status === "CRITICAL" ? "1px solid rgba(239, 68, 68, 0.35)" : "1px solid rgba(245, 158, 11, 0.3)",
+                    borderRadius: "12px",
+                    padding: "12px",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "10px",
+                    marginBottom: "4px",
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ color: location.hazard_status === "CRITICAL" ? "#ef4444" : "#fbbf24", fontSize: "18px", marginTop: "1px" }}>
+                    warning
+                  </span>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: "12px", fontWeight: 700, color: location.hazard_status === "CRITICAL" ? "#ef4444" : "#fbbf24", fontFamily: "'Space Grotesk', sans-serif" }}>
+                      {location.hazard_status === "CRITICAL" ? "CRITICAL HAZARD ZONE ALERT" : "SAFETY HAZARD ADVISORY"}
+                    </h4>
+                    <p style={{ margin: "2px 0 0 0", fontSize: "11px", color: "#fca5a5", lineHeight: 1.4, fontFamily: "'Inter', sans-serif" }}>
+                      {location.hazard_message || "Active environmental safety advisory in effect for this destination."}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#cbd5e1", lineHeight: 1.5, margin: 0 }}>
                 {location.description}
               </p>
@@ -401,82 +496,252 @@ export default function RichLocationDetailSheet({
             </div>
           )}
 
+          {/* TAB: UPCOMING EVENTS */}
+          {activeTab === "events" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ fontSize: "11px", color: "#4edea3", fontWeight: 600 }}>
+                🗓 UPCOMING &amp; RECENT EVENTS AT THIS DESTINATION
+              </div>
+
+              {eventsLoading && (
+                <div style={{ textAlign: "center", padding: "28px 0", color: "#4edea3", fontSize: "12px" }}>
+                  Loading events…
+                </div>
+              )}
+
+              {!eventsLoading && events.length === 0 && (
+                <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "12px", padding: "24px 16px", textAlign: "center" }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: "32px", color: "#1E3A5F", display: "block", marginBottom: "8px" }}>event</span>
+                  <p style={{ fontSize: "12px", color: "#475569", margin: 0 }}>No events scheduled for this destination.</p>
+                </div>
+              )}
+
+              {!eventsLoading && events.map((ev) => {
+                const now = Date.now();
+                const start = new Date(ev.start_time).getTime();
+                const end = ev.end_time ? new Date(ev.end_time).getTime() : null;
+                const isLive = start <= now && (!end || end >= now);
+                const isPast = end ? end < now : start < now - 86400000;
+                const statusLabel = isPast ? "PAST" : isLive ? "LIVE NOW" : "UPCOMING";
+                const statusColor = isPast ? "#64748b" : isLive ? "#60a5fa" : "#4edea3";
+                const statusBg = isPast ? "rgba(100,116,139,0.15)" : isLive ? "rgba(59,130,246,0.15)" : "rgba(78,222,163,0.15)";
+
+                const fmt = (iso: string) =>
+                  new Date(iso).toLocaleDateString("en-IN", {
+                    day: "numeric", month: "short", year: "numeric",
+                    hour: "2-digit", minute: "2-digit",
+                  });
+
+                return (
+                  <div
+                    key={ev.id}
+                    style={{
+                      background: "rgba(15,23,42,0.8)",
+                      border: `1px solid ${isPast ? "rgba(255,255,255,0.05)" : "rgba(78,222,163,0.12)"}`,
+                      borderRadius: "12px",
+                      padding: "12px 14px",
+                      opacity: isPast ? 0.65 : 1,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                      <span
+                        style={{
+                          background: statusBg,
+                          color: statusColor,
+                          border: `1px solid ${statusColor}55`,
+                          padding: "2px 7px",
+                          borderRadius: "6px",
+                          fontSize: "9px",
+                          fontWeight: 700,
+                          fontFamily: "'JetBrains Mono', monospace",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {statusLabel}
+                      </span>
+                      <h4 style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "#f1f5f9", fontFamily: "'Space Grotesk', sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {ev.title}
+                      </h4>
+                    </div>
+                    <p style={{ fontSize: "11px", color: "#64748b", margin: "2px 0 0", fontFamily: "'JetBrains Mono', monospace" }}>
+                      🕐 {fmt(ev.start_time)}{ev.end_time ? ` → ${fmt(ev.end_time)}` : ""}
+                    </p>
+                    {ev.description && (
+                      <p style={{ fontSize: "11.5px", color: "#94a3b8", margin: "6px 0 0", lineHeight: 1.45 }}>
+                        {ev.description}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* TAB 2: KERALA RT BUSINESSES */}
           {activeTab === "rt_businesses" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <div style={{ fontSize: "11px", color: "#4edea3", fontWeight: 600 }}>
-                🌿 KERALA RESPONSIBLE TOURISM ENTERPRISES & PRODUCERS
+                🌿 KERALA RESPONSIBLE TOURISM ENTERPRISES &amp; PRODUCERS
               </div>
-              {KERALA_RT_DATA.enterprises.map((ent) => (
-                <div
-                  key={ent.id}
-                  style={{
-                    background: "rgba(15,23,42,0.8)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: "10px",
-                    padding: "10px 12px",
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: "10px",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "32px",
-                      height: "32px",
-                      borderRadius: "8px",
-                      background: "rgba(78,222,163,0.15)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#4edea3",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>
-                      {ent.icon}
-                    </span>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontFamily: "'Inter', sans-serif", fontSize: "12.5px", fontWeight: 700, color: "#f8fafc" }}>
-                        {ent.name}
-                      </span>
-                      <span
-                        style={{
-                          fontFamily: "'JetBrains Mono', monospace",
-                          fontSize: "9px",
-                          background: "rgba(78,222,163,0.2)",
-                          color: "#4edea3",
-                          padding: "1px 6px",
-                          borderRadius: "4px",
-                        }}
-                      >
-                        {ent.badge}
-                      </span>
-                    </div>
-                    <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "11px", color: "#94a3b8", margin: "2px 0 6px" }}>
-                      {ent.description}
-                    </p>
-                    <a
-                      href={`tel:${ent.contact}`}
+
+              {businessesLoading && (
+                <div style={{ textAlign: "center", padding: "20px 0", color: "#4edea3", fontSize: "12px" }}>
+                  Loading local enterprises…
+                </div>
+              )}
+
+              {!businessesLoading && dbBusinesses.filter((b) => b.category !== "guide").length > 0
+                ? dbBusinesses.filter((b) => b.category !== "guide").map((ent) => (
+                    <div
+                      key={ent.id}
                       style={{
-                        fontFamily: "'Inter', sans-serif",
-                        fontSize: "11px",
-                        color: "#10b981",
-                        textDecoration: "none",
-                        fontWeight: 600,
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "4px",
+                        background: "rgba(15,23,42,0.8)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        borderRadius: "10px",
+                        padding: "10px 12px",
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: "10px",
                       }}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: "13px" }}>call</span>
-                      {ent.contact}
-                    </a>
-                  </div>
-                </div>
-              ))}
+                      <div
+                        style={{
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "8px",
+                          background: "rgba(78,222,163,0.15)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#4edea3",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>
+                          {ent.icon || "store"}
+                        </span>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: "12.5px", fontWeight: 700, color: "#f8fafc" }}>
+                            {ent.name}
+                          </span>
+                          {ent.badge && (
+                            <span
+                              style={{
+                                fontFamily: "'JetBrains Mono', monospace",
+                                fontSize: "9px",
+                                background: "rgba(78,222,163,0.2)",
+                                color: "#4edea3",
+                                padding: "1px 6px",
+                                borderRadius: "4px",
+                              }}
+                            >
+                              {ent.badge}
+                            </span>
+                          )}
+                        </div>
+                        {ent.title && (
+                          <div style={{ fontSize: "11px", color: "#4edea3", fontWeight: 600, marginTop: "1px" }}>
+                            {ent.title}
+                          </div>
+                        )}
+                        {ent.description && (
+                          <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "11px", color: "#94a3b8", margin: "2px 0 6px" }}>
+                            {ent.description}
+                          </p>
+                        )}
+                        {ent.contact && (
+                          <a
+                            href={`tel:${ent.contact}`}
+                            style={{
+                              fontFamily: "'Inter', sans-serif",
+                              fontSize: "11px",
+                              color: "#10b981",
+                              textDecoration: "none",
+                              fontWeight: 600,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: "13px" }}>call</span>
+                            {ent.contact}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                : !businessesLoading && KERALA_RT_DATA.enterprises.map((ent) => (
+                    <div
+                      key={ent.id}
+                      style={{
+                        background: "rgba(15,23,42,0.8)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        borderRadius: "10px",
+                        padding: "10px 12px",
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: "10px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "8px",
+                          background: "rgba(78,222,163,0.15)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#4edea3",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>
+                          {ent.icon}
+                        </span>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: "12.5px", fontWeight: 700, color: "#f8fafc" }}>
+                            {ent.name}
+                          </span>
+                          <span
+                            style={{
+                              fontFamily: "'JetBrains Mono', monospace",
+                              fontSize: "9px",
+                              background: "rgba(78,222,163,0.2)",
+                              color: "#4edea3",
+                              padding: "1px 6px",
+                              borderRadius: "4px",
+                            }}
+                          >
+                            {ent.badge}
+                          </span>
+                        </div>
+                        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "11px", color: "#94a3b8", margin: "2px 0 6px" }}>
+                          {ent.description}
+                        </p>
+                        <a
+                          href={`tel:${ent.contact}`}
+                          style={{
+                            fontFamily: "'Inter', sans-serif",
+                            fontSize: "11px",
+                            color: "#10b981",
+                            textDecoration: "none",
+                            fontWeight: 600,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                          }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: "13px" }}>call</span>
+                          {ent.contact}
+                        </a>
+                      </div>
+                    </div>
+                  ))}
             </div>
           )}
 
@@ -484,48 +749,98 @@ export default function RichLocationDetailSheet({
           {activeTab === "guides" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <div style={{ fontSize: "11px", color: "#4edea3", fontWeight: 600 }}>
-                🧭 VERIFIED LOCAL NATURALISTS & COMMUNITY GUIDES
+                🧭 VERIFIED LOCAL NATURALISTS &amp; COMMUNITY GUIDES
               </div>
-              {KERALA_RT_DATA.guides.map((gd, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    background: "rgba(15,23,42,0.8)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: "10px",
-                    padding: "10px 12px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", fontWeight: 700, color: "#f8fafc" }}>
-                      {gd.name} <span style={{ fontSize: "11px", color: "#f59e0b", fontWeight: 600 }}>{gd.rating}</span>
-                    </div>
-                    <div style={{ fontSize: "11px", color: "#94a3b8" }}>{gd.role} • {gd.experience}</div>
-                  </div>
-                  <a
-                    href={`tel:${gd.phone}`}
-                    style={{
-                      background: "rgba(16,185,129,0.15)",
-                      border: "1px solid rgba(16,185,129,0.4)",
-                      color: "#10b981",
-                      padding: "6px 10px",
-                      borderRadius: "8px",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      textDecoration: "none",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "4px",
-                    }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>call</span>
-                    Book Guide
-                  </a>
+
+              {businessesLoading && (
+                <div style={{ textAlign: "center", padding: "20px 0", color: "#4edea3", fontSize: "12px" }}>
+                  Loading local guides…
                 </div>
-              ))}
+              )}
+
+              {!businessesLoading && dbBusinesses.filter((b) => b.category === "guide").length > 0
+                ? dbBusinesses.filter((b) => b.category === "guide").map((gd) => (
+                    <div
+                      key={gd.id}
+                      style={{
+                        background: "rgba(15,23,42,0.8)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        borderRadius: "10px",
+                        padding: "10px 12px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", fontWeight: 700, color: "#f8fafc" }}>
+                          {gd.name} {gd.badge ? <span style={{ fontSize: "11px", color: "#4edea3", fontWeight: 600 }}>• {gd.badge}</span> : null}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#94a3b8" }}>{gd.title || "Local Naturalist Guide"} {gd.description ? `• ${gd.description}` : ""}</div>
+                      </div>
+                      {gd.contact && (
+                        <a
+                          href={`tel:${gd.contact}`}
+                          style={{
+                            background: "rgba(78,222,163,0.15)",
+                            border: "1px solid rgba(78,222,163,0.3)",
+                            borderRadius: "8px",
+                            padding: "6px 10px",
+                            color: "#4edea3",
+                            textDecoration: "none",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                          }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>call</span>
+                          Call
+                        </a>
+                      )}
+                    </div>
+                  ))
+                : !businessesLoading && KERALA_RT_DATA.guides.map((gd, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        background: "rgba(15,23,42,0.8)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        borderRadius: "10px",
+                        padding: "10px 12px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", fontWeight: 700, color: "#f8fafc" }}>
+                          {gd.name} <span style={{ fontSize: "11px", color: "#f59e0b", fontWeight: 600 }}>{gd.rating}</span>
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#94a3b8" }}>{gd.role} • {gd.experience}</div>
+                      </div>
+                      <a
+                        href={`tel:${gd.phone}`}
+                        style={{
+                          background: "rgba(78,222,163,0.15)",
+                          border: "1px solid rgba(78,222,163,0.3)",
+                          borderRadius: "8px",
+                          padding: "6px 10px",
+                          color: "#4edea3",
+                          textDecoration: "none",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>call</span>
+                        Call
+                      </a>
+                    </div>
+                  ))}
             </div>
           )}
 

@@ -18,6 +18,18 @@ const NAV_ITEMS = [
     badge: "CRUD",
   },
   {
+    label: "Events Manager",
+    href: "/admin/events",
+    icon: "event",
+    badge: "CRUD",
+  },
+  {
+    label: "Businesses & Guides",
+    href: "/admin/businesses",
+    icon: "store",
+    badge: "CRUD",
+  },
+  {
     label: "Civic Incident Triage",
     href: "/admin/reports",
     icon: "warning",
@@ -61,8 +73,8 @@ export default function AdminSidebar() {
         position: "fixed",
         top: 0,
         left: 0,
-        background: "#000F1D",
-        borderRight: "1px solid rgba(255,255,255,0.08)",
+        background: "#FFFFFF",
+        borderRight: "1px solid #E2E8F0",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
@@ -74,7 +86,7 @@ export default function AdminSidebar() {
         <div
           style={{
             padding: "20px 24px",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            borderBottom: "1px solid #E2E8F0",
             display: "flex",
             alignItems: "center",
             gap: "12px",
@@ -85,14 +97,14 @@ export default function AdminSidebar() {
               width: "36px",
               height: "36px",
               borderRadius: "10px",
-              background: "linear-gradient(135deg, #10b981 0%, #047857 100%)",
+              background: "#ECFDF5",
+              border: "1px solid rgba(5,150,105,0.3)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: "0 0 16px rgba(78,222,163,0.3)",
             }}
           >
-            <span className="material-symbols-outlined" style={{ color: "#000F1D", fontSize: "22px", fontWeight: 700 }}>
+            <span className="material-symbols-outlined" style={{ color: "#059669", fontSize: "22px", fontWeight: 700 }}>
               shield_person
             </span>
           </div>
@@ -102,7 +114,7 @@ export default function AdminSidebar() {
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontSize: "17px",
                 fontWeight: 700,
-                color: "#4EDEA3",
+                color: "#059669",
                 margin: 0,
                 letterSpacing: "-0.02em",
               }}
@@ -138,9 +150,9 @@ export default function AdminSidebar() {
                   padding: "10px 14px",
                   borderRadius: "10px",
                   textDecoration: "none",
-                  background: isActive ? "rgba(78,222,163,0.12)" : "transparent",
-                  color: isActive ? "#4EDEA3" : "#94A3B8",
-                  border: isActive ? "1px solid rgba(78,222,163,0.25)" : "1px solid transparent",
+                  background: isActive ? "rgba(5,150,105,0.08)" : "transparent",
+                  color: isActive ? "#059669" : "#475569",
+                  border: isActive ? "1px solid rgba(5,150,105,0.25)" : "1px solid transparent",
                   transition: "all 0.2s ease",
                   fontFamily: "'Inter', sans-serif",
                   fontSize: "13.5px",
@@ -159,9 +171,9 @@ export default function AdminSidebar() {
                       fontFamily: "'JetBrains Mono', monospace",
                       fontSize: "10px",
                       fontWeight: 600,
-                      background: item.badge === "Live" ? "rgba(239,68,68,0.2)" : "rgba(78,222,163,0.2)",
-                      color: item.badge === "Live" ? "#EF4444" : "#4EDEA3",
-                      border: item.badge === "Live" ? "1px solid rgba(239,68,68,0.4)" : "1px solid rgba(78,222,163,0.4)",
+                      background: item.badge === "Live" ? "rgba(220,38,38,0.1)" : "rgba(5,150,105,0.1)",
+                      color: item.badge === "Live" ? "#DC2626" : "#059669",
+                      border: item.badge === "Live" ? "1px solid rgba(220,38,38,0.25)" : "1px solid rgba(5,150,105,0.25)",
                       padding: "2px 6px",
                       borderRadius: "6px",
                     }}
@@ -179,8 +191,8 @@ export default function AdminSidebar() {
       <div
         style={{
           padding: "16px",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
-          background: "rgba(17,24,32,0.8)",
+          borderTop: "1px solid #E2E8F0",
+          background: "#F8FAFC",
           display: "flex",
           flexDirection: "column",
           gap: "12px",
@@ -193,12 +205,12 @@ export default function AdminSidebar() {
                 width: "32px",
                 height: "32px",
                 borderRadius: "50%",
-                background: "#1E293B",
-                border: "1px solid rgba(255,255,255,0.1)",
+                background: "#ECFDF5",
+                border: "1px solid rgba(5,150,105,0.3)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#4EDEA3",
+                color: "#059669",
                 fontWeight: 600,
                 fontSize: "13px",
               }}
@@ -211,7 +223,7 @@ export default function AdminSidebar() {
                   fontFamily: "'Inter', sans-serif",
                   fontSize: "12.5px",
                   fontWeight: 600,
-                  color: "#F1F5F9",
+                  color: "#0F172A",
                   margin: 0,
                 }}
               >
@@ -235,7 +247,7 @@ export default function AdminSidebar() {
         <button
           type="button"
           onClick={handleSignOut}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 font-semibold text-xs hover:bg-red-500/25 transition-all cursor-pointer shadow-md"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 font-semibold text-xs hover:bg-red-100 transition-all cursor-pointer shadow-xs"
         >
           <span className="material-symbols-outlined text-base">logout</span>
           <span>Sign Out / Logout</span>

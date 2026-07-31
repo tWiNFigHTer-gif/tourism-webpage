@@ -1,134 +1,147 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { createClientServer } from "@/lib/supabase-server";
+import { buildHazardNotifications, enrichLocationsWithHazards } from "@/lib/hazards";
 
-function serverSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    "";
-  return createClient(url, key, { auth: { persistSession: false } });
+async function requireAdmin() {
+  const supabase = await createClientServer();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: NextResponse.json({ message: "Authentication required." }, { status: 401 }) };
+  }
+
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  const role = profile?.role || user.user_metadata?.role;
+
+  if (!["panchayat_admin", "super_admin", "admin"].includes(role)) {
+    return { error: NextResponse.json({ message: "Administrator access required." }, { status: 403 }) };
+  }
+
+  return { supabase, user };
 }
 
-// ── GET /api/red-zones ───────────────────────────────────────────────────────
+async function buildSyncPayload(supabase: Awaited<ReturnType<typeof createClientServer>>) {
+  const [{ data: redZones }, { data: places }] = await Promise.all([
+    supabase.from("red_zones").select("*").order("created_at", { ascending: false }),
+    supabase.from("locations").select("*").order("name"),
+  ]);
+
+  const safeRedZones = redZones ?? [];
+  const safePlaces = places ?? [];
+
+  return {
+    redZones: safeRedZones,
+    places: enrichLocationsWithHazards(safePlaces, safeRedZones),
+    notifications: buildHazardNotifications(safeRedZones, safePlaces),
+  };
+}
+
 export async function GET() {
   try {
-    const db = serverSupabase();
-    const { data, error } = await db
-      .from("red_zones")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const supabase = await createClientServer();
+    const { data, error } = await supabase.from("red_zones").select("*").order("created_at", { ascending: false });
 
     if (error) throw error;
     return NextResponse.json(data ?? [], { status: 200 });
-  } catch (err: any) {
-    return NextResponse.json(
-      [
-        {
-          id: "rz-canoly-default",
-          title: "Canoly Canal High Water Hazard",
-          name: "Canoly Canal High Water Hazard",
-          risk_level: "HIGH",
-          description: "Temporary tidal surge hazard along canal boardwalk.",
-          coordinates: [
-            [75.770, 11.250],
-            [75.805, 11.250],
-            [75.805, 11.285],
-            [75.770, 11.285],
-            [75.770, 11.250],
-          ],
-          geojson_polygon: {
-            type: "Feature",
-            properties: { title: "Canoly Canal High Water Hazard", risk_level: "HIGH" },
-            geometry: {
-              type: "Polygon",
-              coordinates: [
-                [
-                  [75.770, 11.250],
-                  [75.805, 11.250],
-                  [75.805, 11.285],
-                  [75.770, 11.285],
-                  [75.770, 11.250],
-                ]
-              ]
-            }
-          },
-          is_active: true,
-          created_at: new Date().toISOString(),
-        },
-      ],
-      { status: 200 }
-    );
+  } catch {
+    return NextResponse.json([], { status: 200 });
   }
 }
 
-// ── POST /api/red-zones ──────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
+  const auth = await requireAdmin();
+  if ("error" in auth) return auth.error;
+
   let body: any;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { error: "Bad Request", message: "Invalid JSON body." },
-      { status: 400 }
-    );
+    return NextResponse.json({ message: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { title, name, risk_level = "HIGH", description, coordinates, geojson_polygon } = body;
-
-  if (!title && !name) {
-    return NextResponse.json(
-      { error: "Bad Request", message: "Zone title or name is required." },
-      { status: 400 }
-    );
+  const name = body.name || body.title;
+  if (!name) {
+    return NextResponse.json({ message: "Zone title or name is required." }, { status: 400 });
   }
-
-  const db = serverSupabase();
-  const zoneTitle = title || name;
 
   const payload = {
-    id: body.id || `rz-${Date.now()}`,
-    title: zoneTitle,
-    name: zoneTitle,
-    risk_level,
-    description: description || "Administrative safety polygon.",
-    coordinates: coordinates || [],
-    geojson_polygon: geojson_polygon || null,
-    is_active: true,
+    id: body.id || crypto.randomUUID(),
+    title: body.title || name,
+    name,
+    risk_level: body.risk_level || "HIGH",
+    description: body.description || "Administrative safety polygon.",
+    coordinates: body.coordinates || [],
+    geojson_polygon: body.geojson_polygon || null,
+    is_active: body.is_active !== false,
+    created_by: auth.user.id,
     created_at: new Date().toISOString(),
   };
 
-  try {
-    const { data, error } = await db
-      .from("red_zones")
-      .insert(payload)
-      .select()
-      .single();
+  const { data, error } = await auth.supabase.from("red_zones").insert(payload).select().single();
+  if (error) return NextResponse.json({ message: error.message }, { status: 500 });
 
-    if (!error && data) {
-      return NextResponse.json(data, { status: 201 });
-    }
-  } catch {}
-
-  return NextResponse.json(payload, { status: 201 });
+  const sync = await buildSyncPayload(auth.supabase);
+  return NextResponse.json({ data, sync }, { status: 201 });
 }
 
-// ── DELETE /api/red-zones?id= ───────────────────────────────────────────────
+export async function PATCH(request: NextRequest) {
+  const auth = await requireAdmin();
+  if ("error" in auth) return auth.error;
+
+  let body: any;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ message: "Invalid JSON body." }, { status: 400 });
+  }
+
+  if (!body.id) {
+    return NextResponse.json({ message: "Red zone id is required." }, { status: 400 });
+  }
+
+  const payload: Record<string, unknown> = {};
+  for (const key of ["title", "name", "risk_level", "description", "coordinates", "geojson_polygon", "is_active"]) {
+    if (key in body) payload[key] = body[key];
+  }
+
+  const { data, error } = await auth.supabase
+    .from("red_zones")
+    .update(payload)
+    .eq("id", body.id)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+
+  const sync = await buildSyncPayload(auth.supabase);
+  return NextResponse.json({ data, sync }, { status: 200 });
+}
+
 export async function DELETE(request: NextRequest) {
+  const auth = await requireAdmin();
+  if ("error" in auth) return auth.error;
+
   const { searchParams } = request.nextUrl;
   const id = searchParams.get("id");
 
+  let bodyId: string | undefined;
   if (!id) {
-    return NextResponse.json(
-      { error: "Bad Request", message: "Red Zone ID parameter 'id' is required." },
-      { status: 400 }
-    );
+    try {
+      const body = await request.json();
+      bodyId = body?.id;
+    } catch {
+      bodyId = undefined;
+    }
   }
 
-  try {
-    const db = serverSupabase();
-    await db.from("red_zones").delete().eq("id", id);
-  } catch {}
+  const resolvedId = id || bodyId;
+  if (!resolvedId) {
+    return NextResponse.json({ message: "Red zone id is required." }, { status: 400 });
+  }
 
-  return NextResponse.json({ status: "success", deleted_id: id }, { status: 200 });
+  const { error } = await auth.supabase.from("red_zones").delete().eq("id", resolvedId);
+  if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+
+  const sync = await buildSyncPayload(auth.supabase);
+  return NextResponse.json({ deleted_id: resolvedId, sync }, { status: 200 });
 }

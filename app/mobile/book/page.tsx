@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { useCapacity } from "@/lib/hooks/useCapacity"
 import { useBookPass } from "@/lib/hooks/useBookPass"
-import { ProtectedRoute } from "@/components/AuthProvider"
+import { useAuth, ProtectedRoute } from "@/components/AuthProvider"
 
 const ENTRY_WINDOWS = [
   { time: "08:00 AM", slotCode: "08:00", label: "Morning Slot", id: "0800", available: true  },
@@ -62,6 +62,7 @@ const DEFAULT_SEED_PASSES: StoredPass[] = [
 function BookingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { user } = useAuth()
 
   const locationId = searchParams.get("location_id") ?? "mavoor-wetlands"
   const locationName = searchParams.get("location_name") ?? "Mavoor Wetlands & Bird Sanctuary"
@@ -103,48 +104,37 @@ function BookingContent() {
     }
   }
 
-  // My Stored Passes state
-  const [myPasses, setMyPasses] = useState<StoredPass[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem("terra_my_passes")
-        if (stored) return JSON.parse(stored)
-      } catch (err) {
-        console.error("Failed to load passes:", err)
-      }
-    }
-    return DEFAULT_SEED_PASSES
-  })
+  // My Stored Passes state - scoped by current user ID
+  const [myPasses, setMyPasses] = useState<StoredPass[]>([])
 
   const [selectedPassId, setSelectedPassId] = useState<string | null>(null)
 
   useEffect(() => {
-    const passIdParam = searchParams.get("pass_id")
-    if (passIdParam) {
-      setSelectedPassId(passIdParam)
-      setActiveTab("my-passes")
-    } else if (!selectedPassId && myPasses.length > 0) {
-      const active = myPasses.find((p) => p.status === "ACTIVE")
-      setSelectedPassId(active ? active.id : myPasses[0].id)
-    }
-  }, [myPasses, selectedPassId, searchParams])
-
-  useEffect(() => {
     const handleSync = () => {
-      const stored = localStorage.getItem("terra_my_passes");
+      if (!user?.id) {
+        setMyPasses([])
+        return
+      }
+      const userKey = `terra_my_passes_${user.id}`
+      const stored = typeof window !== "undefined" ? localStorage.getItem(userKey) : null
       if (stored) {
         try {
-          setMyPasses(JSON.parse(stored));
-        } catch {}
+          setMyPasses(JSON.parse(stored))
+        } catch {
+          setMyPasses([])
+        }
+      } else {
+        setMyPasses([])
       }
-    };
-    window.addEventListener("storage", handleSync);
-    window.addEventListener("storage_sync", handleSync);
+    }
+    handleSync()
+    window.addEventListener("storage", handleSync)
+    window.addEventListener("storage_sync", handleSync)
     return () => {
-      window.removeEventListener("storage", handleSync);
-      window.removeEventListener("storage_sync", handleSync);
-    };
-  }, []);
+      window.removeEventListener("storage", handleSync)
+      window.removeEventListener("storage_sync", handleSync)
+    }
+  }, [user?.id])
 
   const activeWindow = ENTRY_WINDOWS.find((w) => w.id === selectedWindowId) ?? ENTRY_WINDOWS[1]
 
@@ -231,6 +221,9 @@ function BookingContent() {
         const next = [newPass, ...prev]
         if (typeof window !== "undefined") {
           try {
+            if (user?.id) {
+              localStorage.setItem(`terra_my_passes_${user.id}`, JSON.stringify(next))
+            }
             localStorage.setItem("terra_my_passes", JSON.stringify(next))
             localStorage.setItem("terra_pulse_passes", JSON.stringify(next))
             window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "passes" } }))

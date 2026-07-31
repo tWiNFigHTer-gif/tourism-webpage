@@ -24,6 +24,13 @@ export default function CivicReportsAdminPage() {
 
   useEffect(() => {
     fetchReports();
+    const handleSync = () => fetchReports();
+    window.addEventListener("storage", handleSync);
+    window.addEventListener("storage_sync", handleSync);
+    return () => {
+      window.removeEventListener("storage", handleSync);
+      window.removeEventListener("storage_sync", handleSync);
+    };
   }, []);
 
   const handleStatusUpdate = async (id: string, status: "pending" | "in_progress" | "resolved") => {
@@ -63,23 +70,10 @@ export default function CivicReportsAdminPage() {
         </p>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "12px",
-          marginBottom: "20px",
-          background: "rgba(17,24,32,0.8)",
-          padding: "12px 16px",
-          borderRadius: "12px",
-          border: "1px solid rgba(255,255,255,0.06)",
-        }}
-      >
+      {/* Controls: Filters & Search */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
         <div style={{ display: "flex", gap: "8px" }}>
-          {["all", "pending", "in_progress", "resolved"].map((st) => (
+          {(["all", "pending", "in_progress", "resolved"] as const).map((st) => (
             <button
               key={st}
               type="button"
@@ -91,9 +85,9 @@ export default function CivicReportsAdminPage() {
                 fontSize: "12px",
                 fontWeight: 600,
                 cursor: "pointer",
-                border: filterStatus === st ? "1px solid #4EDEA3" : "1px solid rgba(255,255,255,0.1)",
-                background: filterStatus === st ? "rgba(78,222,163,0.15)" : "transparent",
-                color: filterStatus === st ? "#4EDEA3" : "#94A3B8",
+                border: filterStatus === st ? "1px solid rgba(5,150,105,0.4)" : "1px solid #CBD5E1",
+                background: filterStatus === st ? "#ECFDF5" : "#FFFFFF",
+                color: filterStatus === st ? "#059669" : "#475569",
               }}
             >
               {st === "all" ? "All Reports" : st.replace("_", " ").toUpperCase()}
@@ -101,7 +95,7 @@ export default function CivicReportsAdminPage() {
           ))}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", width: "280px", background: "#0F172A", padding: "6px 12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", width: "280px", background: "#FFFFFF", padding: "6px 12px", borderRadius: "8px", border: "1px solid #CBD5E1" }}>
           <span className="material-symbols-outlined" style={{ fontSize: "16px", color: "#64748B" }}>
             search
           </span>
@@ -114,8 +108,8 @@ export default function CivicReportsAdminPage() {
               background: "transparent",
               border: "none",
               outline: "none",
-              color: "#F1F5F9",
-              fontSize: "12px",
+              color: "#0F172A",
+              fontSize: "13px",
               width: "100%",
             }}
           />
@@ -125,15 +119,16 @@ export default function CivicReportsAdminPage() {
       {/* Main Table */}
       <div
         style={{
-          background: "rgba(17,24,32,0.9)",
-          border: "1px solid rgba(255,255,255,0.08)",
+          background: "#FFFFFF",
+          border: "1px solid #E2E8F0",
           borderRadius: "16px",
           overflow: "hidden",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
         }}
       >
         <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
           <thead>
-            <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", color: "#64748B", fontSize: "11px", background: "rgba(15,23,42,0.6)" }}>
+            <tr style={{ borderBottom: "1px solid #E2E8F0", color: "#475569", fontSize: "11px", background: "#F8FAFC" }}>
               <th style={{ padding: "14px 16px" }}>LOCATION</th>
               <th style={{ padding: "14px 16px" }}>CATEGORY</th>
               <th style={{ padding: "14px 16px" }}>DESCRIPTION Snippet</th>
@@ -160,21 +155,21 @@ export default function CivicReportsAdminPage() {
                 <tr
                   key={rep.id}
                   style={{
-                    borderBottom: "1px solid rgba(255,255,255,0.04)",
+                    borderBottom: "1px solid #F1F5F9",
                     fontSize: "13px",
                     fontFamily: "'Inter', sans-serif",
                   }}
                 >
                   <td style={{ padding: "14px 16px" }}>
-                    <div style={{ fontWeight: 600, color: "#F1F5F9" }}>{rep.location_name}</div>
+                    <div style={{ fontWeight: 600, color: "#0F172A" }}>{rep.location_name}</div>
                     <div style={{ fontSize: "11px", color: "#64748B" }}>{rep.reporter_name || "Tourist User"}</div>
                   </td>
-                  <td style={{ padding: "14px 16px", color: "#CBD5E1", fontSize: "12px" }}>
-                    <span style={{ background: "rgba(255,255,255,0.06)", padding: "3px 8px", borderRadius: "6px" }}>
+                  <td style={{ padding: "14px 16px", color: "#475569", fontSize: "12px" }}>
+                    <span style={{ background: "#F1F5F9", padding: "3px 8px", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
                       {rep.category}
                     </span>
                   </td>
-                  <td style={{ padding: "14px 16px", color: "#94A3B8", maxWidth: "260px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <td style={{ padding: "14px 16px", color: "#475569", maxWidth: "260px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {rep.description}
                   </td>
                   <td style={{ padding: "14px 16px", color: "#64748B", fontSize: "12px", fontFamily: "'JetBrains Mono', monospace" }}>
@@ -190,19 +185,25 @@ export default function CivicReportsAdminPage() {
                         borderRadius: "6px",
                         background:
                           rep.status === "pending"
-                            ? "rgba(239,68,68,0.2)"
+                            ? "#FEF2F2"
                             : rep.status === "in_progress"
-                            ? "rgba(245,158,11,0.2)"
-                            : "rgba(16,185,129,0.2)",
+                            ? "#FFFBE6"
+                            : "#ECFDF5",
                         color:
                           rep.status === "pending"
-                            ? "#EF4444"
+                            ? "#DC2626"
                             : rep.status === "in_progress"
-                            ? "#F59E0B"
-                            : "#10B981",
+                            ? "#D97706"
+                            : "#059669",
+                        border:
+                          rep.status === "pending"
+                            ? "1px solid #FECACA"
+                            : rep.status === "in_progress"
+                            ? "1px solid #FDE68A"
+                            : "1px solid #A7F3D0",
                       }}
                     >
-                      {rep.status.toUpperCase()}
+                      {(rep.status || "pending").replace("_", " ").toUpperCase()}
                     </span>
                   </td>
                   <td style={{ padding: "14px 16px", textAlign: "right" }}>
@@ -210,9 +211,9 @@ export default function CivicReportsAdminPage() {
                       type="button"
                       onClick={() => setSelectedReport(rep)}
                       style={{
-                        background: "rgba(78,222,163,0.1)",
-                        color: "#4EDEA3",
-                        border: "1px solid rgba(78,222,163,0.3)",
+                        background: "#F1F5F9",
+                        border: "1px solid #CBD5E1",
+                        color: "#0F172A",
                         padding: "6px 12px",
                         borderRadius: "6px",
                         fontSize: "12px",
@@ -220,7 +221,7 @@ export default function CivicReportsAdminPage() {
                         cursor: "pointer",
                       }}
                     >
-                      Review & Triage
+                      Review
                     </button>
                   </td>
                 </tr>
@@ -230,14 +231,14 @@ export default function CivicReportsAdminPage() {
         </table>
       </div>
 
-      {/* Review Modal */}
+      {/* Review & Status Triage Modal */}
       {selectedReport && (
         <div
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.75)",
-            backdropFilter: "blur(8px)",
+            background: "rgba(15, 23, 42, 0.4)",
+            backdropFilter: "blur(4px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -247,53 +248,53 @@ export default function CivicReportsAdminPage() {
         >
           <div
             style={{
-              background: "#000F1D",
-              border: "1px solid rgba(255,255,255,0.12)",
+              background: "#FFFFFF",
+              border: "1px solid #E2E8F0",
               borderRadius: "16px",
               width: "100%",
               maxWidth: "520px",
               padding: "24px",
-              boxShadow: "0 20px 50px rgba(0,0,0,0.8)",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.15)",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "18px", fontWeight: 700, color: "#F8FAFC", margin: 0 }}>
+              <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "18px", fontWeight: 700, color: "#0F172A", margin: 0 }}>
                 Incident Review: {selectedReport.location_name}
               </h2>
               <button
                 type="button"
                 onClick={() => setSelectedReport(null)}
-                style={{ background: "none", border: "none", color: "#94A3B8", cursor: "pointer" }}
+                style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer" }}
               >
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px", color: "#CBD5E1" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px", color: "#475569" }}>
               <div>
                 <span style={{ color: "#64748B", fontSize: "11px" }}>CATEGORY:</span>
-                <div style={{ fontWeight: 600, color: "#4EDEA3" }}>{selectedReport.category}</div>
+                <div style={{ fontWeight: 600, color: "#059669" }}>{selectedReport.category}</div>
               </div>
               <div>
                 <span style={{ color: "#64748B", fontSize: "11px" }}>DESCRIPTION:</span>
-                <p style={{ background: "rgba(17,24,32,0.8)", padding: "10px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.06)", margin: "4px 0 0" }}>
+                <p style={{ background: "#F8FAFC", padding: "10px", borderRadius: "8px", border: "1px solid #E2E8F0", margin: "4px 0 0", color: "#0F172A" }}>
                   {selectedReport.description}
                 </p>
               </div>
               <div style={{ display: "flex", gap: "16px" }}>
                 <div>
                   <span style={{ color: "#64748B", fontSize: "11px" }}>SPATIAL COORDINATES:</span>
-                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", color: "#F1F5F9" }}>
+                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", color: "#0F172A" }}>
                     📍 {selectedReport.lat.toFixed(4)}, {selectedReport.lng.toFixed(4)}
                   </div>
                 </div>
                 <div>
                   <span style={{ color: "#64748B", fontSize: "11px" }}>REPORTER:</span>
-                  <div style={{ color: "#F1F5F9" }}>{selectedReport.reporter_name || "Tourist"}</div>
+                  <div style={{ color: "#0F172A" }}>{selectedReport.reporter_name || "Tourist"}</div>
                 </div>
               </div>
 
-              <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+              <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #E2E8F0" }}>
                 <span style={{ color: "#64748B", fontSize: "11px", display: "block", marginBottom: "8px" }}>UPDATE INCIDENT STATUS:</span>
                 <div style={{ display: "flex", gap: "8px" }}>
                   {(["pending", "in_progress", "resolved"] as const).map((st) => (
@@ -309,9 +310,9 @@ export default function CivicReportsAdminPage() {
                         fontSize: "12px",
                         fontWeight: 600,
                         cursor: "pointer",
-                        border: selectedReport.status === st ? "1px solid #4EDEA3" : "1px solid rgba(255,255,255,0.1)",
-                        background: selectedReport.status === st ? "rgba(78,222,163,0.2)" : "rgba(17,24,32,0.8)",
-                        color: selectedReport.status === st ? "#4EDEA3" : "#94A3B8",
+                        border: selectedReport.status === st ? "1px solid rgba(5,150,105,0.4)" : "1px solid #CBD5E1",
+                        background: selectedReport.status === st ? "#ECFDF5" : "#F8FAFC",
+                        color: selectedReport.status === st ? "#059669" : "#475569",
                       }}
                     >
                       {st.replace("_", " ").toUpperCase()}

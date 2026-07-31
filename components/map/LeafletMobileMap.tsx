@@ -18,6 +18,13 @@ export interface MapLocation {
   description: string;
   distance: string;
   image: string;
+  hazard_status?: "NORMAL" | "WARNING" | "CRITICAL";
+  hazard_level?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | null;
+  hazard_zone_ids?: string[];
+  hazard_zone_names?: string[];
+  hazard_exposure?: "none" | "near" | "inside";
+  hazard_message?: string;
+  hazard_distance_km?: number | null;
 }
 
 interface LeafletMobileMapProps {
@@ -66,7 +73,7 @@ export default function LeafletMobileMap({
     });
 
     L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
       {
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',

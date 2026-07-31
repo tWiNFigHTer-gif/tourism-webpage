@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { getRedZones, insertRedZone, deleteRedZone } from "@/lib/db";
+import { getRedZones, insertRedZone, updateRedZone, deleteRedZone } from "@/lib/db";
 import type { RedZone } from "@/lib/types";
 import { DEMO_DESTINATIONS, type TouristDestinationNode } from "@/components/admin/AdminRedZoneMap";
 
@@ -61,6 +61,13 @@ export default function RedZoneManagerPage() {
     setSaving(true);
 
     try {
+      const matchingZone = redZones.find(
+        (rz) =>
+          rz.is_active !== false &&
+          (rz.name?.toLowerCase().includes(selectedLocation.name.split(" ")[0].toLowerCase()) ||
+            rz.description?.toLowerCase().includes(selectedLocation.name.split(" ")[0].toLowerCase()))
+      );
+
       if (hazardStatus === "RESOLVED" || hazardStatus === "NORMAL") {
         // Resolve hazard: remove active overlays and archive incident
         const activeZonesToResolve = redZones.filter(
@@ -76,8 +83,7 @@ export default function RedZoneManagerPage() {
 
         alert(`Hazard for "${selectedLocation.name}" has been marked RESOLVED. All overlays removed, tourists notified, and incident archived.`);
       } else {
-        // Publish or update warning/critical hazard
-        await insertRedZone({
+        const zonePayload = {
           title: `${selectedLocation.name} - ${hazardStatus} Alert`,
           name: `${selectedLocation.name} - ${hazardStatus} Alert`,
           risk_level: hazardStatus === "CRITICAL" ? "CRITICAL" : "HIGH",
@@ -106,7 +112,14 @@ export default function RedZoneManagerPage() {
             },
           },
           is_active: true,
-        } as any);
+        } as any;
+
+        // Publish or update warning/critical hazard
+        if (matchingZone) {
+          await updateRedZone(matchingZone.id, zonePayload);
+        } else {
+          await insertRedZone(zonePayload);
+        }
 
         alert(`Dynamic Hazard Lifecycle for "${selectedLocation.name}" set to ${hazardStatus}. Tourist stream updated in real-time.`);
       }
@@ -142,12 +155,12 @@ export default function RedZoneManagerPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "24px" }}>
         {/* Left: Map Preview with Clickable Place Markers */}
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div style={{ background: "rgba(17,24,32,0.9)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "16px" }}>
+          <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "16px", padding: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-              <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "15px", fontWeight: 600, color: "#F8FAFC", margin: 0 }}>
+              <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "15px", fontWeight: 600, color: "#0F172A", margin: 0 }}>
                 Spatial Tourist Places Map
               </h2>
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", color: "#4EDEA3" }}>
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", color: "#059669", fontWeight: 700 }}>
                 Selected: {selectedLocation.name}
               </span>
             </div>
@@ -164,20 +177,20 @@ export default function RedZoneManagerPage() {
           <form
             onSubmit={handleUpdateHazard}
             style={{
-              background: "rgba(17,24,32,0.9)",
-              border: "1px solid rgba(78,222,163,0.3)",
+              background: "#FFFFFF",
+              border: "1px solid #E2E8F0",
               borderRadius: "16px",
               padding: "20px",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
             }}
           >
-            <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "16px", fontWeight: 700, color: "#4EDEA3", margin: "0 0 16px 0" }}>
+            <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "16px", fontWeight: 700, color: "#059669", margin: "0 0 16px 0" }}>
               📍 Manage Hazard Lifecycle
             </h2>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               <div>
-                <label style={{ display: "block", fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#CBD5E1", marginBottom: "6px" }}>
+                <label style={{ display: "block", fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#475569", fontWeight: 600, marginBottom: "6px" }}>
                   Selected Tourist Destination Node
                 </label>
                 <select
@@ -188,17 +201,18 @@ export default function RedZoneManagerPage() {
                   }}
                   style={{
                     width: "100%",
-                    background: "#0F172A",
-                    border: "1px solid rgba(255,255,255,0.12)",
+                    background: "#FFFFFF",
+                    border: "1px solid #CBD5E1",
                     borderRadius: "8px",
                     padding: "10px 12px",
-                    color: "#F8FAFC",
-                    fontSize: "13px",
+                    color: "#0F172A",
+                    fontSize: "13.5px",
+                    fontWeight: 500,
                     outline: "none",
                   }}
                 >
                   {DEMO_DESTINATIONS.map((loc) => (
-                    <option key={loc.id} value={loc.id}>
+                    <option key={loc.id} value={loc.id} style={{ background: "#FFFFFF", color: "#0F172A" }}>
                       {loc.name} ({loc.category})
                     </option>
                   ))}
@@ -206,7 +220,7 @@ export default function RedZoneManagerPage() {
               </div>
 
               <div>
-                <label style={{ display: "block", fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#CBD5E1", marginBottom: "6px" }}>
+                <label style={{ display: "block", fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#475569", fontWeight: 600, marginBottom: "6px" }}>
                   Hazard Lifecycle Status
                 </label>
                 <select
@@ -214,24 +228,25 @@ export default function RedZoneManagerPage() {
                   onChange={(e) => setHazardStatus(e.target.value as any)}
                   style={{
                     width: "100%",
-                    background: "#0F172A",
-                    border: "1px solid rgba(255,255,255,0.12)",
+                    background: "#FFFFFF",
+                    border: "1px solid #CBD5E1",
                     borderRadius: "8px",
                     padding: "10px 12px",
-                    color: "#F8FAFC",
-                    fontSize: "13px",
+                    color: "#0F172A",
+                    fontSize: "13.5px",
+                    fontWeight: 500,
                     outline: "none",
                   }}
                 >
-                  <option value="NORMAL">🟢 NORMAL - All Clear (No Hazard Overlay)</option>
-                  <option value="WARNING">🟡 WARNING - Caution Alert (Amber Pulse)</option>
-                  <option value="CRITICAL">🔴 CRITICAL - Strict Danger Alert (Red Pulse)</option>
-                  <option value="RESOLVED">✅ RESOLVED - Clear Overlay & Archive Incident</option>
+                  <option value="NORMAL" style={{ background: "#FFFFFF", color: "#0F172A" }}>🟢 NORMAL - All Clear (No Hazard Overlay)</option>
+                  <option value="WARNING" style={{ background: "#FFFFFF", color: "#0F172A" }}>🟡 WARNING - Caution Alert (Amber Pulse)</option>
+                  <option value="CRITICAL" style={{ background: "#FFFFFF", color: "#0F172A" }}>🔴 CRITICAL - Strict Danger Alert (Red Pulse)</option>
+                  <option value="RESOLVED" style={{ background: "#FFFFFF", color: "#0F172A" }}>✅ RESOLVED - Clear Overlay & Archive Incident</option>
                 </select>
               </div>
 
               <div>
-                <label style={{ display: "block", fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#CBD5E1", marginBottom: "6px" }}>
+                <label style={{ display: "block", fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#475569", fontWeight: 600, marginBottom: "6px" }}>
                   Hazard Details / Official Advisory Note
                 </label>
                 <textarea
@@ -241,14 +256,16 @@ export default function RedZoneManagerPage() {
                   placeholder="Enter details regarding water level, trail obstruction, or high-tide advisory..."
                   style={{
                     width: "100%",
-                    background: "#0F172A",
-                    border: "1px solid rgba(255,255,255,0.12)",
+                    background: "#FFFFFF",
+                    border: "1px solid #CBD5E1",
                     borderRadius: "8px",
                     padding: "10px 12px",
-                    color: "#F8FAFC",
-                    fontSize: "13px",
+                    color: "#0F172A",
+                    fontSize: "13.5px",
+                    fontWeight: 500,
                     outline: "none",
                     fontFamily: "'Inter', sans-serif",
+                    resize: "none",
                   }}
                 />
               </div>
@@ -258,8 +275,8 @@ export default function RedZoneManagerPage() {
                 disabled={saving}
                 style={{
                   width: "100%",
-                  background: hazardStatus === "RESOLVED" || hazardStatus === "NORMAL" ? "#10B981" : hazardStatus === "CRITICAL" ? "#EF4444" : "#F59E0B",
-                  color: "#000F1D",
+                  background: hazardStatus === "RESOLVED" || hazardStatus === "NORMAL" ? "#059669" : hazardStatus === "CRITICAL" ? "#DC2626" : "#D97706",
+                  color: "#FFFFFF",
                   border: "none",
                   borderRadius: "10px",
                   padding: "12px",
@@ -283,8 +300,8 @@ export default function RedZoneManagerPage() {
           </form>
 
           {/* Active Hazards Stream */}
-          <div style={{ background: "rgba(17,24,32,0.9)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "20px" }}>
-            <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "15px", fontWeight: 600, color: "#F8FAFC", marginBottom: "14px" }}>
+          <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "16px", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+            <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "15px", fontWeight: 600, color: "#0F172A", marginBottom: "14px" }}>
               Active Destination Hazards ({redZones.length})
             </h2>
 
@@ -298,29 +315,29 @@ export default function RedZoneManagerPage() {
                   <div
                     key={rz.id}
                     style={{
-                      background: "#0F172A",
-                      border: "1px solid rgba(239,68,68,0.25)",
+                      background: "#F8FAFC",
+                      border: "1px solid #E2E8F0",
                       borderRadius: "10px",
                       padding: "12px 14px",
                       display: "flex",
-                      justifyContent: "space-between",
+                      justifySpace: "between",
                       alignItems: "center",
                     }}
                   >
                     <div>
-                      <div style={{ fontWeight: 600, color: "#F1F5F9", fontSize: "13px" }}>{rz.name || rz.title}</div>
-                      <div style={{ fontSize: "11px", color: "#94A3B8" }}>{rz.description}</div>
+                      <div style={{ fontWeight: 600, color: "#0F172A", fontSize: "13px" }}>{rz.name || rz.title}</div>
+                      <div style={{ fontSize: "11px", color: "#64748B" }}>{rz.description}</div>
                     </div>
                     <span
                       style={{
                         fontFamily: "'JetBrains Mono', monospace",
                         fontSize: "10px",
                         fontWeight: 600,
-                        background: "rgba(239,68,68,0.2)",
-                        color: "#EF4444",
+                        background: "#FEF2F2",
+                        color: "#DC2626",
                         padding: "2px 8px",
                         borderRadius: "4px",
-                        border: "1px solid rgba(239,68,68,0.3)",
+                        border: "1px solid #FECACA",
                       }}
                     >
                       {rz.risk_level}

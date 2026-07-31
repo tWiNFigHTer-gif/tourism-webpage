@@ -80,19 +80,18 @@ function getStatusBadgeStyle(status: UserReport["status"]) {
 function ReportsContent() {
   const router = useRouter()
   const { user } = useAuth()
-  const [reports, setReports] = useState<UserReport[]>(DEFAULT_SEED_REPORTS)
+  const [reports, setReports] = useState<UserReport[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [expandedId, setExpandedId] = useState<string | null>(DEFAULT_SEED_REPORTS[0].id)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadReports() {
       setIsLoading(true)
 
-      // Try local storage for offline / user submitted reports
       let local: UserReport[] = []
-      if (typeof window !== "undefined") {
+      if (typeof window !== "undefined" && user?.id) {
         try {
-          const raw = localStorage.getItem("terra_my_reports")
+          const raw = localStorage.getItem(`terra_my_reports_${user.id}`) || localStorage.getItem("terra_my_reports")
           if (raw) local = JSON.parse(raw)
         } catch {/* ignore */}
       }
@@ -102,29 +101,43 @@ function ReportsContent() {
         const dbData = await getUserHazardReports(user?.id)
         if (dbData && dbData.length > 0) {
           const mapped: UserReport[] = dbData.map((d: any, idx: number) => {
-            const rawStatus = d.status === "resolved" ? "Fixed" : d.status === "open" ? "Under Review" : "Submitted"
+            const rawStatus =
+              d.status === "resolved" || d.status === "Fixed"
+                ? "Fixed"
+                : d.status === "in_progress" || d.status === "In Progress"
+                ? "In Progress"
+                : d.status === "open" || d.status === "Under Review"
+                ? "Under Review"
+                : "Submitted";
+
+            const isInProgressOrBetter = d.status === "in_progress" || d.status === "In Progress" || d.status === "resolved" || d.status === "Fixed";
+            const isResolved = d.status === "resolved" || d.status === "Fixed";
+
             return {
               id: d.id || `rep-db-${idx}`,
               category: d.category || "Field Report",
-              location_name: d.locations?.name || "Kerala Eco-Gem",
+              location_name: d.location_name || d.locations?.name || "Kerala Eco-Gem",
               description: d.description || "Report logged with Panchayat.",
               reported_at: d.reported_at ? new Date(d.reported_at).toLocaleString() : "Recently",
-              updated_at: d.resolved_at ? new Date(d.resolved_at).toLocaleString() : "Just now",
+              updated_at: d.resolved_at || d.updated_at ? new Date(d.resolved_at || d.updated_at).toLocaleString() : "Just now",
               status: rawStatus,
               assigned_authority: d.panchayat_id ? `Panchayat ${d.panchayat_id} Authority` : "Local Panchayat Field Team",
               timeline: [
                 { title: "Report Submitted", time: d.reported_at ? new Date(d.reported_at).toLocaleTimeString() : "Logged", completed: true },
-                { title: "Under Review", time: d.status !== "open" ? "Reviewed" : "Pending", completed: d.status !== "open" },
-                { title: "Fixed / Resolved", time: d.resolved_at ? new Date(d.resolved_at).toLocaleTimeString() : "Pending", completed: d.status === "resolved" },
+                { title: "Under Review & Triage", time: isInProgressOrBetter ? "Active" : "Pending", completed: isInProgressOrBetter },
+                { title: "In Progress", time: isInProgressOrBetter ? "Action Taken" : "Pending", completed: isInProgressOrBetter },
+                { title: "Fixed & Verified", time: isResolved ? (d.resolved_at ? new Date(d.resolved_at).toLocaleTimeString() : "Resolved") : "Pending", completed: isResolved },
               ],
             }
           })
           setReports([...local, ...mapped])
         } else if (local.length > 0) {
           setReports(local)
+        } else {
+          setReports([])
         }
       } catch {
-        if (local.length > 0) setReports(local)
+        setReports(local)
       } finally {
         setIsLoading(false)
       }
@@ -201,9 +214,22 @@ function ReportsContent() {
 
         {/* Reports List */}
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-          {reports.map((report) => {
-            const badge = getStatusBadgeStyle(report.status)
-            const isExpanded = expandedId === report.id
+          {reports.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "48px 16px", background: "#111820", borderRadius: "16px", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <span className="material-symbols-outlined" style={{ fontSize: "36px", color: "#64748B", marginBottom: "8px", display: "block" }}>
+                task_alt
+              </span>
+              <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "15px", fontWeight: 700, color: "#f0f4f8", margin: "0 0 4px" }}>
+                No Submitted Field Issues
+              </h3>
+              <p style={{ fontSize: "12px", color: "#8fa3b8", margin: 0 }}>
+                You have not submitted any civic reports or field hazard alerts yet.
+              </p>
+            </div>
+          ) : (
+            reports.map((report) => {
+              const badge = getStatusBadgeStyle(report.status)
+              const isExpanded = expandedId === report.id
 
             return (
               <div
@@ -302,8 +328,9 @@ function ReportsContent() {
                   </div>
                 )}
               </div>
-            )
-          })}
+              )
+            })
+          )}
         </div>
       </main>
 

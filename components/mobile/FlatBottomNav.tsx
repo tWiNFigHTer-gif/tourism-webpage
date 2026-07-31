@@ -22,8 +22,8 @@ export default function FlatBottomNav({ active = "map" }: FlatBottomNavProps) {
   const router = useRouter()
   const { user, profile } = useAuth()
 
-  const ACTIVE_COLOR = "#4edea3"
-  const MUTED_COLOR = "#4a6380"
+  const ACTIVE_COLOR = "#059669"
+  const MUTED_COLOR = "#64748B"
 
   function itemColor(id: NavItem) {
     return active === id ? ACTIVE_COLOR : MUTED_COLOR
@@ -41,10 +41,10 @@ export default function FlatBottomNav({ active = "map" }: FlatBottomNavProps) {
         left: 0,
         width: "100%",
         zIndex: 50,
-        background: "rgba(17,24,32,0.96)",
+        background: "rgba(255,255,255,0.96)",
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
-        borderTop: "1px solid rgba(255,255,255,0.06)",
+        borderTop: "1px solid #E2E8F0",
       }}
     >
       <div

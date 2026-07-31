@@ -30,6 +30,13 @@ export interface Location {
   status?: "active" | "hidden";
   updated_at?: string;
   rich_details?: LocationRichDetails;
+  hazard_status?: "NORMAL" | "WARNING" | "CRITICAL";
+  hazard_level?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | null;
+  hazard_zone_ids?: string[];
+  hazard_zone_names?: string[];
+  hazard_exposure?: "none" | "near" | "inside";
+  hazard_message?: string;
+  hazard_distance_km?: number | null;
 }
 
 export interface KeralaResponsibleEnterprise {
@@ -117,4 +124,36 @@ export interface CapacityStatus {
   issued_count: number;
   capacity: number;
   is_full: boolean;
+}
+
+export interface TourismEvent {
+  id: string;
+  title: string;
+  description: string | null;
+  location_id: string | null;
+  location_name: string | null;
+  start_time: string;       // ISO 8601
+  end_time: string | null;
+  image_url: string | null;
+  is_active: boolean;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface LocalBusiness {
+  id: string;
+  name: string;
+  category: "business" | "guide" | "homestay" | "handicraft" | "eatery" | "service";
+  title: string | null;
+  description: string | null;
+  contact: string | null;
+  location_id: string | null;
+  location_name: string | null;
+  status: "verified" | "pending" | "hidden";
+  badge: string | null;
+  icon: string | null;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
 }

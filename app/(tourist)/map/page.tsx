@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Marker, Source, Layer } from "react-map-gl/mapbox";
-import { MapCanvas } from "@/components/maps/MapCanvas";
+import dynamic from "next/dynamic";
 import { getPlaces } from "@/lib/places";
 import { getRedZones } from "@/lib/db";
 import { isPointInPolygon, checkRouteIntersection } from "@/lib/turf";
@@ -12,6 +11,18 @@ import { useAuth } from "@/components/AuthProvider";
 import { SlotBookingModal } from "@/components/slot-booking-modal";
 import HazardReportDrawer from "@/components/HazardReportDrawer";
 import { useSubmitHazard } from "@/lib/hooks/useSubmitHazard";
+
+const SpatialEngineLeafletMap = dynamic(
+  () => import("@/components/map/SpatialEngineLeafletMap"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-screen w-full items-center justify-center bg-slate-950 text-emerald-400 font-mono text-sm">
+        Loading Spatial Map Engine...
+      </div>
+    ),
+  }
+);
 
 const ORIGIN_POINT: [number, number] = [75.78, 11.25];
 
@@ -32,8 +43,8 @@ export default function TouristMapPage() {
   const [selectedAttraction, setSelectedAttraction] = useState<Attraction | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Simulated Route GeoJSON
-  const [simulatedRoute, setSimulatedRoute] = useState<GeoJSON.Feature<GeoJSON.LineString> | null>(null);
+  // Simulated Route Coordinates: [[lat, lng], [lat, lng]]
+  const [simulatedRouteCoords, setSimulatedRouteCoords] = useState<[number, number][] | null>(null);
 
   // Route Blocked Stark Red Alert State
   const [routeBlockedAlert, setRouteBlockedAlert] = useState<{
@@ -84,15 +95,11 @@ export default function TouristMapPage() {
     setSelectedAttraction(att);
     const destCoords: [number, number] = [att.lng, att.lat];
 
-    const routeLineFeature: GeoJSON.Feature<GeoJSON.LineString> = {
-      type: "Feature",
-      properties: { name: `Route to ${att.name}` },
-      geometry: {
-        type: "LineString",
-        coordinates: [ORIGIN_POINT, destCoords],
-      },
-    };
-    setSimulatedRoute(routeLineFeature);
+    // Set route coordinates for Leaflet [[lat, lng], [lat, lng]]
+    setSimulatedRouteCoords([
+      [ORIGIN_POINT[1], ORIGIN_POINT[0]],
+      [att.lat, att.lng],
+    ]);
 
     let blockedZoneTitle = "";
     let blockedRisk = "HIGH";
@@ -219,99 +226,16 @@ export default function TouristMapPage() {
         </div>
       )}
 
-      {/* Shared MapCanvas Component */}
-      <MapCanvas
-        initialViewState={{ longitude: 75.85, latitude: 11.35, zoom: 9.5, pitch: 25 }}
-      >
-        {/* Origin Marker */}
-        <Marker latitude={ORIGIN_POINT[1]} longitude={ORIGIN_POINT[0]} anchor="center">
-          <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-500/30 border border-blue-400 shadow-[0_0_12px_#3b82f6]">
-            <span className="material-symbols-outlined text-blue-300 text-sm">my_location</span>
-          </div>
-        </Marker>
-
-        {/* Red Zone Polygons Layer */}
-        {redZones.map((rz, idx) => {
-          let geojsonFeature: GeoJSON.Feature<GeoJSON.Polygon> | null = null;
-          if (rz.geojson_polygon?.geometry) {
-            geojsonFeature = rz.geojson_polygon;
-          } else if (rz.coordinates && rz.coordinates.length > 0) {
-            const ring = rz.coordinates;
-            const coords = Array.isArray(ring[0]) && typeof ring[0][0] === "number" ? [ring] : ring;
-            geojsonFeature = {
-              type: "Feature",
-              properties: { title: rz.title || rz.name },
-              geometry: { type: "Polygon", coordinates: coords as any },
-            };
-          }
-
-          if (!geojsonFeature) return null;
-
-          return (
-            <Source key={`rz-src-${rz.id || idx}`} type="geojson" data={geojsonFeature}>
-              <Layer
-                id={`rz-fill-${rz.id || idx}`}
-                type="fill"
-                paint={{ "fill-color": "#EF4444", "fill-opacity": 0.4 }}
-              />
-              <Layer
-                id={`rz-line-${rz.id || idx}`}
-                type="line"
-                paint={{ "line-color": "#EF4444", "line-width": 2.5, "line-dasharray": [3, 3] }}
-              />
-            </Source>
-          );
-        })}
-
-        {/* Simulated Route Line */}
-        {simulatedRoute && (
-          <Source type="geojson" data={simulatedRoute}>
-            <Layer
-              id="route-line-bg"
-              type="line"
-              paint={{
-                "line-color": routeBlockedAlert.isOpen ? "#EF4444" : "#4EDEA3",
-                "line-width": 5,
-                "line-opacity": 0.5,
-              }}
-            />
-            <Layer
-              id="route-line"
-              type="line"
-              paint={{
-                "line-color": routeBlockedAlert.isOpen ? "#EF4444" : "#4EDEA3",
-                "line-width": 2.5,
-                "line-dasharray": routeBlockedAlert.isOpen ? [2, 2] : [4, 1],
-              }}
-            />
-          </Source>
-        )}
-
-        {/* Glowing Emerald Green Attraction Markers */}
-        {attractions.map((att) => (
-          <Marker
-            key={att.id}
-            latitude={att.lat}
-            longitude={att.lng}
-            anchor="center"
-          >
-            <button
-              type="button"
-              onClick={() => handleMarkerClick(att)}
-              aria-label={att.name}
-              className="relative group cursor-pointer focus:outline-none"
-            >
-              <span className="absolute -inset-2 rounded-full bg-emerald-500/40 animate-ping opacity-75 group-hover:bg-emerald-400/60" />
-              <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-slate-950 shadow-[0_0_15px_#10b981] border-2 border-slate-900 transition-transform group-hover:scale-125">
-                <span className="h-2.5 w-2.5 rounded-full bg-slate-950" />
-              </span>
-              <span className="absolute left-1/2 bottom-full mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900/90 border border-slate-700 px-2 py-1 text-[11px] font-mono text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                {att.name}
-              </span>
-            </button>
-          </Marker>
-        ))}
-      </MapCanvas>
+      {/* Leaflet Spatial Engine Map */}
+      <SpatialEngineLeafletMap
+        attractions={attractions}
+        redZones={redZones}
+        selectedAttraction={selectedAttraction}
+        onSelectAttraction={handleMarkerClick}
+        originPoint={ORIGIN_POINT}
+        simulatedRouteCoords={simulatedRouteCoords}
+        isRouteBlocked={routeBlockedAlert.isOpen}
+      />
 
       {/* Slide-Up Bottom Sheet */}
       {selectedAttraction && (
