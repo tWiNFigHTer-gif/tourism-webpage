@@ -35,7 +35,7 @@ export function SlotBookingModal({
 
   if (booked) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-gutter">
+      <div className="fixed inset-0 z-[10000] flex items-center justify-center p-gutter">
         <div className="absolute inset-0 bg-bg-deep/80 backdrop-blur-sm" onClick={onClose} />
         <div className="relative z-10 w-full max-w-sm overflow-hidden rounded-2xl border border-primary/30 bg-bg-surface shadow-2xl glow-emerald">
           <div className="flex flex-col items-center gap-4 p-panel-padding py-10 text-center">
@@ -73,7 +73,7 @@ export function SlotBookingModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-gutter">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-gutter">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-bg-deep/80 backdrop-blur-sm"
