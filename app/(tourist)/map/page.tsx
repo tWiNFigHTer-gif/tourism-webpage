@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { getPlaces } from "@/lib/places";
@@ -61,6 +61,55 @@ export default function TouristMapPage() {
   const [showReportDrawer, setShowReportDrawer] = useState(false);
 
   const { submitHazard } = useSubmitHazard();
+
+  // Compute live hazard status for the currently selected attraction on the map
+  const selectedAttractionHazard = useMemo(() => {
+    if (!selectedAttraction) return null;
+    const attNameKey = selectedAttraction.name.split(" ")[0].toLowerCase();
+
+    // 1. Direct property check from enriched places API
+    const directStatus = (selectedAttraction as any).hazard_status;
+    if (directStatus && directStatus !== "NORMAL") {
+      return {
+        isBlocked: directStatus === "CRITICAL",
+        isWarning: directStatus === "WARNING",
+        title: (selectedAttraction as any).hazard_zone_names?.[0] || `${selectedAttraction.name} Hazard Zone`,
+        riskLevel: directStatus,
+      };
+    }
+
+    // 2. Spatial or name match against active Red Zones
+    if (redZones && redZones.length > 0) {
+      for (const rz of redZones) {
+        if (rz.is_active === false) continue;
+        const rzTitle = rz.title || rz.name || "";
+        const isNameMatch =
+          rzTitle.toLowerCase().includes(attNameKey) ||
+          (rz.description && rz.description.toLowerCase().includes(attNameKey));
+
+        let pointInPoly = false;
+        if (rz.geojson_polygon?.geometry) {
+          pointInPoly = isPointInPolygon(selectedAttraction.lat, selectedAttraction.lng, rz.geojson_polygon.geometry);
+        } else if (rz.coordinates && rz.coordinates.length > 0) {
+          pointInPoly = isPointInPolygon(selectedAttraction.lat, selectedAttraction.lng, {
+            type: "Polygon",
+            coordinates: [rz.coordinates],
+          });
+        }
+
+        if (isNameMatch || pointInPoly) {
+          const isCritical = rz.risk_level === "CRITICAL" || rz.risk_level === "HIGH";
+          return {
+            isBlocked: isCritical,
+            isWarning: !isCritical,
+            title: rzTitle || `${selectedAttraction.name} Hazard Red Zone`,
+            riskLevel: rz.risk_level || "HIGH",
+          };
+        }
+      }
+    }
+    return null;
+  }, [selectedAttraction, redZones]);
 
   useEffect(() => {
     async function loadData() {
@@ -269,15 +318,55 @@ export default function TouristMapPage() {
               {selectedAttraction.description || "A scenic tourist destination in Kerala with capacity control & safety protection."}
             </p>
 
-            <div className="mt-6 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setShowBookingModal(true)}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 transition-all cursor-pointer text-sm"
+            {/* Hazard Alert Banner inside Map Bottom Sheet */}
+            {selectedAttractionHazard && (
+              <div
+                className={`mt-3 p-3 rounded-xl border flex items-start gap-2.5 text-xs ${
+                  selectedAttractionHazard.isBlocked
+                    ? "bg-red-950/70 border-red-500/50 text-red-200"
+                    : "bg-amber-950/70 border-amber-500/50 text-amber-200"
+                }`}
               >
-                <span>Book Pass</span>
-                <span className="material-symbols-outlined text-base">confirmation_number</span>
-              </button>
+                <span className="material-symbols-outlined text-base shrink-0 mt-0.5">warning</span>
+                <div>
+                  <p className="font-bold uppercase tracking-wider text-[11px] font-mono">
+                    {selectedAttractionHazard.isBlocked ? "CRITICAL HAZARD ALERT" : "SAFETY HAZARD ADVISORY"}
+                  </p>
+                  <p className="text-[11px] mt-0.5 opacity-90">
+                    {selectedAttractionHazard.title} — Pass entry suspended due to active environmental hazard.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 flex items-center gap-3">
+              {selectedAttractionHazard?.isBlocked ? (
+                <div
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-red-500/20 border border-red-500/50 px-4 py-3 text-xs font-bold text-red-400 cursor-not-allowed"
+                  title="Pass booking disabled due to active environmental hazard"
+                >
+                  <span className="material-symbols-outlined text-base">block</span>
+                  <span>Booking Suspended · Hazard Zone</span>
+                </div>
+              ) : selectedAttractionHazard?.isWarning ? (
+                <button
+                  type="button"
+                  onClick={() => setShowBookingModal(true)}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 font-semibold text-slate-950 shadow-lg shadow-amber-500/20 hover:bg-amber-400 transition-all cursor-pointer text-sm"
+                >
+                  <span>Book with Caution</span>
+                  <span className="material-symbols-outlined text-base">warning</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowBookingModal(true)}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 transition-all cursor-pointer text-sm"
+                >
+                  <span>Book Pass</span>
+                  <span className="material-symbols-outlined text-base">confirmation_number</span>
+                </button>
+              )}
 
               <button
                 type="button"
