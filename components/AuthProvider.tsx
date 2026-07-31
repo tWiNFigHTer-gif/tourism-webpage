@@ -356,7 +356,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: { children: R
       <div className="flex min-h-screen w-full flex-col items-center justify-center bg-[#F8FAFC] text-[#059669] font-sans">
         <div className="flex flex-col items-center gap-3">
           <span className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
-          <p className="font-mono text-xs text-slate-500">Initializing STOP ! Portal Session...</p>
+          <p className="font-mono text-xs text-slate-500">Initializing TerraPulse Portal Session...</p>
         </div>
       </div>
     );

@@ -201,7 +201,7 @@ export default function TouristMapPage() {
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
           </span>
           <h1 className="text-lg font-bold text-emerald-400 font-mono tracking-wide">
-            STOP ! • TOURIST SPATIAL ENGINE
+            TerraPulse • TOURIST SPATIAL ENGINE
           </h1>
         </div>
 

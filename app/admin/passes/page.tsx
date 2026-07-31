@@ -257,7 +257,7 @@ export default function AdminPassesPage() {
             qr_code_scanner
           </span>
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", color: "#4EDEA3", fontWeight: 600 }}>
-            PANCHAYAT ENTRY GATE CONTROL • STOP! DPI
+            PANCHAYAT ENTRY GATE CONTROL • TERRAPULSE DPI
           </span>
         </div>
         <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "26px", fontWeight: 700, color: "#F8FAFC", margin: 0 }}>

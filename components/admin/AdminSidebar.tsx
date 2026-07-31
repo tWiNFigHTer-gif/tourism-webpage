@@ -119,7 +119,7 @@ export default function AdminSidebar() {
                 letterSpacing: "-0.02em",
               }}
             >
-              STOP !
+              TerraPulse
             </h1>
             <p
               style={{

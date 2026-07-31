@@ -102,7 +102,7 @@ export default function ExplorerLoginPage() {
                 color: "#4edea3",
               }}
             >
-              STOP!
+              TerraPulse
             </h1>
           </div>
 
@@ -116,7 +116,7 @@ export default function ExplorerLoginPage() {
 
         <div className="mt-6">
           <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "22px", fontWeight: 700, color: "#ffffff" }}>
-            Sign In to STOP!
+            Sign In to TerraPulse
           </h2>
           <p className="mt-1.5 text-xs text-[#8aa299]" style={{ fontFamily: "'Inter', sans-serif" }}>
             Role-based redirection: Admin credentials route to Panchayat Dashboard; Tourist credentials route to Mobile Explorer.

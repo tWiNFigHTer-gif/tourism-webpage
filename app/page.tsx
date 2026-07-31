@@ -25,13 +25,13 @@ export default function HomePage() {
         {/* Badge Header */}
         <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono font-semibold uppercase tracking-wider shadow-lg">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span>STOP ! • SPATIAL DPI PLATFORM</span>
+          <span>TERRAPULSE • SPATIAL DPI PLATFORM</span>
         </div>
 
         {/* Hero Title & Subtitle */}
         <div className="space-y-4">
           <h1 className="text-4xl sm:text-6xl font-extrabold text-white tracking-tight">
-            STOP ! <span className="text-emerald-400">Spatial Portal</span>
+            TerraPulse <span className="text-emerald-400">Spatial Portal</span>
           </h1>
           <p className="max-w-xl mx-auto text-sm sm:text-base text-slate-400 leading-relaxed">
             Zero-GPS spatial safety system, live carrying capacity control, and administrative hazard red-zone management for Kerala ecotourism.
