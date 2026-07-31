@@ -47,9 +47,11 @@ export default function SpatialEngineLeafletMap({
     const map = L.map(containerRef.current, {
       center: [11.28, 75.82],
       zoom: 10,
-      zoomControl: true,
+      zoomControl: false,
       scrollWheelZoom: true,
     });
+
+    L.control.zoom({ position: "bottomright" }).addTo(map);
 
     L.tileLayer(
       "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
@@ -80,7 +82,7 @@ export default function SpatialEngineLeafletMap({
 
     const originHtml = `
       <div style="position: relative; display: flex; align-items: center; justify-content: center;">
-        <div style="position: absolute; width: 28px; height: 28px; border-radius: 50%; background: rgba(59, 130, 246, 0.3); animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+        <div style="position: absolute; width: 26px; height: 26px; border-radius: 50%; background: rgba(59, 130, 246, 0.4); box-shadow: 0 0 10px rgba(59, 130, 246, 0.8);"></div>
         <div style="width: 22px; height: 22px; border-radius: 50%; background: #2563EB; border: 2px solid #FFFFFF; box-shadow: 0 0 12px rgba(37, 99, 235, 0.6); display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 11px; font-weight: 700;">
           📍
         </div>

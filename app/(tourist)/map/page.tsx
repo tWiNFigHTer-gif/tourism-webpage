@@ -195,7 +195,7 @@ export default function TouristMapPage() {
   return (
     <div className="relative h-screen w-full bg-slate-950 text-white overflow-hidden font-sans">
       {/* Top Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 shadow-xl pointer-events-auto">
+      <header className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-between px-6 py-4 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 shadow-2xl pointer-events-auto">
         <div className="flex items-center gap-3">
           <span className="relative flex h-3 w-3 items-center justify-center">
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
@@ -237,7 +237,7 @@ export default function TouristMapPage() {
 
       {/* Loading Overlay */}
       {loading && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[9995] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3 text-emerald-400 font-mono text-sm">
             <span className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
             <span>Loading Attractions &amp; Spatial Safety Grid...</span>
@@ -247,7 +247,7 @@ export default function TouristMapPage() {
 
       {/* Active Red Zone Tourist Warning Message Bar */}
       {redZones.length > 0 && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 w-full max-w-xl px-4 pointer-events-auto">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9990] w-full max-w-xl px-4 pointer-events-auto">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-red-500/40 bg-red-950/90 backdrop-blur-md text-red-200 text-xs font-mono shadow-2xl animate-in slide-in-from-top-4 duration-300">
             <div className="flex items-center gap-2.5">
               <span className="material-symbols-outlined text-red-400 text-lg animate-pulse">warning</span>
