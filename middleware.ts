@@ -51,6 +51,7 @@ export async function middleware(request: NextRequest) {
   const cookieRole = request.cookies.get("terra_role")?.value;
   if (!userRole && cookieRole && cookieRole.trim().length > 0) {
     userRole = cookieRole;
+    isAuthenticated = true;
   }
 
   const isAdmin =
