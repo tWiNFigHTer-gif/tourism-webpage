@@ -650,8 +650,8 @@ function MobileMapPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.15 }}
-                className="absolute left-0 right-0 top-11 z-50 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-[#111820] shadow-2xl backdrop-blur-xl"
-                style={{ maxHeight: "250px", overflowY: "auto" }}
+                className="absolute left-0 right-0 top-11 z-[60] flex flex-col overflow-y-auto max-h-[70vh] md:max-h-[60vh] rounded-xl border border-white/10 bg-[#111820] shadow-2xl backdrop-blur-xl filter-scroll"
+                style={{ overscrollBehavior: "contain" }}
               >
                 {filteredLocations.length > 0 ? (
                   filteredLocations.map((loc) => (
@@ -702,7 +702,8 @@ function MobileMapPage() {
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 220 }}
-              className="mt-2 flex flex-col gap-2 overflow-hidden rounded-xl border border-white/10 bg-[#0c2132]/90 p-2.5 backdrop-blur-md"
+              className="mt-2 flex flex-col gap-3 overflow-y-auto max-h-[70vh] md:max-h-[60vh] rounded-xl border border-white/10 bg-[#0c2132]/95 p-3 backdrop-blur-md z-[60] filter-scroll shadow-2xl"
+              style={{ overscrollBehavior: "contain" }}
             >
               {/* Climate Filter */}
               <div className="flex items-center gap-2">

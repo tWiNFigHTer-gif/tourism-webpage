@@ -216,6 +216,32 @@
   }
 }
 
+/* Custom Filter Scrollbar for Dropdown Panels */
+.filter-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #10b981 #0c2132;
+  overscroll-behavior: contain;
+}
+
+.filter-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.filter-scroll::-webkit-scrollbar-track {
+  background: #0c2132;
+  border-radius: 6px;
+}
+
+.filter-scroll::-webkit-scrollbar-thumb {
+  background: #10b981;
+  border-radius: 6px;
+}
+
+.filter-scroll::-webkit-scrollbar-thumb:hover {
+  background: #34d399;
+}
+
 /* ─── Terra-Pulse Map & Animation Utilities ─────────────────────────────────── */
 
 .map-grid {
