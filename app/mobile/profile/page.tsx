@@ -86,7 +86,55 @@ function ProfileContent() {
 
   // Local state
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming")
-  const [subTab, setSubTab] = useState<"posts" | "liked" | "tagged">("posts")
+  const [subTab, setSubTab] = useState<"posts" | "saved" | "liked" | "tagged">("saved")
+  const [savedPosts, setSavedPosts] = useState<any[]>([])
+
+  useEffect(() => {
+    const loadSavedPosts = async () => {
+      let loaded: any[] = []
+
+      if (typeof window !== "undefined") {
+        try {
+          const userKey = user?.id ? `terra_saved_posts_${user.id}` : null
+          const rawScoped = userKey ? localStorage.getItem(userKey) : null
+          const rawGlobal = localStorage.getItem("terra_saved_posts")
+
+          if (rawScoped) {
+            loaded = JSON.parse(rawScoped)
+          } else if (rawGlobal) {
+            loaded = JSON.parse(rawGlobal)
+          }
+        } catch (e) {
+          console.log("Error reading saved posts local storage:", e)
+        }
+      }
+
+      if (user?.id) {
+        try {
+          const res = await fetch(`/api/saved-posts?user_id=${user.id}`).catch(() => null)
+          if (res && res.ok) {
+            const remoteData = await res.json()
+            if (Array.isArray(remoteData) && remoteData.length > 0) {
+              const remotePosts = remoteData.map((rd: any) => rd.post_data || rd).filter(Boolean)
+              if (remotePosts.length > 0) loaded = remotePosts
+            }
+          }
+        } catch (err) {
+          console.log("Saved posts Supabase fetch info:", err)
+        }
+      }
+
+      setSavedPosts(loaded)
+    }
+
+    loadSavedPosts()
+    window.addEventListener("storage", loadSavedPosts)
+    window.addEventListener("storage_sync", loadSavedPosts)
+    return () => {
+      window.removeEventListener("storage", loadSavedPosts)
+      window.removeEventListener("storage_sync", loadSavedPosts)
+    }
+  }, [user?.id])
   const [isEditMode, setIsEditMode] = useState(false)
   const [editUsername, setEditUsername] = useState("")
   const [editBio, setEditBio] = useState("")
@@ -422,9 +470,9 @@ function ProfileContent() {
                 </div>
               </div>
 
-              {/* Sub-tabs: Posts / Liked / Tagged */}
-              <div style={{ display: "flex", justifyContent: "center", gap: "40px", marginTop: "24px", borderBottom: "1px solid #E2E8F0", paddingBottom: "8px" }}>
-                {(["posts", "liked", "tagged"] as const).map((st) => (
+              {/* Sub-tabs: Posts / Saved / Liked / Tagged */}
+              <div style={{ display: "flex", justifyContent: "center", gap: "24px", marginTop: "24px", borderBottom: "1px solid #E2E8F0", paddingBottom: "8px" }}>
+                {(["posts", "saved", "liked", "tagged"] as const).map((st) => (
                   <button
                     key={st}
                     type="button"
@@ -442,17 +490,83 @@ function ProfileContent() {
                       textTransform: "capitalize",
                     }}
                   >
-                    {st}
+                    {st === "saved" ? `saved (${savedPosts.length})` : st}
                   </button>
                 ))}
               </div>
 
-              <div style={{ textAlign: "center", padding: "32px 0", color: "#64748B", fontSize: "13px" }}>
-                <span className="material-symbols-outlined" style={{ fontSize: "32px", color: "#94A3B8", display: "block", marginBottom: "6px" }}>
-                  post_add
-                </span>
-                No {subTab} yet
-              </div>
+              {subTab === "saved" ? (
+                savedPosts.length > 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "16px" }}>
+                    {savedPosts.map((post: any, idx: number) => {
+                      const title = post.location?.name || post.reviewer?.name || post.title || "Saved Ecotourism Post"
+                      const snippet = post.text ? post.text.slice(0, 60) + "..." : post.caption || "Saved explorer review bookmark"
+                      const img = post.images?.[0] || post.photo_url || "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=300&q=80"
+                      return (
+                        <div
+                          key={post.id || idx}
+                          style={{
+                            background: "#FFFFFF",
+                            border: "1px solid #E2E8F0",
+                            borderRadius: "12px",
+                            padding: "12px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: "12px",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: "12px", overflow: "hidden" }}>
+                            <img
+                              src={img}
+                              alt={title}
+                              style={{ width: "44px", height: "44px", borderRadius: "8px", objectFit: "cover", flexShrink: 0 }}
+                            />
+                            <div style={{ minWidth: 0 }}>
+                              <h4 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "13px", fontWeight: 700, color: "#0F172A", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {title}
+                              </h4>
+                              <p style={{ fontSize: "11px", color: "#64748B", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {snippet}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = savedPosts.filter((p) => (p.id || p) !== (post.id || post))
+                              setSavedPosts(updated)
+                              if (typeof window !== "undefined") {
+                                localStorage.setItem("terra_saved_posts", JSON.stringify(updated))
+                                if (user?.id) localStorage.setItem(`terra_saved_posts_${user.id}`, JSON.stringify(updated))
+                                window.dispatchEvent(new Event("storage_sync"))
+                              }
+                            }}
+                            style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", padding: "4px" }}
+                            title="Remove bookmark"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>bookmark_remove</span>
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: "center", padding: "32px 0", color: "#64748B", fontSize: "13px" }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: "32px", color: "#94A3B8", display: "block", marginBottom: "6px" }}>
+                      bookmark_border
+                    </span>
+                    No saved posts yet. Explore and bookmark ecotourism gems!
+                  </div>
+                )
+              ) : (
+                <div style={{ textAlign: "center", padding: "32px 0", color: "#64748B", fontSize: "13px" }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: "32px", color: "#94A3B8", display: "block", marginBottom: "6px" }}>
+                    post_add
+                  </span>
+                  No {subTab} yet
+                </div>
+              )}
             </>
           )}
         </div>

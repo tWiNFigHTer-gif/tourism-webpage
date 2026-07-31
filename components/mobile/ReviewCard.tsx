@@ -35,7 +35,18 @@ interface ReviewCardProps {
 
 export default function ReviewCard({ review }: ReviewCardProps) {
   const [isLiked, setIsLiked] = useState(review.isLiked)
-  const [isSaved, setIsSaved] = useState(review.isSaved)
+  const [isSaved, setIsSaved] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("terra_saved_posts")
+        const list: any[] = raw ? JSON.parse(raw) : []
+        return list.some((item) => (typeof item === "string" ? item === review.id : item.id === review.id))
+      } catch {
+        return review.isSaved ?? false
+      }
+    }
+    return review.isSaved ?? false
+  })
   const [likeCount, setLikeCount] = useState(review.likeCount)
   const [currentImageIdx, setCurrentImageIdx] = useState(0)
 
@@ -46,7 +57,56 @@ export default function ReviewCard({ review }: ReviewCardProps) {
     })
   }, [])
 
-  const toggleSave = useCallback(() => setIsSaved((prev) => !prev), [])
+  const toggleSave = useCallback(async () => {
+    setIsSaved((prev) => {
+      const nextSavedState = !prev
+      if (typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem("terra_saved_posts")
+          let list: any[] = raw ? JSON.parse(raw) : []
+          if (nextSavedState) {
+            if (!list.some((item) => (typeof item === "string" ? item === review.id : item.id === review.id))) {
+              list.unshift(review)
+            }
+          } else {
+            list = list.filter((item) => (typeof item === "string" ? item !== review.id : item.id !== review.id))
+          }
+          localStorage.setItem("terra_saved_posts", JSON.stringify(list))
+
+          // Also save to user scoped storage if available
+          const userStr = localStorage.getItem("terra_user_session")
+          let userId = "guest_user"
+          if (userStr) {
+            try { userId = JSON.parse(userStr)?.user?.id || userId } catch {}
+          }
+          localStorage.setItem(`terra_saved_posts_${userId}`, JSON.stringify(list))
+
+          window.dispatchEvent(new Event("storage_sync"))
+        } catch (e) {
+          console.error("Save post error:", e)
+        }
+      }
+      return nextSavedState
+    })
+
+    try {
+      const userStr = typeof window !== "undefined" ? localStorage.getItem("terra_user_session") : null
+      let userId = "guest_user"
+      if (userStr) {
+        try { userId = JSON.parse(userStr)?.user?.id || userId } catch {}
+      }
+
+      await fetch("/api/saved-posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          post_id: review.id,
+          post_data: review,
+        }),
+      }).catch(() => null)
+    } catch {}
+  }, [review])
 
   const handleShare = useCallback(() => {
     if (typeof navigator !== "undefined" && navigator.share) {

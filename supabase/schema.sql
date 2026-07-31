@@ -191,3 +191,17 @@ CREATE POLICY "Attractions updatable by admin" ON public.attractions FOR ALL USI
 -- Location Ratings Policies
 CREATE POLICY "Ratings readable by everyone" ON public.location_ratings FOR SELECT USING (true);
 CREATE POLICY "Ratings writeable by authenticated" ON public.location_ratings FOR ALL USING (true);
+
+-- 11. Saved Posts / Bookmarks Table
+CREATE TABLE IF NOT EXISTS public.saved_posts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL,
+  post_id TEXT NOT NULL,
+  post_data JSONB DEFAULT '{}'::jsonb,
+  saved_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.saved_posts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Saved posts readable by everyone" ON public.saved_posts FOR SELECT USING (true);
+CREATE POLICY "Saved posts writeable by everyone" ON public.saved_posts FOR INSERT WITH CHECK (true);
+CREATE POLICY "Saved posts deletable by everyone" ON public.saved_posts FOR DELETE USING (true);
