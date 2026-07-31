@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       const { data, error } = await db
         .from("passes")
         .select("*")
-        .order("issued_at", { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       return NextResponse.json(data ?? [], { status: 200 });
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
 
 // ── POST /api/passes ───────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
-  let body: { location_id?: string; location_name?: string; visitor_name?: string; time_slot?: string; panchayat_id?: string };
+  let body: { location_id?: string; location_name?: string; visitor_name?: string; holder_name?: string; time_slot?: string; visit_date?: string; num_visitors?: number; phone?: string };
   try {
     body = await request.json();
   } catch {
@@ -90,42 +90,47 @@ export async function POST(request: NextRequest) {
     location_id = "canoly-canal",
     location_name = "Canoly Canal Walkway",
     visitor_name = "Tourist Explorer",
+    holder_name = body.visitor_name || "Tourist Explorer",
     time_slot = "10:00 AM",
-    panchayat_id = "CKP-2024",
+    visit_date = new Date().toISOString().split("T")[0],
+    num_visitors = 1,
+    phone = null,
   } = body;
 
   const db = serverSupabase();
   const capacity = await getCapacity(db, location_id, time_slot);
 
   const pass_token = `STOP-${Math.floor(1000 + Math.random() * 9000)}-${location_id.substring(0, 6).toUpperCase()}`;
-  const issued_at = new Date().toISOString();
+  const created_at = new Date().toISOString();
 
   try {
-    const { data: inserted } = await db
+    const { data: inserted, error } = await db
       .from("passes")
       .insert({
         location_id,
         location_name,
-        visitor_name,
+        holder_name: holder_name || visitor_name,
         time_slot,
-        panchayat_id,
+        visit_date,
+        num_visitors,
+        phone,
         pass_token,
         status: "VALID",
-        issued_at,
+        created_at,
       })
-      .select("id, pass_token, location_id, location_name, visitor_name, time_slot, issued_at, status")
+      .select("id, pass_token, location_id, location_name, holder_name, time_slot, visit_date, created_at, status")
       .single();
 
-    if (inserted) {
+    if (!error && inserted) {
       return NextResponse.json(
         {
           pass_id: inserted.id,
           pass_token: inserted.pass_token,
           location_id: inserted.location_id,
           location_name: inserted.location_name,
-          visitor_name: inserted.visitor_name,
+          visitor_name: inserted.holder_name,
           time_slot: inserted.time_slot,
-          issued_at: inserted.issued_at,
+          issued_at: inserted.created_at,
           status: inserted.status,
           slots_remaining: capacity.slots_remaining - 1,
         },
@@ -144,7 +149,7 @@ export async function POST(request: NextRequest) {
       location_name,
       visitor_name,
       time_slot,
-      issued_at,
+      issued_at: created_at,
       status: "VALID",
       slots_remaining: Math.max(0, capacity.slots_remaining - 1),
     },

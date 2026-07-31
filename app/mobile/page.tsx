@@ -236,6 +236,10 @@ function MobileMapPage() {
 
           const heroImage = getPlaceHeroImage(loc.name, normalizedCat, loc.district, loc.image_url)
 
+          const currentCap = typeof loc.capacity_current === "number"
+            ? loc.capacity_current
+            : Math.min(cap, Math.abs(String(loc.id || loc.name).split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) % Math.max(1, cap - 10)) + 12);
+
           return {
             id: loc.id || `db-loc-${idx}`,
             name: loc.name || "Kerala Ecotourism Spot",
@@ -243,7 +247,7 @@ function MobileMapPage() {
             district: loc.district || "Kerala",
             zone: loc.panchayat_id ? `ZONE ${loc.panchayat_id.toUpperCase()}` : `ZONE ${idx + 1}A`,
             category: normalizedCat,
-            capacity: { current: Math.floor(Math.random() * (cap * 0.6)) + 5, total: cap },
+            capacity: { current: currentCap, total: cap },
             description: loc.description || "Protected ecotourism zone under Panchayat carrying capacity monitoring.",
             distance: "0 km",
             lat: Number(loc.lat) || 11.2480,

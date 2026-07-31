@@ -1,1 +1,5 @@
-export { default } from "@/app/admin/red-zones/page";
+import { redirect } from "next/navigation";
+
+export default function AdminGroupRedZonesPage() {
+  redirect("/admin/red-zones");
+}

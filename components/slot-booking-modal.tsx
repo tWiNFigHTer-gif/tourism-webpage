@@ -16,7 +16,16 @@ const TIME_SLOTS = [
   { time: "14:00", available: false, selected: false },
 ]
 
-const DATES = ["Mon 14", "Tue 15", "Wed 16", "Thu 17", "Fri 18"]
+const getUpcomingDates = () => {
+  const dates = [];
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const now = new Date();
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(now.getTime() + i * 86400000);
+    dates.push(`${days[d.getDay()]} ${d.getDate()}`);
+  }
+  return dates;
+};
 
 export function SlotBookingModal({
   isOpen,
@@ -24,12 +33,47 @@ export function SlotBookingModal({
   locationName = "Pambadum Shola National Park",
   capacity = { current: 36, total: 50 },
 }: SlotBookingModalProps) {
+  const dynamicDates = getUpcomingDates();
   const [selectedSlot, setSelectedSlot] = useState("10:00")
-  const [selectedDate, setSelectedDate] = useState("Tue 15")
+  const [selectedDate, setSelectedDate] = useState(dynamicDates[0] || "Today")
   const [visitors, setVisitors] = useState(1)
   const [booked, setBooked] = useState(false)
+  const [generatedToken, setGeneratedToken] = useState("")
 
   const capacityPct = Math.round((capacity.current / capacity.total) * 100)
+
+  const handleConfirmBook = () => {
+    const token = `TP-PASS-${Math.floor(1000 + Math.random() * 9000)}`;
+    setGeneratedToken(token);
+    setBooked(true);
+
+    const newPass = {
+      id: `pass-${Date.now()}`,
+      pass_token: token,
+      location_id: locationName.toLowerCase().replace(/\s+/g, "-"),
+      location_name: locationName,
+      slot_time: selectedSlot,
+      visitors: visitors,
+      visitor_name: "Tourist Explorer",
+      visitor_phone: "9876543210",
+      booked_at: selectedDate,
+      status: "ACTIVE",
+      image: "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=600&q=80",
+    };
+
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("terra_my_passes");
+        const prev = raw ? JSON.parse(raw) : [];
+        const next = [newPass, ...prev];
+        localStorage.setItem("terra_my_passes", JSON.stringify(next));
+        localStorage.setItem("terra_pulse_passes", JSON.stringify(next));
+        window.dispatchEvent(new CustomEvent("storage_sync", { detail: { key: "passes" } }));
+      } catch (e) {
+        console.error("Pass save error:", e);
+      }
+    }
+  };
 
   if (!isOpen) return null
 
@@ -58,11 +102,11 @@ export function SlotBookingModal({
               className="rounded-lg border border-border-subtle bg-bg-deep px-6 py-3"
               style={{ fontFamily: "var(--font-jetbrains-mono)", fontSize: "12px", color: "#4a6380" }}
             >
-              PASS: TP-{Math.random().toString(36).toUpperCase().slice(2, 8)} · {selectedDate} · {selectedSlot}
+              PASS: {generatedToken} · {selectedDate} · {selectedSlot}
             </div>
             <button
               onClick={onClose}
-              className="mt-2 rounded-full bg-primary px-8 py-3 font-semibold text-on-primary transition-colors hover:bg-primary-fixed"
+              className="mt-2 rounded-full bg-primary px-8 py-3 font-semibold text-on-primary transition-colors hover:bg-primary-fixed cursor-pointer"
             >
               Done
             </button>
@@ -140,12 +184,12 @@ export function SlotBookingModal({
               Select Date
             </span>
             <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-              {DATES.map((date) => (
+              {dynamicDates.map((date) => (
                 <button
                   key={date}
                   type="button"
                   onClick={() => setSelectedDate(date)}
-                  className={`shrink-0 rounded-lg px-3 py-2 text-center transition-all duration-200 ${
+                  className={`shrink-0 rounded-lg px-3 py-2 text-center transition-all duration-200 cursor-pointer ${
                     selectedDate === date
                       ? "border border-primary/50 bg-bg-raised text-primary shadow-[0_0_8px_rgba(16,185,129,0.1)]"
                       : "border border-border-subtle bg-bg-deep text-text-muted hover:border-border-medium"
@@ -179,8 +223,8 @@ export function SlotBookingModal({
                       !available
                         ? "cursor-not-allowed border border-border-subtle text-text-muted/30"
                         : isSelected
-                          ? "border border-primary/50 bg-bg-raised text-primary shadow-[0_0_8px_rgba(16,185,129,0.1)]"
-                          : "border border-border-subtle bg-bg-deep text-text-muted hover:border-border-medium"
+                          ? "border border-primary/50 bg-bg-raised text-primary shadow-[0_0_8px_rgba(16,185,129,0.1)] cursor-pointer"
+                          : "border border-border-subtle bg-bg-deep text-text-muted hover:border-border-medium cursor-pointer"
                     }`}
                     style={{ fontFamily: "var(--font-jetbrains-mono)", fontSize: "12px" }}
                   >
@@ -211,7 +255,7 @@ export function SlotBookingModal({
               <button
                 type="button"
                 onClick={() => setVisitors(Math.max(1, visitors - 1))}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border-subtle bg-bg-deep text-text-muted transition-colors hover:border-border-medium hover:text-on-surface"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border-subtle bg-bg-deep text-text-muted transition-colors hover:border-border-medium hover:text-on-surface cursor-pointer"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>remove</span>
               </button>
@@ -224,7 +268,7 @@ export function SlotBookingModal({
               <button
                 type="button"
                 onClick={() => setVisitors(Math.min(10, visitors + 1))}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border-subtle bg-bg-deep text-text-muted transition-colors hover:border-border-medium hover:text-on-surface"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border-subtle bg-bg-deep text-text-muted transition-colors hover:border-border-medium hover:text-on-surface cursor-pointer"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>add</span>
               </button>
@@ -234,8 +278,8 @@ export function SlotBookingModal({
           {/* CTA */}
           <button
             type="button"
-            onClick={() => setBooked(true)}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 font-medium text-on-primary transition-colors hover:bg-primary-fixed"
+            onClick={handleConfirmBook}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 font-medium text-on-primary transition-colors hover:bg-primary-fixed cursor-pointer"
           >
             <span>Book Entry Pass</span>
             <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>arrow_forward</span>

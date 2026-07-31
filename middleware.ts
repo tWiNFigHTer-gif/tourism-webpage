@@ -49,9 +49,8 @@ export async function middleware(request: NextRequest) {
 
   // Fallback to cookie if session cookie isn't stored in @supabase/ssr format
   const cookieRole = request.cookies.get("terra_role")?.value;
-  if (!userRole && cookieRole) {
+  if (!userRole && cookieRole && cookieRole.trim().length > 0) {
     userRole = cookieRole;
-    isAuthenticated = true;
   }
 
   const isAdmin =

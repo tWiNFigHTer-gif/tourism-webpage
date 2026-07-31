@@ -1,7 +1,5 @@
-"use client";
-
-import PanchayatDashboardPage from "@/app/admin/dashboard/page";
+import { redirect } from "next/navigation";
 
 export default function AdminGroupDashboardPage() {
-  return <PanchayatDashboardPage />;
+  redirect("/admin/dashboard");
 }

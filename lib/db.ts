@@ -282,13 +282,27 @@ export async function getPassCount(locationId: string, timeSlot: string) {
 
 export async function insertPass(payload: {
   location_id: string;
+  location_name?: string;
+  holder_name?: string;
+  visitor_name?: string;
   time_slot: string;
-  panchayat_id: string;
+  visit_date?: string;
+  num_visitors?: number;
   pass_token: string;
 }) {
+  const insertData = {
+    location_id: payload.location_id,
+    location_name: payload.location_name || "Kerala Eco Destination",
+    holder_name: payload.holder_name || payload.visitor_name || "Tourist Explorer",
+    time_slot: payload.time_slot,
+    visit_date: payload.visit_date || new Date().toISOString().split("T")[0],
+    num_visitors: payload.num_visitors || 1,
+    pass_token: payload.pass_token,
+    status: "VALID",
+  };
   const { data, error } = await supabase
     .from("passes")
-    .insert(payload)
+    .insert(insertData)
     .select()
     .single();
   if (error) throw error;
@@ -472,11 +486,11 @@ export interface ActivityItem {
 export async function getLocationsCount(): Promise<number> {
   try {
     const { count, error } = await supabase
-      .from("attractions")
+      .from("locations")
       .select("*", { count: "exact", head: true });
     if (!error && count !== null && count > 0) return count;
   } catch {}
-  return 11; // fallback count of attractions
+  return 11; // fallback count of locations
 }
 
 export async function getRecentActivity(): Promise<ActivityItem[]> {
@@ -624,7 +638,7 @@ export async function getUserHazardReports(userId?: string): Promise<HazardRepor
     const { data, error } = await supabase
       .from("civic_reports")
       .select("*")
-      .eq("user_id", userId)
+      .eq("reporter_id", userId)
       .order("created_at", { ascending: false });
     if (!error && data) return data as HazardReport[];
   } catch {}
