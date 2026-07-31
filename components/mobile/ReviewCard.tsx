@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import { motion } from "framer-motion"
 import type { ReviewData } from "./mockReviews"
 
@@ -119,6 +119,27 @@ export default function ReviewCard({ review }: ReviewCardProps) {
 
   const hasMultipleImages = review.images.length > 1
 
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [reportSuccess, setReportSuccess] = useState(false)
+  const [copiedSuccess, setCopiedSuccess] = useState(false)
+  const moreMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        setShowMoreMenu(false)
+      }
+    }
+    if (showMoreMenu) {
+      document.addEventListener("mousedown", handleClickOutside)
+      document.addEventListener("touchstart", handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("touchstart", handleClickOutside)
+    }
+  }, [showMoreMenu])
+
   return (
     <motion.article
       initial={{ opacity: 0, y: 25 }}
@@ -139,14 +160,14 @@ export default function ReviewCard({ review }: ReviewCardProps) {
       onMouseLeave={(e) => {
         (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.05)"
       }}
+      className="p-4"
     >
-      {/* ── Card Body ── */}
-      <div style={{ padding: "16px 20px 0" }}>
-        {/* Reviewer Row */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "14px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            {/* Avatar */}
-            <div style={{ position: "relative", flexShrink: 0 }}>
+      {/* Card Header: Reviewer Info + Avatar + Verified + More Options */}
+      <div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {/* Avatar Container */}
+            <div style={{ position: "relative" }}>
               <div
                 style={{
                   width: "40px",
@@ -220,16 +241,92 @@ export default function ReviewCard({ review }: ReviewCardProps) {
           </div>
 
           {/* More options */}
-          <button
-            type="button"
-            style={{ color: "#4a6380", background: "none", border: "none", cursor: "pointer", padding: "4px" }}
-            aria-label="More options"
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>
-              more_horiz
-            </span>
-          </button>
+          <div ref={moreMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setShowMoreMenu((prev) => !prev)}
+              style={{ color: "#4a6380", background: "none", border: "none", cursor: "pointer", padding: "4px" }}
+              aria-label="More options"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>
+                more_horiz
+              </span>
+            </button>
+
+            {/* Dropdown Menu */}
+            {showMoreMenu && (
+              <div
+                className="absolute right-0 top-7 z-50 flex w-44 flex-col rounded-xl border border-white/10 bg-[#111820] p-1.5 shadow-2xl backdrop-blur-xl"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                {/* Save Option */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    toggleSave()
+                    setShowMoreMenu(false)
+                  }}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-emerald-400 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-base">
+                    {isSaved ? "bookmark_remove" : "bookmark"}
+                  </span>
+                  <span>{isSaved ? "Unsave Post" : "Save Post"}</span>
+                </button>
+
+                {/* Report Option */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReportSuccess(true)
+                    setShowMoreMenu(false)
+                    setTimeout(() => setReportSuccess(false), 3000)
+                  }}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-amber-400 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-base">flag</span>
+                  <span>Report Post</span>
+                </button>
+
+                {/* Share Option */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleShare()
+                    setShowMoreMenu(false)
+                    if (typeof navigator !== "undefined" && navigator.clipboard) {
+                      navigator.clipboard.writeText(window.location.href).catch(() => {})
+                      setCopiedSuccess(true)
+                      setTimeout(() => setCopiedSuccess(false), 2000)
+                    }
+                  }}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-blue-400 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-base">share</span>
+                  <span>Share Post</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
+
+        {reportSuccess && (
+          <div className="mb-2.5 flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-300">
+            <span className="flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-sm">flag</span>
+              <span>Reported — thank you for community safety feedback</span>
+            </span>
+          </div>
+        )}
+
+        {copiedSuccess && (
+          <div className="mb-2.5 flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-400">
+            <span className="flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-sm">content_copy</span>
+              <span>Post link copied to clipboard</span>
+            </span>
+          </div>
+        )}
 
         {/* Location + Rating Row */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
