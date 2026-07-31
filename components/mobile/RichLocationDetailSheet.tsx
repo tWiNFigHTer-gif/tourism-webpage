@@ -419,35 +419,104 @@ export default function RichLocationDetailSheet({
 
               {/* Primary Action Buttons */}
               <div style={{ display: "flex", gap: "8px", marginTop: "4px", flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    router.push(
-                      `/mobile/book?location_id=${location.id}&location_name=${encodeURIComponent(location.name)}`
-                    )
-                  }
-                  style={{
-                    flex: 1,
-                    background: "#10b981",
-                    color: "#003824",
-                    border: "none",
-                    borderRadius: "9999px",
-                    padding: "10px 14px",
-                    fontFamily: "'Inter', sans-serif",
-                    fontSize: "13px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "6px",
-                  }}
-                >
-                  Book Entry Slot
-                  <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>
-                    arrow_forward
-                  </span>
-                </button>
+                {/* Hazard Block: CRITICAL places cannot be booked at all */}
+                {location.hazard_status === "CRITICAL" ? (
+                  <div
+                    style={{
+                      flex: 1,
+                      background: "rgba(239,68,68,0.12)",
+                      border: "1.5px solid rgba(239,68,68,0.45)",
+                      borderRadius: "9999px",
+                      padding: "11px 14px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      cursor: "not-allowed",
+                    }}
+                    title="Booking disabled — active hazard zone"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: "16px", color: "#ef4444" }}>block</span>
+                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", fontWeight: 700, color: "#ef4444" }}>
+                      Booking Suspended · Hazard Zone
+                    </span>
+                  </div>
+                ) : location.hazard_status === "WARNING" ? (
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <div
+                      style={{
+                        background: "rgba(245,158,11,0.1)",
+                        border: "1px solid rgba(245,158,11,0.4)",
+                        borderRadius: "10px",
+                        padding: "8px 12px",
+                        fontSize: "11px",
+                        color: "#fbbf24",
+                        fontFamily: "'Inter', sans-serif",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>warning</span>
+                      <span>Safety advisory active. Proceed at your own risk.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push(
+                          `/mobile/book?location_id=${location.id}&location_name=${encodeURIComponent(location.name)}`
+                        )
+                      }
+                      style={{
+                        flex: 1,
+                        background: "#d97706",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "9999px",
+                        padding: "10px 14px",
+                        fontFamily: "'Inter', sans-serif",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      Book with Caution
+                      <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>arrow_forward</span>
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(
+                        `/mobile/book?location_id=${location.id}&location_name=${encodeURIComponent(location.name)}`
+                      )
+                    }
+                    style={{
+                      flex: 1,
+                      background: "#10b981",
+                      color: "#003824",
+                      border: "none",
+                      borderRadius: "9999px",
+                      padding: "10px 14px",
+                      fontFamily: "'Inter', sans-serif",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    Book Entry Slot
+                    <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>arrow_forward</span>
+                  </button>
+                )}
 
                 <button
                   type="button"

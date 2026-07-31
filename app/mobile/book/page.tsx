@@ -150,6 +150,26 @@ function BookingContent() {
   const slotsRemaining = capacityData ? capacityData.capacity - capacityData.issued_count : 32
   const isFull = slotsRemaining <= 0
 
+  // Hazard status check — fetch from enriched /api/places
+  const [locationHazardStatus, setLocationHazardStatus] = useState<"NORMAL" | "WARNING" | "CRITICAL" | null>(null)
+  const [locationHazardMessage, setLocationHazardMessage] = useState<string>("")
+
+  useEffect(() => {
+    if (!locationId || locationId === "mavoor-wetlands" && !searchParams.has("location_id")) return
+    fetch("/api/places", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((places: any[]) => {
+        const match = places.find((p: any) => p.id === locationId)
+        if (match) {
+          setLocationHazardStatus(match.hazard_status ?? "NORMAL")
+          setLocationHazardMessage(match.hazard_message ?? "")
+        }
+      })
+      .catch(() => {})
+  }, [locationId])
+
+  const isHazardBlocked = locationHazardStatus === "CRITICAL"
+
   // Real Pass Booking Hook
   const { bookPass, isBooking, error: bookingError, result: confirmedPass } = useBookPass()
 
@@ -811,6 +831,59 @@ function BookingContent() {
               </div>
             ) : (
               <>
+                {/* CRITICAL HAZARD BLOCK: Replace entire booking form */}
+                {isHazardBlocked ? (
+                  <div className="flex flex-col items-center gap-6 rounded-2xl border-2 border-red-500/60 bg-red-950/40 p-8 text-center shadow-2xl" style={{ minHeight: "340px", justifyContent: "center" }}>
+                    <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-red-500/40 bg-red-500/15">
+                      <span className="material-symbols-outlined" style={{ fontSize: "44px", color: "#ef4444" }}>gpp_bad</span>
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-extrabold text-red-400" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                        BOOKING SUSPENDED
+                      </h2>
+                      <p className="mt-1 text-xs font-bold text-red-300 uppercase tracking-widest" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        Active Hazard Zone · Passes Disabled
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-red-500/30 bg-red-950/60 p-4 text-left max-w-sm w-full">
+                      <p className="text-xs font-semibold text-red-300" style={{ fontFamily: "'Inter', sans-serif" }}>
+                        <span className="font-bold text-red-400">Official Advisory:</span>{" "}
+                        {locationHazardMessage || `Entry to ${locationName} is currently suspended due to an active critical hazard advisory issued by the Panchayat Authority. Please check back once the hazard is resolved.`}
+                      </p>
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => router.push("/mobile")}
+                        className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-xs font-bold text-white hover:bg-white/10 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>arrow_back</span>
+                        Back to Map
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => router.push("/mobile/reports")}
+                        className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-3 text-xs font-bold text-amber-400 hover:bg-amber-500/20 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>flag</span>
+                        Report Issue
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                <>
+                {/* WARNING banner above form */}
+                {locationHazardStatus === "WARNING" && (
+                  <div className="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
+                    <span className="material-symbols-outlined text-amber-400 mt-0.5" style={{ fontSize: "20px" }}>warning</span>
+                    <div>
+                      <p className="text-xs font-bold text-amber-300 uppercase tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Safety Advisory Active</p>
+                      <p className="mt-1 text-xs text-amber-200/80" style={{ fontFamily: "'Inter', sans-serif" }}>
+                        {locationHazardMessage || `A safety advisory has been issued for ${locationName}. You may still proceed but exercise extreme caution.`}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 {/* Location Banner Card */}
                 <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#111820] p-3 shadow-md">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400">
@@ -1058,7 +1131,7 @@ function BookingContent() {
                 <button
                   type="button"
                   onClick={handleBook}
-                  disabled={isBooking || isFull}
+                  disabled={isBooking || isFull || isHazardBlocked}
                   className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 text-xs font-bold text-[#003824] shadow-lg transition-all hover:bg-emerald-400 active:scale-[0.99] disabled:opacity-50 cursor-pointer"
                 >
                   {isBooking ? (
@@ -1076,6 +1149,8 @@ function BookingContent() {
                   )}
                 </button>
               </>
+              )}
+            </>
             )}
           </div>
         )}
