@@ -309,8 +309,32 @@ function MobileMapPage() {
   }, [rawLocations, fromLocation, rawRedZones])
 
   useEffect(() => {
-    const requestedId = searchParams.get("place_id")
-    if (requestedId) setSelectedLocation(locations.find((location) => location.id === requestedId) || null)
+    const locId = searchParams.get("location_id") || searchParams.get("location") || searchParams.get("place_id") || searchParams.get("id")
+    const locName = searchParams.get("location_name") || searchParams.get("name")
+
+    if ((locId || locName) && locations.length > 0) {
+      const match = locations.find((l) => {
+        if (locId) {
+          const idLower = locId.toLowerCase()
+          const lIdLower = l.id.toLowerCase()
+          if (lIdLower === idLower || lIdLower.includes(idLower) || idLower.includes(lIdLower)) return true
+        }
+        if (locName) {
+          const nameLower = decodeURIComponent(locName).toLowerCase()
+          const lNameLower = l.name.toLowerCase()
+          if (lNameLower.includes(nameLower) || nameLower.includes(lNameLower)) return true
+        }
+        if (locId && !locName) {
+          const idDecoded = decodeURIComponent(locId).toLowerCase()
+          const lNameLower = l.name.toLowerCase()
+          if (lNameLower.includes(idDecoded) || idDecoded.includes(lNameLower)) return true
+        }
+        return false
+      })
+      if (match) {
+        setSelectedLocation(match)
+      }
+    }
   }, [locations, searchParams])
 
   // Saved locations list

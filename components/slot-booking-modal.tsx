@@ -104,12 +104,27 @@ export function SlotBookingModal({
             >
               PASS: {generatedToken} · {selectedDate} · {selectedSlot}
             </div>
-            <button
-              onClick={onClose}
-              className="mt-2 rounded-full bg-primary px-8 py-3 font-semibold text-on-primary transition-colors hover:bg-primary-fixed cursor-pointer"
-            >
-              Done
-            </button>
+            <div className="flex flex-col gap-2.5 w-full mt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  if (typeof window !== "undefined") {
+                    window.location.href = `/mobile?location_name=${encodeURIComponent(locationName)}`;
+                  }
+                }}
+                className="flex items-center justify-center gap-1.5 w-full rounded-full border border-emerald-500/40 bg-emerald-500/10 py-2.5 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm">map</span>
+                <span>View Location on Map</span>
+              </button>
+              <button
+                onClick={onClose}
+                className="w-full rounded-full bg-primary py-2.5 font-semibold text-on-primary text-xs transition-colors hover:bg-primary-fixed cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       </div>

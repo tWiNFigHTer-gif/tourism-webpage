@@ -606,6 +606,38 @@ function BookingContent() {
                         Mark Pass as Visited
                       </button>
                     )}
+
+                    {selectedPass && (selectedPass.location_id || selectedPass.location_name) && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const locId = selectedPass.location_id || "";
+                          const locName = selectedPass.location_name || "";
+                          const query = locId ? `location_id=${encodeURIComponent(locId)}` : `location_name=${encodeURIComponent(locName)}`;
+                          router.push(`/mobile?${query}`);
+                        }}
+                        style={{
+                          width: "100%",
+                          marginTop: "10px",
+                          background: "rgba(59,130,246,0.15)",
+                          border: "1px solid rgba(59,130,246,0.35)",
+                          color: "#60a5fa",
+                          borderRadius: "10px",
+                          padding: "10px",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                        }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>map</span>
+                        View Location on Map
+                      </button>
+                    )}
                     </motion.div>
                   )}
                 </AnimatePresence>
