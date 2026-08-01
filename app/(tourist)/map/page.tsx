@@ -207,11 +207,11 @@ export default function TouristMapPage() {
 
         <div className="flex items-center gap-3">
           <Link
-            href="/admin/dashboard"
+            href="/"
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/20 text-xs font-mono font-bold text-emerald-300 hover:bg-emerald-500/30 transition-all cursor-pointer shadow-lg shrink-0"
           >
             <span className="material-symbols-outlined text-sm">arrow_back</span>
-            <span>← Return to Admin Home</span>
+            <span>← Back to TerraPulse</span>
           </Link>
 
           <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs font-mono text-slate-300">

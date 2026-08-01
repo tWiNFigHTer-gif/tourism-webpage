@@ -535,18 +535,20 @@ function MobileMapPage() {
           </div>
 
           <div className="flex items-center gap-2 relative">
-            <button
-              type="button"
-              onClick={() => router.push("/admin/dashboard")}
-              className="flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-300 hover:bg-amber-500/30 transition-colors cursor-pointer shadow-lg"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}
-              title="Switch to Admin Dashboard"
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
-                shield_person
-              </span>
-              ADMIN
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => router.push("/admin/dashboard")}
+                className="flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-300 hover:bg-amber-500/30 transition-colors cursor-pointer shadow-lg"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                title="Switch to Admin Dashboard"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
+                  shield_person
+                </span>
+                ADMIN
+              </button>
+            )}
 
             <button
               type="button"

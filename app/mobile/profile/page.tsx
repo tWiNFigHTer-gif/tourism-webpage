@@ -82,7 +82,7 @@ const EXPLORER_BADGES = [
 
 function ProfileContent() {
   const router = useRouter()
-  const { user, profile, isLoading: profileLoading, refreshProfile, updateProfile, signOut } = useAuth()
+  const { user, profile, isAdmin, isLoading: profileLoading, refreshProfile, updateProfile, signOut } = useAuth()
 
   // Local state
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming")
@@ -733,16 +733,18 @@ function ProfileContent() {
               <span className="material-symbols-outlined" style={{ fontSize: "18px", color: "#64748B" }}>chevron_right</span>
             </div>
 
-            <div
-              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", cursor: "pointer" }}
-              onClick={() => router.push("/admin/dashboard")}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <span className="material-symbols-outlined" style={{ fontSize: "20px", color: "#64748B" }}>grid_view</span>
-                <span style={{ fontSize: "13.5px", fontWeight: 500, color: "#0F172A" }}>Civic Dashboard Link</span>
+            {isAdmin && (
+              <div
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", cursor: "pointer" }}
+                onClick={() => router.push("/admin/dashboard")}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: "20px", color: "#64748B" }}>grid_view</span>
+                  <span style={{ fontSize: "13.5px", fontWeight: 500, color: "#0F172A" }}>Civic Dashboard Link</span>
+                </div>
+                <span className="material-symbols-outlined" style={{ fontSize: "18px", color: "#64748B" }}>open_in_new</span>
               </div>
-              <span className="material-symbols-outlined" style={{ fontSize: "18px", color: "#64748B" }}>open_in_new</span>
-            </div>
+            )}
           </div>
         </div>
 
