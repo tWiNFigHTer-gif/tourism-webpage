@@ -52,9 +52,10 @@ export default function EventsManagerPage() {
     setLoading(true);
     try {
       const data = await getEvents();
-      setEvents(data);
+      setEvents(Array.isArray(data) ? data : []);
     } catch (e: any) {
       setError(e.message || "Failed to load events.");
+      setEvents([]);
     } finally {
       setLoading(false);
     }
@@ -63,7 +64,7 @@ export default function EventsManagerPage() {
   useEffect(() => {
     fetchEvents();
     getLocations()
-      .then((locs: any[]) => setPlaces(locs.map((l: any) => ({ id: l.id, name: l.name }))))
+      .then((locs: any[]) => setPlaces(Array.isArray(locs) ? locs.map((l: any) => ({ id: l.id, name: l.name })) : []))
       .catch(() => setPlaces([]));
   }, [fetchEvents]);
 
@@ -283,7 +284,7 @@ export default function EventsManagerPage() {
       {/* Events List */}
       {loading ? (
         <div style={{ color: "#64748B", fontSize: "13px", padding: "32px 0" }}>Loading events list…</div>
-      ) : events.length === 0 ? (
+      ) : !Array.isArray(events) || events.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 0", background: "#FFFFFF", borderRadius: "14px", border: "1px solid #E2E8F0" }}>
           <span className="material-symbols-outlined" style={{ fontSize: "40px", color: "#0F172A", display: "block", marginBottom: "8px" }}>
             event_available
@@ -294,7 +295,7 @@ export default function EventsManagerPage() {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {events.map((ev) => {
+          {(events || []).map((ev) => {
             const st = eventStatus(ev);
             const badge = STATUS_STYLE[st];
             return (

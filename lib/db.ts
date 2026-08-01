@@ -750,7 +750,8 @@ export async function getEvents(locationId?: string): Promise<TourismEvent[]> {
       : "/api/events";
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) return [];
-    return (await res.json()) as TourismEvent[];
+    const json = await res.json();
+    return (Array.isArray(json) ? json : json?.data ?? []) as TourismEvent[];
   } catch {
     return [];
   }
@@ -815,7 +816,8 @@ export async function getBusinesses(
 
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) return [];
-    return (await res.json()) as LocalBusiness[];
+    const json = await res.json();
+    return (Array.isArray(json) ? json : json?.data ?? []) as LocalBusiness[];
   } catch {
     return [];
   }
