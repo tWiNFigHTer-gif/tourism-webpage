@@ -83,8 +83,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const role: UserRole = profile?.role || (user?.email?.includes("admin") ? "panchayat_admin" : "tourist");
-  const isAdmin = role === "panchayat_admin" || role === "super_admin";
+  const isEmailAdmin = user?.email ? user.email.toLowerCase().includes("admin") : false;
+  const metaRole = profile?.role || user?.user_metadata?.role;
+  const isAdmin = metaRole === "panchayat_admin" || metaRole === "admin" || metaRole === "super_admin" || isEmailAdmin;
+  const role: UserRole = isAdmin ? "panchayat_admin" : "tourist";
 
   const fetchProfile = useCallback(async (userId: string) => {
     try {

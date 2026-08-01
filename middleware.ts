@@ -31,6 +31,7 @@ export async function middleware(request: NextRequest) {
 
   // 2. Single Source of Truth for Auth & Role Resolution
   let userRole: string | undefined = undefined;
+  let userEmail: string | undefined = undefined;
   let isAuthenticated = false;
 
   try {
@@ -41,6 +42,7 @@ export async function middleware(request: NextRequest) {
     if (session?.user) {
       isAuthenticated = true;
       userRole = session.user.user_metadata?.role;
+      userEmail = session.user.email;
     }
   } catch {
     // Fallback
@@ -55,10 +57,13 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  const isEmailAdmin = userEmail ? userEmail.toLowerCase().includes("admin") : false;
+
   const isAdmin =
     userRole === "admin" ||
     userRole === "panchayat_admin" ||
-    userRole === "super_admin";
+    userRole === "super_admin" ||
+    isEmailAdmin;
 
   const isAdminRoute =
     pathname.startsWith("/admin") ||

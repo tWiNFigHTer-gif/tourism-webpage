@@ -25,18 +25,21 @@ function LoginContent() {
   const [successMessage, setSuccessMessage] = useState("");
 
   const handleRoleRedirect = async (userEmail?: string) => {
-    let role = "tourist";
+    let isAdminRole = false;
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      role = user?.user_metadata?.role ?? (user?.email?.toLowerCase().includes("admin") ? "admin" : "tourist");
+      const metaRole = user?.user_metadata?.role;
+      const isEmailAdmin = (user?.email || userEmail)?.toLowerCase().includes("admin");
+      if (isEmailAdmin || metaRole === "admin" || metaRole === "panchayat_admin" || metaRole === "super_admin") {
+        isAdminRole = true;
+      }
     } catch {
       if (userEmail?.toLowerCase().includes("admin")) {
-        role = "admin";
+        isAdminRole = true;
       }
     }
 
     const redirectTo = searchParams.get("redirectTo");
-    const isAdminRole = role === "admin" || role === "panchayat_admin" || role === "super_admin";
 
     if (isAdminRole) {
       if (redirectTo && redirectTo.startsWith("/admin")) {
@@ -45,7 +48,6 @@ function LoginContent() {
         router.push("/admin/dashboard");
       }
     } else {
-      // A tourist trying to reach /admin or /admin/dashboard must be redirected to /map
       if (redirectTo && !redirectTo.startsWith("/admin")) {
         router.push(redirectTo);
       } else {
