@@ -205,3 +205,25 @@ ALTER TABLE public.saved_posts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Saved posts readable by everyone" ON public.saved_posts FOR SELECT USING (true);
 CREATE POLICY "Saved posts writeable by everyone" ON public.saved_posts FOR INSERT WITH CHECK (true);
 CREATE POLICY "Saved posts deletable by everyone" ON public.saved_posts FOR DELETE USING (true);
+
+-- 12. Authenticated Admin Write RLS Policies
+CREATE POLICY "Public read locations" ON public.locations FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Authenticated users can insert locations" ON public.locations FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update locations" ON public.locations FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "Public read danger_zones" ON public.red_zones FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Authenticated users can insert danger_zones" ON public.red_zones FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update danger_zones" ON public.red_zones FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+DO $$ BEGIN
+  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'events') THEN
+    EXECUTE 'CREATE POLICY "Authenticated users can insert events" ON public.events FOR INSERT TO authenticated WITH CHECK (true)';
+    EXECUTE 'CREATE POLICY "Authenticated users can update events" ON public.events FOR UPDATE TO authenticated USING (true) WITH CHECK (true)';
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'civic_reports') THEN
+    EXECUTE 'CREATE POLICY "Authenticated users can update hazard_reports" ON public.civic_reports FOR UPDATE TO authenticated USING (true) WITH CHECK (true)';
+  END IF;
+END $$;
