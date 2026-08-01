@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
+import { supabase } from "@/lib/supabase";
 import type { UserRole } from "@/lib/types";
 
 export default function ExplorerRegisterPage() {
@@ -15,16 +16,23 @@ export default function ExplorerRegisterPage() {
   const [password, setPassword] = useState("");
   const [selectedRole, setSelectedRole] = useState<UserRole>("tourist");
   const [showPassword, setShowPassword] = useState(false);
-  const [agreeTerms, setAgreeTerms] = useState(true);
+  const [agreeTerms, setAgreeTerms] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [warningMessage, setWarningMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage("");
+    setWarningMessage("");
     setSuccessMessage("");
+
+    if (!agreeTerms) {
+      setWarningMessage("You must agree to the DPI regulations to continue.");
+      return;
+    }
 
     if (!fullName || !email || !password) {
       setErrorMessage("Please fill in all required fields.");
@@ -36,28 +44,38 @@ export default function ExplorerRegisterPage() {
       return;
     }
 
-    if (!agreeTerms) {
-      setErrorMessage("You must agree to the Ecotourism Conduct & Carrying Capacity rules.");
-      return;
-    }
-
     setIsSubmitting(true);
-    const result = await signUp(email, password, fullName, selectedRole);
-    setIsSubmitting(false);
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            role: selectedRole,
+            full_name: fullName,
+          },
+        },
+      });
 
-    if (result.error) {
-      setErrorMessage(result.error);
-    } else {
-      const isAdmin = selectedRole === "panchayat_admin" || email.toLowerCase().includes("admin");
-      setSuccessMessage(
-        isAdmin
-          ? "Panchayat Official Account registered! Redirecting to Admin Dashboard..."
-          : "Tourist Explorer Account registered! Redirecting to Mobile Explorer..."
-      );
-      const target = isAdmin ? "/admin/dashboard" : "/mobile";
-      if (typeof window !== "undefined") {
-        window.location.href = target;
+      await signUp(email, password, fullName, selectedRole);
+
+      if (error) {
+        setErrorMessage(error.message || "Registration failed. Please try again.");
+      } else {
+        setSuccessMessage("Account created! Redirecting you to your portal...");
+        const isAdmin = selectedRole === "panchayat_admin" || selectedRole === "super_admin" || email.toLowerCase().includes("admin");
+        setTimeout(() => {
+          if (isAdmin) {
+            router.push("/admin/dashboard");
+          } else {
+            router.push("/map");
+          }
+        }, 2000);
       }
+    } catch (err: any) {
+      setErrorMessage(err?.message || "Registration failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -107,17 +125,17 @@ export default function ExplorerRegisterPage() {
           </p>
         </div>
 
-        {errorMessage && (
-          <div className="mt-4 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-400">
+        {warningMessage && (
+          <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-400 font-medium">
             <span className="material-symbols-outlined shrink-0" style={{ fontSize: "18px" }}>
-              error
+              warning
             </span>
-            <span>{errorMessage}</span>
+            <span>{warningMessage}</span>
           </div>
         )}
 
         {successMessage && (
-          <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-400">
+          <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-400 font-medium">
             <span className="material-symbols-outlined shrink-0" style={{ fontSize: "18px" }}>
               check_circle
             </span>
@@ -227,8 +245,11 @@ export default function ExplorerRegisterPage() {
               type="checkbox"
               id="agreeTerms"
               checked={agreeTerms}
-              onChange={(e) => setAgreeTerms(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-white/20 bg-[#0c2132] accent-emerald-500 shrink-0"
+              onChange={(e) => {
+                setAgreeTerms(e.target.checked);
+                if (e.target.checked) setWarningMessage("");
+              }}
+              className="mt-0.5 h-4 w-4 rounded border-white/20 bg-[#0c2132] accent-emerald-500 shrink-0 cursor-pointer"
             />
             <label htmlFor="agreeTerms" className="text-xs text-[#8aa299] cursor-pointer leading-tight">
               I agree to adherence rules for DPI Spatial Tourism & Carrying Capacity regulations.
@@ -237,11 +258,14 @@ export default function ExplorerRegisterPage() {
 
           <button
             type="submit"
-            disabled={isSubmitting}
-            className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 text-xs font-bold text-[#003824] shadow-lg hover:bg-emerald-400 transition-all cursor-pointer"
+            disabled={!agreeTerms || isSubmitting}
+            className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 text-xs font-bold text-[#003824] shadow-lg hover:bg-emerald-400 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
-              <span>Creating Account...</span>
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#003824] border-t-transparent" />
+                <span>Creating Account...</span>
+              </>
             ) : (
               <>
                 <span>Register Account</span>
@@ -251,6 +275,16 @@ export default function ExplorerRegisterPage() {
               </>
             )}
           </button>
+
+          {/* Inline red error message below submit button */}
+          {errorMessage && (
+            <div className="mt-2 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-400 font-medium">
+              <span className="material-symbols-outlined shrink-0" style={{ fontSize: "18px" }}>
+                error
+              </span>
+              <span>{errorMessage}</span>
+            </div>
+          )}
         </form>
 
         <div className="mt-6 pt-4 border-t border-white/10 text-center text-xs text-[#8aa299]">

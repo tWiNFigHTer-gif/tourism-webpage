@@ -2,9 +2,12 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import { LogOut } from "lucide-react";
 import { getPlaces } from "@/lib/places";
 import { getRedZones } from "@/lib/db";
+import { supabase } from "@/lib/supabase";
 import { isPointInPolygon, checkRouteIntersection } from "@/lib/turf";
 import type { RedZone } from "@/lib/types";
 import { useAuth } from "@/components/AuthProvider";
@@ -37,7 +40,8 @@ interface Attraction {
 }
 
 export default function TouristMapPage() {
-  const { user, profile, isAdmin } = useAuth();
+  const router = useRouter();
+  const { user, profile, isAdmin, signOut } = useAuth();
   const [attractions, setAttractions] = useState<Attraction[]>([]);
   const [redZones, setRedZones] = useState<RedZone[]>([]);
   const [selectedAttraction, setSelectedAttraction] = useState<Attraction | null>(null);
@@ -45,6 +49,15 @@ export default function TouristMapPage() {
   const [mapError, setMapError] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string) => {
+      if (event === "SIGNED_OUT") {
+        router.push("/login");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [router]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -247,6 +260,20 @@ export default function TouristMapPage() {
           >
             <span className="material-symbols-outlined text-sm">warning</span>
             <span>RED ZONES ({redZones?.length ?? 0})</span>
+          </button>
+
+          <button
+            type="button"
+            aria-label="Sign out"
+            onClick={async () => {
+              await supabase.auth.signOut();
+              await signOut();
+              router.push("/login");
+            }}
+            className="flex items-center justify-center p-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all cursor-pointer shadow-md"
+            title="Sign out"
+          >
+            <LogOut className="h-4.5 w-4.5" />
           </button>
         </div>
       </header>

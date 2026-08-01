@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { getDashboardData, updateCivicReportStatus, type ActivityItem } from "@/lib/db";
+import { supabase } from "@/lib/supabase";
 import type { HazardReport, RedZone } from "@/lib/types";
 import dynamic from "next/dynamic";
 
@@ -20,6 +22,15 @@ const AdminRedZoneMap = dynamic(() => import("@/components/admin/AdminRedZoneMap
 export default function PanchayatDashboardPage() {
   const router = useRouter();
   const { signOut } = useAuth();
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string) => {
+      if (event === "SIGNED_OUT") {
+        router.push("/login");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [router]);
   const [data, setData] = useState<{
     totalPasses: number;
     activeZones: number;
@@ -155,7 +166,9 @@ export default function PanchayatDashboardPage() {
 
           <button
             type="button"
+            aria-label="Sign out"
             onClick={async () => {
+              await supabase.auth.signOut();
               await signOut();
               router.push("/login");
             }}
@@ -174,10 +187,8 @@ export default function PanchayatDashboardPage() {
               fontWeight: 600,
             }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>
-              logout
-            </span>
-            Logout
+            <LogOut className="h-4 w-4" />
+            <span>Logout</span>
           </button>
         </div>
       </div>
