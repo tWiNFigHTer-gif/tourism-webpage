@@ -66,9 +66,11 @@ export async function middleware(request: NextRequest) {
     isEmailAdmin;
 
   const isAdminRoute =
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/red-zones");
+    (pathname === "/admin" ||
+      pathname.startsWith("/admin/") ||
+      pathname.startsWith("/dashboard") ||
+      pathname.startsWith("/red-zones")) &&
+    pathname !== "/admin/login";
 
   const isProtectedTouristRoute = pathname === "/map" || pathname.startsWith("/map/");
 
@@ -81,9 +83,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Non-admin attempts to access admin routes -> redirect directly to /login
+  // Non-admin attempts to access admin routes -> redirect directly to /admin/login (never default to tourist page)
   if (isAdminRoute && !isAdmin) {
-    const loginUrl = new URL("/login", request.url);
+    const loginUrl = new URL("/admin/login", request.url);
     loginUrl.searchParams.set("redirectTo", pathname);
     return NextResponse.redirect(loginUrl);
   }
