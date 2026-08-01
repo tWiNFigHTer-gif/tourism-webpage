@@ -1,10 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { useAuth } from "@/components/AuthProvider";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 export default function HomePage() {
-  const { user, profile } = useAuth();
+  const router = useRouter();
+
+  const handleTouristClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const role = session.user.user_metadata?.role ?? (session.user.email?.toLowerCase().includes("admin") ? "admin" : "tourist");
+        const isAdmin = role === "admin" || role === "panchayat_admin" || role === "super_admin";
+        if (isAdmin) {
+          router.push("/admin/dashboard");
+        } else {
+          router.push("/map");
+        }
+      } else {
+        router.push("/login?redirectTo=/map&hint=tourist");
+      }
+    } catch {
+      router.push("/login?redirectTo=/map&hint=tourist");
+    }
+  };
 
   return (
     <div
@@ -41,8 +62,9 @@ export default function HomePage() {
         {/* Portal Entry Buttons */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl mx-auto pt-4">
           {/* Tourist Map Portal Button */}
-          <Link
+          <a
             href="/map"
+            onClick={handleTouristClick}
             className="flex flex-col items-center justify-center p-6 rounded-2xl border border-emerald-500/30 bg-slate-900/90 text-left hover:bg-slate-800/90 hover:border-emerald-400 transition-all shadow-xl group cursor-pointer"
           >
             <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 mb-3 group-hover:scale-110 transition-transform">
@@ -54,7 +76,7 @@ export default function HomePage() {
             <p className="text-xs text-slate-400 mt-1 text-center">
               Explore destinations, view live green markers, slot availability &amp; spatial hazard alerts.
             </p>
-          </Link>
+          </a>
 
           {/* Panchayat Admin Portal Button */}
           <Link

@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
 
-export default function ExplorerLoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { signIn } = useAuth();
+
+  const isTouristHint = searchParams.get("hint") === "tourist";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,9 +35,7 @@ export default function ExplorerLoginPage() {
       }
     }
 
-    const searchParams = new URLSearchParams(window.location.search);
     const redirectTo = searchParams.get("redirectTo");
-
     const isAdminRole = role === "admin" || role === "panchayat_admin" || role === "super_admin";
 
     if (isAdminRole) {
@@ -299,7 +300,11 @@ export default function ExplorerLoginPage() {
               type="button"
               disabled={isSubmitting || isSubmittingDemoTourist || isSubmittingDemoAdmin}
               onClick={handleDemoTouristLogin}
-              className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-[11px] font-bold text-emerald-400 hover:bg-emerald-500/20 cursor-pointer disabled:opacity-50"
+              className={`flex h-10 items-center justify-center gap-1.5 rounded-xl border text-[11px] font-bold transition-all cursor-pointer disabled:opacity-50 ${
+                isTouristHint
+                  ? "border-emerald-400 bg-emerald-500/30 text-emerald-300 ring-2 ring-emerald-400/80 shadow-[0_0_15px_rgba(52,211,153,0.4)] animate-pulse"
+                  : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+              }`}
             >
               {isSubmittingDemoTourist ? (
                 <>
@@ -343,5 +348,19 @@ export default function ExplorerLoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ExplorerLoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen w-full items-center justify-center bg-[#000F1D] text-emerald-400 font-mono text-sm">
+          Loading Authentication Portal...
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }

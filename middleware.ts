@@ -31,6 +31,7 @@ export async function middleware(request: NextRequest) {
 
   // 2. Single Source of Truth for Auth & Role Resolution
   let userRole: string | undefined = undefined;
+  let isAuthenticated = false;
 
   try {
     const {
@@ -38,6 +39,7 @@ export async function middleware(request: NextRequest) {
     } = await supabase.auth.getSession();
 
     if (session?.user) {
+      isAuthenticated = true;
       userRole = session.user.user_metadata?.role;
     }
   } catch {
@@ -46,8 +48,11 @@ export async function middleware(request: NextRequest) {
 
   // Fallback to cookie if session cookie isn't stored in @supabase/ssr format
   const cookieRole = request.cookies.get("terra_role")?.value;
-  if (!userRole && cookieRole && cookieRole.trim().length > 0) {
-    userRole = cookieRole;
+  if (cookieRole && cookieRole.trim().length > 0) {
+    isAuthenticated = true;
+    if (!userRole) {
+      userRole = cookieRole;
+    }
   }
 
   const isAdmin =
@@ -60,8 +65,18 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/red-zones");
 
+  const isProtectedTouristRoute = pathname === "/map" || pathname.startsWith("/map/");
+
   // 3. Route Guard Enforcement:
-  // Non-admin attempts to access admin routes -> redirect directly to /login (never to /mobile)
+  // Unauthenticated visits to /map redirect to /login?redirectTo=/map
+  if (isProtectedTouristRoute && !isAuthenticated) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirectTo", pathname);
+    loginUrl.searchParams.set("hint", "tourist");
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Non-admin attempts to access admin routes -> redirect directly to /login
   if (isAdminRoute && !isAdmin) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirectTo", pathname);
@@ -73,6 +88,8 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/map",
+    "/map/:path*",
     "/admin",
     "/admin/:path*",
     "/dashboard",
