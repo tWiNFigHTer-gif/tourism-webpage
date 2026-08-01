@@ -12,6 +12,7 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export interface IssueReportDrawerProps {
   locationId: string;
@@ -93,7 +94,7 @@ export default function IssueReportDrawer({
   const [isSuccess, setIsSuccess] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Reset form when drawer opens/closes
+  // Reset form when drawer closes (after exit animation finishes)
   useEffect(() => {
     if (!isOpen) {
       const timer = setTimeout(() => {
@@ -107,49 +108,39 @@ export default function IssueReportDrawer({
     }
   }, [isOpen]);
 
-  // Auto-close 3s after success
-  useEffect(() => {
-    if (isSuccess) {
-      const timer = setTimeout(() => onClose(), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [isSuccess, onClose]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCategory || isSubmitting) return;
+    if (!selectedCategory || !locationId || isSubmitting) return;
 
     setIsSubmitting(true);
     setSubmitError(null);
 
-    try {
-      // Submit to the API — fire and forget for MVP; errors shown inline
-      const res = await fetch("/api/hazards", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          location_id: locationId,
-          category: selectedCategory,
-          description: description.trim() || null,
-          reported_at: new Date().toISOString(),
-        }),
+    const { error } = await supabase
+      .from("hazard_reports")
+      .insert({
+        location_id: locationId,
+        category: selectedCategory,
+        description: description.trim() || null,
+        reported_at: new Date().toISOString(),
+        status: "open",
+        panchayat_id: "CKP-2024",
       });
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.message || "Submission failed. Please try again.");
-      }
+    setIsSubmitting(false);
 
-      setIsSuccess(true);
-    } catch (err) {
-      // If the endpoint doesn't exist yet, still show success to the tourist
-      // but log the error for developer awareness.
-      console.warn("[IssueReportDrawer] submit error (non-blocking):", err);
-      setIsSuccess(true);
-    } finally {
-      setIsSubmitting(false);
+    if (error) {
+      console.error("[IssueReportDrawer] Supabase insert error:", error);
+      setSubmitError("Could not send report. Please try again.");
+      return;
     }
+
+    setIsSuccess(true);
+    setTimeout(() => {
+      onClose();
+      setIsSuccess(false);
+      setSelectedCategory(null);
+      setDescription("");
+    }, 3000);
   };
 
   return (

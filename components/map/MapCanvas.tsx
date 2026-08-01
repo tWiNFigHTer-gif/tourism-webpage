@@ -22,9 +22,7 @@ import { useCapacity } from "@/lib/hooks/useCapacity";
 import { HazardAlertModal } from "@/components/hazard-alert-modal";
 import { SlotBookingModal } from "@/components/slot-booking-modal";
 import { RouteSafetyPanel } from "@/components/map/RouteSafetyPanel";
-import HazardReportDrawer from "@/components/HazardReportDrawer";
 import IssueReportDrawer from "@/components/map/IssueReportDrawer";
-import { useSubmitHazard } from "@/lib/hooks/useSubmitHazard";
 import { Flag } from "lucide-react";
 
 const MAP_CENTER: [number, number] = [75.93, 11.43];
@@ -272,17 +270,15 @@ function BottomSheet({
   onClose,
   onBook,
   onNavigate,
-  onReportHazard,
 }: {
   location: SelectedLocation;
   onClose: () => void;
   onBook: () => void;
   /** Triggered when the user taps "Navigate Here"; parent kicks off safety check. */
   onNavigate?: () => void;
-  /** Triggered when the user taps "Report a problem". */
-  onReportHazard?: () => void;
 }) {
   const [activeSlot, setActiveSlot] = useState("10:00");
+  const [showReport, setShowReport] = useState(false);
 
   // ── Live capacity via useCapacity hook (polls every 30 s) ──────────────
   // location.id may be undefined for demo locations; fall back gracefully.
@@ -302,180 +298,195 @@ function BottomSheet({
   const isFull = slotsRemaining <= 0;
   const theme = capacityTheme(capacityPct);
 
+  /** Close both the report drawer and the bottom sheet together */
+  const handleClose = () => {
+    setShowReport(false);
+    onClose();
+  };
+
   return (
-    <div className="absolute bottom-6 left-1/2 z-30 w-[420px] max-w-[calc(100%-3rem)] -translate-x-1/2 overflow-hidden rounded-xl border border-border-subtle bg-bg-surface shadow-2xl">
-      {/* Drag handle */}
-      <div className="flex w-full cursor-grab justify-center pb-1 pt-3">
-        <div className="h-1 w-12 rounded-full bg-border-subtle" />
-      </div>
-
-      <div className="p-panel-padding">
-        {/* Header */}
-        <div className="mb-2 flex items-start justify-between">
-          <h2
-            className="text-text-primary"
-            style={{
-              fontFamily: "var(--font-space-grotesk)",
-              fontSize: "22px",
-              lineHeight: "28px",
-              fontWeight: 600,
-              letterSpacing: "-0.02em",
-            }}
-          >
-            {location.name}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-text-muted transition-colors hover:text-on-surface"
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>close</span>
-          </button>
+    <>
+      <div className="absolute bottom-6 left-1/2 z-30 w-[420px] max-w-[calc(100%-3rem)] -translate-x-1/2 overflow-hidden rounded-xl border border-border-subtle bg-bg-surface shadow-2xl">
+        {/* Drag handle */}
+        <div className="flex w-full cursor-grab justify-center pb-1 pt-3">
+          <div className="h-1 w-12 rounded-full bg-border-subtle" />
         </div>
-        <p className="mb-6 text-sm leading-relaxed text-text-muted">
-          {location.description}
-        </p>
 
-        {/* ── Live Capacity ──────────────────────────────────────────── */}
-        <div className="mb-6">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            {/* Section label */}
-            <span
-              className="uppercase tracking-wider text-text-muted"
-              style={{ fontFamily: "var(--font-inter)", fontSize: "11px", fontWeight: 500, letterSpacing: "0.04em" }}
+        <div className="p-panel-padding">
+          {/* Header */}
+          <div className="mb-2 flex items-start justify-between">
+            <h2
+              className="text-text-primary"
+              style={{
+                fontFamily: "var(--font-space-grotesk)",
+                fontSize: "22px",
+                lineHeight: "28px",
+                fontWeight: 600,
+                letterSpacing: "-0.02em",
+              }}
             >
-              Current Capacity
-            </span>
+              {location.name}
+            </h2>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="text-text-muted transition-colors hover:text-on-surface"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>close</span>
+            </button>
+          </div>
+          <p className="mb-6 text-sm leading-relaxed text-text-muted">
+            {location.description}
+          </p>
 
-            {/* Right side: loading skeleton OR live data pill */}
-            {capacityLoading && !liveCapacity ? (
-              <div className="h-4 w-28 animate-pulse rounded bg-bg-raised" />
-            ) : (
-              <div className="flex items-center gap-2">
-                {/* Status pill */}
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${theme.pill}`}
-                  style={{ fontFamily: "var(--font-inter)", fontSize: "10px", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" }}
-                >
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
-                  {theme.label}
-                </span>
-                {/* Numeric */}
-                <span
-                  className="text-text-muted"
-                  style={{ fontFamily: "var(--font-jetbrains-mono)", fontSize: "12px" }}
-                >
-                  {capacityPct}%
-                  {" · "}
-                  <span className={isFull ? "text-danger" : "text-primary"}>
-                    {isFull ? "Full" : `${slotsRemaining} left`}
+          {/* ── Live Capacity ──────────────────────────────────────────── */}
+          <div className="mb-6">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              {/* Section label */}
+              <span
+                className="uppercase tracking-wider text-text-muted"
+                style={{ fontFamily: "var(--font-inter)", fontSize: "11px", fontWeight: 500, letterSpacing: "0.04em" }}
+              >
+                Current Capacity
+              </span>
+
+              {/* Right side: loading skeleton OR live data pill */}
+              {capacityLoading && !liveCapacity ? (
+                <div className="h-4 w-28 animate-pulse rounded bg-bg-raised" />
+              ) : (
+                <div className="flex items-center gap-2">
+                  {/* Status pill */}
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${theme.pill}`}
+                    style={{ fontFamily: "var(--font-inter)", fontSize: "10px", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" }}
+                  >
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
+                    {theme.label}
                   </span>
-                </span>
+                  {/* Numeric */}
+                  <span
+                    className="text-text-muted"
+                    style={{ fontFamily: "var(--font-jetbrains-mono)", fontSize: "12px" }}
+                  >
+                    {capacityPct}%
+                    {" · "}
+                    <span className={isFull ? "text-danger" : "text-primary"}>
+                      {isFull ? "Full" : `${slotsRemaining} left`}
+                    </span>
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Progress bar */}
+            {capacityLoading && !liveCapacity ? (
+              <div className="h-1.5 w-full animate-pulse rounded-full bg-bg-raised" />
+            ) : (
+              <div className="h-1.5 w-full overflow-hidden rounded-full border border-border-subtle bg-bg-deep">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${theme.bar} ${theme.shadow}`}
+                  style={{ width: `${capacityPct}%` }}
+                />
               </div>
             )}
           </div>
 
-          {/* Progress bar */}
-          {capacityLoading && !liveCapacity ? (
-            <div className="h-1.5 w-full animate-pulse rounded-full bg-bg-raised" />
-          ) : (
-            <div className="h-1.5 w-full overflow-hidden rounded-full border border-border-subtle bg-bg-deep">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${theme.bar} ${theme.shadow}`}
-                style={{ width: `${capacityPct}%` }}
-              />
+          {/* Time slots */}
+          <div className="mb-6">
+            <span
+              className="mb-3 block uppercase tracking-wider text-text-muted"
+              style={{ fontFamily: "var(--font-inter)", fontSize: "11px", fontWeight: 500, letterSpacing: "0.04em" }}
+            >
+              Available Slots
+            </span>
+            <div className="flex gap-2">
+              {TIME_SLOTS_DISPLAY.map(({ time, status }) => {
+                const isFull     = status === "full";
+                const isSelected = activeSlot === time && !isFull;
+                return (
+                  <button
+                    key={time}
+                    type="button"
+                    disabled={isFull}
+                    onClick={() => !isFull && setActiveSlot(time)}
+                    className={`relative flex-1 overflow-hidden rounded py-1.5 text-center transition-all duration-200 ${
+                      isFull
+                        ? "cursor-not-allowed border border-border-subtle text-text-muted/30"
+                        : isSelected
+                          ? "border border-primary/50 bg-bg-raised text-primary shadow-[0_0_8px_rgba(16,185,129,0.1)]"
+                          : "border border-border-subtle bg-bg-deep text-text-muted hover:border-border-medium"
+                    }`}
+                    style={{ fontFamily: "var(--font-jetbrains-mono)", fontSize: "12px" }}
+                  >
+                    {isFull && (
+                      <div
+                        className="absolute inset-0 opacity-20"
+                        style={{ background: "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.05) 4px, rgba(255,255,255,0.05) 8px)" }}
+                      />
+                    )}
+                    <span className="relative z-10">{time}</span>
+                  </button>
+                );
+              })}
             </div>
-          )}
-        </div>
-
-        {/* Time slots */}
-        <div className="mb-6">
-          <span
-            className="mb-3 block uppercase tracking-wider text-text-muted"
-            style={{ fontFamily: "var(--font-inter)", fontSize: "11px", fontWeight: 500, letterSpacing: "0.04em" }}
-          >
-            Available Slots
-          </span>
-          <div className="flex gap-2">
-            {TIME_SLOTS_DISPLAY.map(({ time, status }) => {
-              const isFull     = status === "full";
-              const isSelected = activeSlot === time && !isFull;
-              return (
-                <button
-                  key={time}
-                  type="button"
-                  disabled={isFull}
-                  onClick={() => !isFull && setActiveSlot(time)}
-                  className={`relative flex-1 overflow-hidden rounded py-1.5 text-center transition-all duration-200 ${
-                    isFull
-                      ? "cursor-not-allowed border border-border-subtle text-text-muted/30"
-                      : isSelected
-                        ? "border border-primary/50 bg-bg-raised text-primary shadow-[0_0_8px_rgba(16,185,129,0.1)]"
-                        : "border border-border-subtle bg-bg-deep text-text-muted hover:border-border-medium"
-                  }`}
-                  style={{ fontFamily: "var(--font-jetbrains-mono)", fontSize: "12px" }}
-                >
-                  {isFull && (
-                    <div
-                      className="absolute inset-0 opacity-20"
-                      style={{ background: "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.05) 4px, rgba(255,255,255,0.05) 8px)" }}
-                    />
-                  )}
-                  <span className="relative z-10">{time}</span>
-                </button>
-              );
-            })}
           </div>
-        </div>
 
-        {/* Actions */}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onBook}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary py-3 font-medium text-on-primary transition-colors hover:bg-primary-fixed"
-          >
-            <span>Book Entry Pass</span>
-            <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>arrow_forward</span>
-          </button>
-          {onNavigate && (
+          {/* Actions */}
+          <div className="flex gap-2">
             <button
               type="button"
-              onClick={onNavigate}
-              title="Check route safety"
-              className="flex items-center justify-center gap-1.5 rounded-lg border border-border-medium px-3 text-on-surface transition-colors hover:border-primary/40 hover:text-primary"
-              style={{ fontFamily: "var(--font-inter)", fontSize: "12px" }}
+              onClick={onBook}
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary py-3 font-medium text-on-primary transition-colors hover:bg-primary-fixed"
             >
-              <span className="material-symbols-outlined" style={{ fontSize: "18px", fontVariationSettings: "'FILL' 0" }}>near_me</span>
-              Navigate
+              <span>Book Entry Pass</span>
+              <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>arrow_forward</span>
             </button>
-          )}
-          <button
-            type="button"
-            className="flex items-center justify-center rounded-lg border border-border-medium px-3 text-on-surface transition-colors hover:border-primary/30 hover:text-primary"
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>share</span>
-          </button>
-        </div>
+            {onNavigate && (
+              <button
+                type="button"
+                onClick={onNavigate}
+                title="Check route safety"
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-border-medium px-3 text-on-surface transition-colors hover:border-primary/40 hover:text-primary"
+                style={{ fontFamily: "var(--font-inter)", fontSize: "12px" }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: "18px", fontVariationSettings: "'FILL' 0" }}>near_me</span>
+                Navigate
+              </button>
+            )}
+            <button
+              type="button"
+              className="flex items-center justify-center rounded-lg border border-border-medium px-3 text-on-surface transition-colors hover:border-primary/30 hover:text-primary"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>share</span>
+            </button>
+          </div>
 
-        {/* Report an issue text button below action row */}
-        {onReportHazard && (
+          {/* ── Report an issue — amber text button ─────────────────── */}
           <div className="mt-3 flex justify-center border-t border-border-subtle pt-3">
             <button
               type="button"
-              onClick={onReportHazard}
-              className="flex items-center gap-1.5 transition-colors cursor-pointer"
+              onClick={() => setShowReport(true)}
+              className="flex items-center gap-1.5 transition-colors cursor-pointer hover:opacity-80"
               style={{ fontFamily: "var(--font-inter)", fontSize: "12px", color: "#f59e0b", background: "none", border: "none", padding: 0 }}
             >
               <Flag size={13} style={{ color: "#f59e0b" }} />
               <span>Report an issue with this place</span>
             </button>
           </div>
-        )}
+        </div>
       </div>
-    </div>
+
+      {/* ── Issue Report Drawer (self-contained inside BottomSheet) ── */}
+      <IssueReportDrawer
+        locationId={locationId || "location-pambadum-1"}
+        locationName={location.name}
+        isOpen={showReport}
+        onClose={() => setShowReport(false)}
+      />
+    </>
   );
 }
+
 
 /* ── Glowing landmark nodes (SVG overlay) ───────────────────────────────── */
 function LandmarkNodes({ onSelect }: { onSelect: (loc: SelectedLocation) => void }) {
@@ -597,11 +608,7 @@ export const MapCanvas = forwardRef<MapCanvasRef>(function MapCanvas(_, ref) {
   const [isLoading,        setIsLoading]        = useState(true);
   const [selectedLoc,      setSelectedLoc]      = useState<SelectedLocation | null>(null);
   const [showHazard,       setShowHazard]       = useState(false);
-  const [showBooking,        setShowBooking]        = useState(false);
-  const [isReportDrawerOpen, setIsReportDrawerOpen] = useState(false);
-  const [showIssueDrawer,    setShowIssueDrawer]    = useState(false);
-
-  const { submitHazard } = useSubmitHazard();
+  const [showBooking,      setShowBooking]      = useState(false);
 
   // ── Route safety state ────────────────────────────────────────────
   const [isCheckingRoute,  setIsCheckingRoute]  = useState(false);
@@ -854,7 +861,6 @@ export const MapCanvas = forwardRef<MapCanvasRef>(function MapCanvas(_, ref) {
           onClose={() => { setSelectedLoc(null); setSafetyResult(null); }}
           onBook={handleBook}
           onNavigate={handleNavigate}
-          onReportHazard={() => setShowIssueDrawer(true)}
         />
       )}
 
@@ -878,26 +884,6 @@ export const MapCanvas = forwardRef<MapCanvasRef>(function MapCanvas(_, ref) {
         onClose={() => setShowBooking(false)}
         locationName={selectedLoc?.name ?? DEMO_LOCATION.name}
         capacity={DEMO_LOCATION.capacity}
-      />
-
-      {/* ── Issue Report Drawer (tourist-facing) ──────────────────── */}
-      <IssueReportDrawer
-        locationId={(selectedLoc as SelectedLocation & { id?: string })?.id ?? "location-pambadum-1"}
-        locationName={selectedLoc?.name ?? DEMO_LOCATION.name}
-        isOpen={showIssueDrawer}
-        onClose={() => setShowIssueDrawer(false)}
-      />
-
-      {/* ── Hazard Report Drawer (legacy) ────────────────────────── */}
-      <HazardReportDrawer
-        locationId={(selectedLoc as SelectedLocation & { id?: string })?.id ?? "location-pambadum-1"}
-        locationName={selectedLoc?.name ?? DEMO_LOCATION.name}
-        isOpen={isReportDrawerOpen}
-        onClose={() => setIsReportDrawerOpen(false)}
-        onSubmit={async (category, description) => {
-          const locId = (selectedLoc as SelectedLocation & { id?: string })?.id ?? "location-pambadum-1";
-          await submitHazard(locId, category, description);
-        }}
       />
     </main>
   );

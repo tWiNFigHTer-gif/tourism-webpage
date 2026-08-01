@@ -356,12 +356,55 @@ export async function insertCivicReport(payload: {
 
 export async function getCivicReports(): Promise<HazardReport[]> {
   try {
-    const { data, error } = await supabase
-      .from("civic_reports")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error || !data) throw error;
-    return data as HazardReport[];
+    // Fetch from both tables in parallel: civic_reports (staff-entered) and
+    // hazard_reports (tourist-submitted via IssueReportDrawer → Supabase insert)
+    const [civicResult, hazardResult] = await Promise.all([
+      supabase
+        .from("civic_reports")
+        .select("*, locations(name)")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("hazard_reports")
+        .select("*, locations(name)")
+        .eq("status", "open")
+        .order("reported_at", { ascending: false }),
+    ]);
+
+    const civicRows = (civicResult.data ?? []) as HazardReport[];
+
+    // Normalize hazard_reports rows to match HazardReport shape
+    const hazardRows: HazardReport[] = (hazardResult.data ?? []).map((r: any) => ({
+      id: r.id,
+      location_id: r.location_id,
+      location_name: r.locations?.name ?? r.location_id ?? "Unknown",
+      category: r.category,
+      description: r.description ?? "",
+      reported_at: r.reported_at,
+      reporter_name: r.reporter_name ?? undefined,
+      lat: r.lat ?? 0,
+      lng: r.lng ?? 0,
+      status: r.status === "open" ? "pending" : (r.status as HazardReport["status"]),
+      panchayat_id: r.panchayat_id ?? "CKP-2024",
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+    }));
+
+    // Merge and de-duplicate by id, sorted newest first
+    const seen = new Set<string>();
+    const merged = [...civicRows, ...hazardRows]
+      .filter((r) => {
+        if (seen.has(r.id)) return false;
+        seen.add(r.id);
+        return true;
+      })
+      .sort((a, b) => {
+        const aTime = new Date(a.reported_at ?? a.created_at ?? 0).getTime();
+        const bTime = new Date(b.reported_at ?? b.created_at ?? 0).getTime();
+        return bTime - aTime;
+      });
+
+    if (merged.length > 0) return merged;
+    throw new Error("No data");
   } catch (e) {
     const raw = typeof window !== "undefined" ? localStorage.getItem("terra_civic_reports") : null;
     if (raw) {
@@ -407,6 +450,7 @@ export async function getCivicReports(): Promise<HazardReport[]> {
     ];
   }
 }
+
 
 export async function updateCivicReportStatus(id: string, status: "pending" | "in_progress" | "resolved") {
   try {
