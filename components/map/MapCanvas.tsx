@@ -23,7 +23,9 @@ import { HazardAlertModal } from "@/components/hazard-alert-modal";
 import { SlotBookingModal } from "@/components/slot-booking-modal";
 import { RouteSafetyPanel } from "@/components/map/RouteSafetyPanel";
 import HazardReportDrawer from "@/components/HazardReportDrawer";
+import IssueReportDrawer from "@/components/map/IssueReportDrawer";
 import { useSubmitHazard } from "@/lib/hooks/useSubmitHazard";
+import { Flag } from "lucide-react";
 
 const MAP_CENTER: [number, number] = [75.93, 11.43];
 const MAP_BG = "#0a0e13";
@@ -456,19 +458,17 @@ function BottomSheet({
           </button>
         </div>
 
-        {/* Report a problem text button below action row */}
+        {/* Report an issue text button below action row */}
         {onReportHazard && (
           <div className="mt-3 flex justify-center border-t border-border-subtle pt-3">
             <button
               type="button"
               onClick={onReportHazard}
-              className="flex items-center gap-1.5 text-xs text-amber-500/80 hover:text-amber-400 transition-colors cursor-pointer"
-              style={{ fontFamily: "var(--font-inter)" }}
+              className="flex items-center gap-1.5 transition-colors cursor-pointer"
+              style={{ fontFamily: "var(--font-inter)", fontSize: "12px", color: "#f59e0b", background: "none", border: "none", padding: 0 }}
             >
-              <span className="material-symbols-outlined text-amber-500/80" style={{ fontSize: "16px", fontVariationSettings: "'FILL' 0" }}>
-                flag
-              </span>
-              <span>Report a problem</span>
+              <Flag size={13} style={{ color: "#f59e0b" }} />
+              <span>Report an issue with this place</span>
             </button>
           </div>
         )}
@@ -597,8 +597,9 @@ export const MapCanvas = forwardRef<MapCanvasRef>(function MapCanvas(_, ref) {
   const [isLoading,        setIsLoading]        = useState(true);
   const [selectedLoc,      setSelectedLoc]      = useState<SelectedLocation | null>(null);
   const [showHazard,       setShowHazard]       = useState(false);
-  const [showBooking,      setShowBooking]      = useState(false);
+  const [showBooking,        setShowBooking]        = useState(false);
   const [isReportDrawerOpen, setIsReportDrawerOpen] = useState(false);
+  const [showIssueDrawer,    setShowIssueDrawer]    = useState(false);
 
   const { submitHazard } = useSubmitHazard();
 
@@ -853,7 +854,7 @@ export const MapCanvas = forwardRef<MapCanvasRef>(function MapCanvas(_, ref) {
           onClose={() => { setSelectedLoc(null); setSafetyResult(null); }}
           onBook={handleBook}
           onNavigate={handleNavigate}
-          onReportHazard={() => setIsReportDrawerOpen(true)}
+          onReportHazard={() => setShowIssueDrawer(true)}
         />
       )}
 
@@ -879,7 +880,15 @@ export const MapCanvas = forwardRef<MapCanvasRef>(function MapCanvas(_, ref) {
         capacity={DEMO_LOCATION.capacity}
       />
 
-      {/* ── Hazard Report Drawer ────────────────────────────────── */}
+      {/* ── Issue Report Drawer (tourist-facing) ──────────────────── */}
+      <IssueReportDrawer
+        locationId={(selectedLoc as SelectedLocation & { id?: string })?.id ?? "location-pambadum-1"}
+        locationName={selectedLoc?.name ?? DEMO_LOCATION.name}
+        isOpen={showIssueDrawer}
+        onClose={() => setShowIssueDrawer(false)}
+      />
+
+      {/* ── Hazard Report Drawer (legacy) ────────────────────────── */}
       <HazardReportDrawer
         locationId={(selectedLoc as SelectedLocation & { id?: string })?.id ?? "location-pambadum-1"}
         locationName={selectedLoc?.name ?? DEMO_LOCATION.name}

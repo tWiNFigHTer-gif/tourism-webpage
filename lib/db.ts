@@ -131,6 +131,7 @@ export async function getDangerZones(): Promise<any[]> {
 async function requestRedZoneMutation<T>(method: "POST" | "PATCH" | "DELETE", body: Record<string, unknown>) {
   const response = await fetch("/api/red-zones", {
     method,
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -692,6 +693,7 @@ export async function insertEvent(
 ): Promise<TourismEvent | null> {
   const res = await fetch("/api/events", {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -706,6 +708,7 @@ export async function updateEvent(
 ): Promise<TourismEvent | null> {
   const res = await fetch("/api/events", {
     method: "PATCH",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id, ...patch }),
   });
@@ -717,6 +720,7 @@ export async function updateEvent(
 export async function deleteEvent(id: string): Promise<void> {
   const res = await fetch(`/api/events?id=${encodeURIComponent(id)}`, {
     method: "DELETE",
+    credentials: "include",
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
@@ -754,6 +758,7 @@ export async function insertBusiness(
 ): Promise<LocalBusiness | null> {
   const res = await fetch("/api/businesses", {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -772,6 +777,7 @@ export async function updateBusiness(
 ): Promise<LocalBusiness | null> {
   const res = await fetch("/api/businesses", {
     method: "PATCH",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id, ...patch }),
   });
@@ -787,6 +793,7 @@ export async function updateBusiness(
 export async function deleteBusiness(id: string): Promise<void> {
   const res = await fetch(`/api/businesses?id=${encodeURIComponent(id)}`, {
     method: "DELETE",
+    credentials: "include",
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
@@ -815,6 +822,7 @@ export async function updatePassStatus(
 ): Promise<any> {
   const res = await fetch("/api/passes", {
     method: "PATCH",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id, status }),
   });
