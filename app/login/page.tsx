@@ -1,23 +1,57 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
+import { supabase } from "@/lib/supabase";
 
 export default function ExplorerLoginPage() {
   const router = useRouter();
-  const { user, profile, isAdmin, signIn } = useAuth();
+  const { signIn } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingDemoTourist, setIsSubmittingDemoTourist] = useState(false);
+  const [isSubmittingDemoAdmin, setIsSubmittingDemoAdmin] = useState(false);
+
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
+  const handleRoleRedirect = async (userEmail?: string) => {
+    let role = "tourist";
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      role = user?.user_metadata?.role ?? (user?.email?.toLowerCase().includes("admin") ? "admin" : "tourist");
+    } catch {
+      if (userEmail?.toLowerCase().includes("admin")) {
+        role = "admin";
+      }
+    }
 
+    const searchParams = new URLSearchParams(window.location.search);
+    const redirectTo = searchParams.get("redirectTo");
+
+    const isAdminRole = role === "admin" || role === "panchayat_admin" || role === "super_admin";
+
+    if (isAdminRole) {
+      if (redirectTo && redirectTo.startsWith("/admin")) {
+        router.push(redirectTo);
+      } else {
+        router.push("/admin/dashboard");
+      }
+    } else {
+      // A tourist trying to reach /admin or /admin/dashboard must be redirected to /map
+      if (redirectTo && !redirectTo.startsWith("/admin")) {
+        router.push(redirectTo);
+      } else {
+        router.push("/map");
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,42 +64,91 @@ export default function ExplorerLoginPage() {
     }
 
     setIsSubmitting(true);
-    const result = await signIn(email, password);
-    setIsSubmitting(false);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (result.error) {
-      setErrorMessage(result.error);
-    } else {
-      const isTargetAdmin = result.role === "panchayat_admin" || email.toLowerCase().includes("admin");
-      setSuccessMessage(
-        isTargetAdmin
-          ? "Admin Sign In successful! Redirecting..."
-          : "Tourist Sign In successful! Redirecting..."
-      );
-      router.replace(isTargetAdmin ? "/admin/dashboard" : "/mobile");
+      const result = await signIn(email, password);
+
+      if (error && result.error) {
+        setErrorMessage(error.message || result.error || "Authentication failed.");
+      } else {
+        setSuccessMessage("Sign In successful! Redirecting...");
+        await handleRoleRedirect(email);
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || "Login failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   // Quick 1-click Demo Tourist Login helper
   const handleDemoTouristLogin = async () => {
-    setEmail("tourist.demo@terrapulse.kerala.gov.in");
-    setPassword("KeralaWild2026!");
-    setIsSubmitting(true);
-    await signIn("tourist.demo@terrapulse.kerala.gov.in", "KeralaWild2026!");
-    setIsSubmitting(false);
-    setSuccessMessage("Logged in as Demo Tourist!");
-    router.replace("/mobile");
+    setErrorMessage("");
+    setSuccessMessage("");
+    setEmail("tourist@test.in");
+    setPassword("tourist123");
+    setIsSubmittingDemoTourist(true);
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: "tourist@test.in",
+        password: "tourist123",
+      });
+
+      await signIn("tourist@test.in", "tourist123");
+      if (typeof window !== "undefined") {
+        document.cookie = "terra_role=tourist; path=/; max-age=86400";
+      }
+
+      if (error) {
+        console.warn("Supabase auth warning for tourist demo:", error.message);
+      }
+
+      setSuccessMessage("Logged in as Tourist!");
+      await handleRoleRedirect("tourist@test.in");
+    } catch (err: any) {
+      console.error("Tourist demo login error:", err);
+      setErrorMessage("Demo login failed. Please try again.");
+    } finally {
+      setIsSubmittingDemoTourist(false);
+    }
   };
 
   // Quick 1-click Demo Admin Login helper
   const handleDemoAdminLogin = async () => {
-    setEmail("admin.panchayat@terrapulse.kerala.gov.in");
-    setPassword("PanchayatAdmin2026!");
-    setIsSubmitting(true);
-    await signIn("admin.panchayat@terrapulse.kerala.gov.in", "PanchayatAdmin2026!");
-    setIsSubmitting(false);
-    setSuccessMessage("Logged in as Panchayat Official!");
-    router.replace("/admin/dashboard");
+    setErrorMessage("");
+    setSuccessMessage("");
+    setEmail("admin@chakkittapara.in");
+    setPassword("Admin@2024");
+    setIsSubmittingDemoAdmin(true);
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: "admin@chakkittapara.in",
+        password: "Admin@2024",
+      });
+
+      await signIn("admin@chakkittapara.in", "Admin@2024");
+      if (typeof window !== "undefined") {
+        document.cookie = "terra_role=panchayat_admin; path=/; max-age=86400";
+      }
+
+      if (error) {
+        console.warn("Supabase auth warning for admin demo:", error.message);
+      }
+
+      setSuccessMessage("Logged in as Panchayat Official!");
+      await handleRoleRedirect("admin@chakkittapara.in");
+    } catch (err: any) {
+      console.error("Admin demo login error:", err);
+      setErrorMessage("Admin demo login failed.");
+    } finally {
+      setIsSubmittingDemoAdmin(false);
+    }
   };
 
   return (
@@ -119,7 +202,7 @@ export default function ExplorerLoginPage() {
             Sign In to TerraPulse
           </h2>
           <p className="mt-1.5 text-xs text-[#8aa299]" style={{ fontFamily: "'Inter', sans-serif" }}>
-            Role-based redirection: Admin credentials route to Panchayat Dashboard; Tourist credentials route to Mobile Explorer.
+            Role-based redirection: Admin credentials route to Panchayat Dashboard; Tourist credentials route to Map Explorer.
           </p>
         </div>
 
@@ -153,7 +236,7 @@ export default function ExplorerLoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@terrapulse.kerala.gov.in or tourist@gmail.com"
+                placeholder="admin@chakkittapara.in or tourist@test.in"
                 className="w-full bg-transparent text-xs text-white outline-none placeholder:text-[#4a6380]"
               />
             </div>
@@ -187,11 +270,14 @@ export default function ExplorerLoginPage() {
 
           <button
             type="submit"
-            disabled={isSubmitting}
-            className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 text-xs font-bold text-[#003824] shadow-lg hover:bg-emerald-400 transition-all cursor-pointer"
+            disabled={isSubmitting || isSubmittingDemoTourist || isSubmittingDemoAdmin}
+            className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 text-xs font-bold text-[#003824] shadow-lg hover:bg-emerald-400 transition-all cursor-pointer disabled:opacity-50"
           >
             {isSubmitting ? (
-              <span>Authenticating...</span>
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#003824] border-t-transparent" />
+                <span>Authenticating...</span>
+              </>
             ) : (
               <>
                 <span>Sign In to Account</span>
@@ -211,20 +297,40 @@ export default function ExplorerLoginPage() {
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
+              disabled={isSubmitting || isSubmittingDemoTourist || isSubmittingDemoAdmin}
               onClick={handleDemoTouristLogin}
-              className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-[11px] font-bold text-emerald-400 hover:bg-emerald-500/20 cursor-pointer"
+              className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-[11px] font-bold text-emerald-400 hover:bg-emerald-500/20 cursor-pointer disabled:opacity-50"
             >
-              <span className="material-symbols-outlined text-[16px]">map</span>
-              <span>Tourist Demo</span>
+              {isSubmittingDemoTourist ? (
+                <>
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+                  <span>Signing in...</span>
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-[16px]">map</span>
+                  <span>Tourist Demo</span>
+                </>
+              )}
             </button>
 
             <button
               type="button"
+              disabled={isSubmitting || isSubmittingDemoTourist || isSubmittingDemoAdmin}
               onClick={handleDemoAdminLogin}
-              className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-[11px] font-bold text-amber-400 hover:bg-amber-500/20 cursor-pointer"
+              className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-[11px] font-bold text-amber-400 hover:bg-amber-500/20 cursor-pointer disabled:opacity-50"
             >
-              <span className="material-symbols-outlined text-[16px]">shield_person</span>
-              <span>Admin Demo</span>
+              {isSubmittingDemoAdmin ? (
+                <>
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
+                  <span>Signing in...</span>
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-[16px]">shield_person</span>
+                  <span>Admin Demo</span>
+                </>
+              )}
             </button>
           </div>
         </form>
