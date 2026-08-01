@@ -119,17 +119,16 @@ export async function getLocations() {
 }
 
 export async function getDangerZones(): Promise<any[]> {
-  const rz = await getRedZones();
-  return rz.map((z) => ({
-    id: z.id,
-    title: z.title || z.name,
-    name: z.name || z.title,
-    risk_level: z.risk_level,
-    description: z.description,
-    coordinates: z.coordinates,
-    geojson_polygon: z.geojson_polygon,
-    is_active: z.is_active,
-  }));
+  const { data, error } = await supabase
+    .from("danger_zones")
+    .select("*")
+    .eq("is_active", true);
+
+  if (error) {
+    console.error("Danger zones fetch error:", error);
+    return [];
+  }
+  return data ?? [];
 }
 
 async function requestRedZoneMutation<T>(method: "POST" | "PATCH" | "DELETE", body: Record<string, unknown>) {
@@ -175,9 +174,31 @@ export async function getRedZones(): Promise<RedZone[]> {
       .select("*")
       .eq("is_active", true)
       .order("created_at", { ascending: false });
-    if (error) throw error;
-    return data ?? [];
-  } catch (e) {
+    if (!error && data && data.length > 0) return data;
+  } catch (e) {}
+
+  try {
+    const { data: dzData, error: dzErr } = await supabase
+      .from("danger_zones")
+      .select("*")
+      .eq("is_active", true);
+
+    if (!dzErr && dzData && dzData.length > 0) {
+      return dzData.map((dz: any) => {
+        const geo = dz.geojson || dz.geojson_polygon;
+        return {
+          id: dz.id,
+          title: dz.name || dz.title || "Danger Zone",
+          name: dz.name || dz.title || "Danger Zone",
+          risk_level: dz.severity?.toUpperCase() || dz.risk_level || "HIGH",
+          description: dz.description || "",
+          coordinates: geo?.geometry?.coordinates?.[0] || dz.coordinates || [],
+          geojson_polygon: geo,
+          is_active: dz.is_active !== false,
+        };
+      });
+    }
+  } catch (e) {}
     // Return local mock fallback if table doesn't exist yet
     const raw = typeof window !== "undefined" ? localStorage.getItem("terra_red_zones") : null;
     if (raw) {
@@ -217,7 +238,6 @@ export async function getRedZones(): Promise<RedZone[]> {
         created_at: new Date().toISOString(),
       },
     ];
-  }
 }
 
 export async function insertRedZone(payload: Omit<RedZone, "id" | "created_at">) {

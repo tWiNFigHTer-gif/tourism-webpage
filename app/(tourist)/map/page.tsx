@@ -246,7 +246,7 @@ export default function TouristMapPage() {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 text-xs font-mono text-red-400 hover:bg-red-500/20 transition-all cursor-pointer"
           >
             <span className="material-symbols-outlined text-sm">warning</span>
-            <span>RED ZONES ({redZones.length})</span>
+            <span>RED ZONES ({redZones?.length ?? 0})</span>
           </button>
         </div>
       </header>
