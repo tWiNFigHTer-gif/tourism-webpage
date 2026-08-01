@@ -19,6 +19,7 @@ import FlatBottomNav from "@/components/mobile/FlatBottomNav"
 import RichLocationDetailSheet from "@/components/mobile/RichLocationDetailSheet"
 import { TOURIST_START_POINTS, buildGoogleMapsDirUrl } from "@/lib/config"
 import { LocationRating } from "@/components/mobile/LocationRating"
+import TripPlanner from "@/components/map/TripPlanner"
 
 // Dynamically import Leaflet map with ssr: false
 const LeafletMobileMap = dynamic(
@@ -130,6 +131,7 @@ function MobileMapPage() {
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [selectedClimate, setSelectedClimate] = useState("all")
   const [selectedDuration, setSelectedDuration] = useState("all")
+  const [showTripPlanner, setShowTripPlanner] = useState(false)
 
   // Database Locations state
   const [rawLocations, setRawLocations] = useState<MapLocation[]>([])
@@ -642,6 +644,16 @@ function MobileMapPage() {
             <span>Filters</span>
           </button>
 
+          {/* Trip Planner Modal Button */}
+          <button
+            type="button"
+            onClick={() => setShowTripPlanner(true)}
+            className="flex h-10 items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/20 px-3 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/30 transition-all cursor-pointer shrink-0 shadow-md"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>route</span>
+            <span>Plan Trip</span>
+          </button>
+
           {/* Live Search Suggestions Dropdown */}
           <AnimatePresence>
             {isSearchFocused && (
@@ -1029,7 +1041,39 @@ function MobileMapPage() {
         onClose={() => setIsHazardModalOpen(false)}
       />
 
-      {/* ── Field Hazard Report Drawer ───────────────────────────── */}
+      {/* ── Trip Planner Modal Drawer ─────────────────────────────── */}
+      <AnimatePresence>
+        {showTripPlanner && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowTripPlanner(false)}
+              className="absolute inset-0 bg-black/75 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative z-10 w-full max-w-xl"
+            >
+              <TripPlanner
+                onClose={() => setShowTripPlanner(false)}
+                onConfirmTrip={(places) => {
+                  setShowTripPlanner(false)
+                  if (places.length > 0) {
+                    const names = places.map((p) => p.name)
+                    router.push(`/mobile/book?bulk_names=${encodeURIComponent(JSON.stringify(names))}`)
+                  }
+                }}
+              />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Hazard Report Drawer (legacy fallback) ──────────────────── */}
       {selectedLocation && (
         <HazardReportDrawer
           locationId={selectedLocation.id}
