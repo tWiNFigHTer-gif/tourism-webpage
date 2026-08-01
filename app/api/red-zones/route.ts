@@ -30,7 +30,7 @@ async function requireAdmin(req?: NextRequest) {
 async function buildSyncPayload(supabase: Awaited<ReturnType<typeof createClientServer>>) {
   const [{ data: redZones }, { data: places }] = await Promise.all([
     supabase.from("red_zones").select("*").order("created_at", { ascending: false }),
-    supabase.from("locations").select("*").order("name"),
+    supabase.from("locations").select("*").eq("is_active", true).order("name", { ascending: true }),
   ]);
 
   const safeRedZones = redZones ?? [];

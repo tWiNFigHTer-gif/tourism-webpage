@@ -197,8 +197,14 @@ async function loadMapData(
 ): Promise<GeoJSON.Feature<GeoJSON.Polygon>[]> {
   let locationsData: any[] = [];
   let redZonesData: any[] = [];
-
-  try { const { data } = await supabase.from("locations").select("*").eq("is_active", true).eq("status", "active"); locationsData = data ?? []; } catch {}
+  try {
+    const { data } = await supabase
+      .from("locations")
+      .select("*")
+      .eq("is_active", true)
+      .order("name", { ascending: true });
+    locationsData = data ?? [];
+  } catch {}
 
   addHiddenGemsLayers(map, locationsToGeoJSON(locationsData as LocationRow[]));
 

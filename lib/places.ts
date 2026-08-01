@@ -3,7 +3,12 @@ import type { Location } from "@/lib/types";
 export type PlaceInput = Pick<Location, "name" | "description" | "category" | "lat" | "lng" | "region" | "capacity_max" | "status">;
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, { ...init, headers: { "Content-Type": "application/json", ...(init?.headers || {}) } });
+  const isWrite = init?.method && init.method !== "GET";
+  const response = await fetch(url, {
+    ...init,
+    credentials: isWrite ? "include" : "same-origin",
+    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
+  });
   if (!response.ok) throw new Error((await response.json().catch(() => null))?.message || "Unable to load places.");
   return response.json() as Promise<T>;
 }
@@ -24,3 +29,4 @@ export async function updatePlace(id: string, input: Partial<PlaceInput>) {
 export async function deletePlace(id: string) {
   await request<{ deleted: true }>(`/api/places/${id}`, { method: "DELETE" });
 }
+

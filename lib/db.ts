@@ -102,7 +102,11 @@ export const DEFAULT_LOCATIONS = [
 
 export async function getAttractions() {
   try {
-    const { data, error } = await supabase.from("locations").select("*");
+    const { data, error } = await supabase
+      .from("locations")
+      .select("*")
+      .eq("is_active", true)
+      .order("name", { ascending: true });
     if (!error && data && data.length > 0) {
       return data;
     }

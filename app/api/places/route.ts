@@ -45,8 +45,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   let redZones: any[] | null = null;
 
   try {
-    let query = adminSupabase.from("locations").select("*").order("name");
-    if (!includeHidden) query = query.neq("status", "hidden");
+    let query = adminSupabase.from("locations").select("*").order("name", { ascending: true });
+    if (!includeHidden) query = query.eq("is_active", true);
 
     const [locationsRes, redZonesRes] = await Promise.all([
       query,
