@@ -68,7 +68,7 @@ export default function ExplorerRegisterPage() {
           if (isAdmin) {
             router.push("/admin/dashboard");
           } else {
-            router.push("/map");
+            router.push("/mobile");
           }
         }, 2000);
       }

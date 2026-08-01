@@ -237,11 +237,11 @@ export default function TouristMapPage() {
 
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
-            href="/"
+            href="/admin/dashboard"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/20 text-xs font-mono font-bold text-emerald-300 hover:bg-emerald-500/30 transition-all cursor-pointer shadow-lg shrink-0"
           >
             <span className="material-symbols-outlined text-sm">arrow_back</span>
-            <span>← Back to STOP!</span>
+            <span>← Admin Dashboard</span>
           </Link>
 
           <Link

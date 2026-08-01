@@ -142,6 +142,30 @@ export default function PanchayatDashboardPage() {
         <div style={{ display: "flex", gap: "12px" }}>
           <button
             type="button"
+            onClick={() => router.push("/map")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              background: "rgba(16, 185, 129, 0.2)",
+              color: "#34D399",
+              border: "1px solid rgba(52, 211, 153, 0.4)",
+              padding: "10px 16px",
+              borderRadius: "10px",
+              cursor: "pointer",
+              fontFamily: "'Inter', sans-serif",
+              fontSize: "13px",
+              fontWeight: 600,
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>
+              map
+            </span>
+            Open Spatial Map Engine
+          </button>
+
+          <button
+            type="button"
             onClick={loadData}
             style={{
               display: "flex",

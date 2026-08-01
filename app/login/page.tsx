@@ -49,7 +49,7 @@ function LoginContent() {
       if (redirectTo && !redirectTo.startsWith("/admin")) {
         router.push(redirectTo);
       } else {
-        router.push("/map");
+        router.push("/mobile");
       }
     }
   };

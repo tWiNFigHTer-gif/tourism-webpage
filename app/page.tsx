@@ -17,13 +17,33 @@ export default function HomePage() {
         if (isAdmin) {
           router.push("/admin/dashboard");
         } else {
-          router.push("/map");
+          router.push("/mobile");
         }
       } else {
-        router.push("/login?redirectTo=/map&hint=tourist");
+        router.push("/login?redirectTo=/mobile&hint=tourist");
       }
     } catch {
-      router.push("/login?redirectTo=/map&hint=tourist");
+      router.push("/login?redirectTo=/mobile&hint=tourist");
+    }
+  };
+
+  const handleAdminClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const role = session.user.user_metadata?.role ?? (session.user.email?.toLowerCase().includes("admin") ? "admin" : "tourist");
+        const isAdmin = role === "admin" || role === "panchayat_admin" || role === "super_admin";
+        if (isAdmin) {
+          router.push("/admin/dashboard");
+        } else {
+          router.push("/login?redirectTo=/admin/dashboard");
+        }
+      } else {
+        router.push("/login?redirectTo=/admin/dashboard");
+      }
+    } catch {
+      router.push("/login?redirectTo=/admin/dashboard");
     }
   };
 
@@ -61,26 +81,27 @@ export default function HomePage() {
 
         {/* Portal Entry Buttons */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl mx-auto pt-4">
-          {/* Tourist Map Portal Button */}
+          {/* Tourist Explorer Portal Button (routes to /mobile) */}
           <a
-            href="/map"
+            href="/mobile"
             onClick={handleTouristClick}
             className="flex flex-col items-center justify-center p-6 rounded-2xl border border-emerald-500/30 bg-slate-900/90 text-left hover:bg-slate-800/90 hover:border-emerald-400 transition-all shadow-xl group cursor-pointer"
           >
             <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 mb-3 group-hover:scale-110 transition-transform">
-              <span className="material-symbols-outlined text-2xl">map</span>
+              <span className="material-symbols-outlined text-2xl">explore</span>
             </div>
             <h2 className="text-lg font-bold text-white group-hover:text-emerald-300 transition-colors">
-              Tourist Map Explorer
+              Tourist Explorer Portal
             </h2>
             <p className="text-xs text-slate-400 mt-1 text-center">
-              Explore destinations, view live green markers, slot availability &amp; spatial hazard alerts.
+              Explore destinations, view live carrying capacity, events feed, reviews &amp; slot pass booking.
             </p>
           </a>
 
-          {/* Panchayat Admin Portal Button */}
-          <Link
+          {/* Panchayat Admin Portal Button (routes to /admin/dashboard) */}
+          <a
             href="/admin/dashboard"
+            onClick={handleAdminClick}
             className="flex flex-col items-center justify-center p-6 rounded-2xl border border-amber-500/30 bg-slate-900/90 text-left hover:bg-slate-800/90 hover:border-amber-400 transition-all shadow-xl group cursor-pointer"
           >
             <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 mb-3 group-hover:scale-110 transition-transform">
@@ -92,7 +113,7 @@ export default function HomePage() {
             <p className="text-xs text-slate-400 mt-1 text-center">
               B2G Control Center, Red Zone polygon drawer, carrying capacity telemetry &amp; hazard triage.
             </p>
-          </Link>
+          </a>
         </div>
 
         {/* Footer Auth Links */}
