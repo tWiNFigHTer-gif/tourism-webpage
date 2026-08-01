@@ -42,6 +42,18 @@ export default function TouristMapPage() {
   const [redZones, setRedZones] = useState<RedZone[]>([]);
   const [selectedAttraction, setSelectedAttraction] = useState<Attraction | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mapError, setMapError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!mapLoaded && loading) {
+        setMapError("Map is taking too long to load.");
+      }
+    }, 10000);
+    return () => clearTimeout(timeout);
+  }, [mapLoaded, loading]);
 
   // Simulated Route Coordinates: [[lat, lng], [lat, lng]]
   const [simulatedRouteCoords, setSimulatedRouteCoords] = useState<[number, number][] | null>(null);
@@ -114,13 +126,17 @@ export default function TouristMapPage() {
   useEffect(() => {
     async function loadData() {
       try {
+        setLoading(true);
+        setFetchError(null);
         const dbAttractions = await getPlaces();
         setAttractions(dbAttractions);
 
         const rz = await getRedZones();
         setRedZones(rz);
-      } catch (err) {
-        console.warn("Unable to load active locations:", err);
+        setMapLoaded(true);
+      } catch (err: any) {
+        console.error("Locations fetch failed:", err?.message || err);
+        setFetchError(err?.message || "Could not load destinations. Check your connection.");
         setAttractions([]);
       } finally {
         setLoading(false);
@@ -236,11 +252,32 @@ export default function TouristMapPage() {
       </header>
 
       {/* Loading Overlay */}
-      {loading && (
+      {loading && !mapError && !fetchError && (
         <div className="fixed inset-0 z-[9995] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3 text-emerald-400 font-mono text-sm">
             <span className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
-            <span>Loading Attractions &amp; Spatial Safety Grid...</span>
+            <span>Loading Chakkittapara destinations...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Error Fallback */}
+      {(mapError || fetchError) && (
+        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-slate-950/95 p-6 text-center backdrop-blur-md">
+          <div className="max-w-md rounded-2xl border border-red-500/30 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="h-12 w-12 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 mx-auto">
+              <span className="material-symbols-outlined text-2xl">error</span>
+            </div>
+            <h2 className="text-lg font-bold text-white">Could not load the map</h2>
+            <p className="text-xs text-slate-400 font-mono">
+              {mapError || fetchError || "Check your connection."}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs hover:bg-emerald-400 transition-all cursor-pointer shadow-lg"
+            >
+              Try again
+            </button>
           </div>
         </div>
       )}

@@ -197,14 +197,17 @@ async function loadMapData(
 ): Promise<GeoJSON.Feature<GeoJSON.Polygon>[]> {
   let locationsData: any[] = [];
   let redZonesData: any[] = [];
-  try {
-    const { data } = await supabase
-      .from("locations")
-      .select("*")
-      .eq("is_active", true)
-      .order("name", { ascending: true });
-    locationsData = data ?? [];
-  } catch {}
+  const { data, error } = await supabase
+    .from("locations")
+    .select("*")
+    .eq("is_active", true)
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("Locations fetch failed:", error.message, error.code);
+    throw error;
+  }
+  locationsData = data ?? [];
 
   addHiddenGemsLayers(map, locationsToGeoJSON(locationsData as LocationRow[]));
 
@@ -615,6 +618,16 @@ export const MapCanvas = forwardRef<MapCanvasRef>(function MapCanvas(_, ref) {
   const [selectedLoc,      setSelectedLoc]      = useState<SelectedLocation | null>(null);
   const [showHazard,       setShowHazard]       = useState(false);
   const [showBooking,      setShowBooking]      = useState(false);
+  const [mapError,         setMapError]         = useState<string | null>(null);
+  const [fetchError,       setFetchError]       = useState<string | null>(null);
+  const [mapLoaded,        setMapLoaded]        = useState(false);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!mapLoaded) setMapError("Map is taking too long to load.");
+    }, 10000);
+    return () => clearTimeout(timeout);
+  }, [mapLoaded]);
 
   // ── Route safety state ────────────────────────────────────────────
   const [isCheckingRoute,  setIsCheckingRoute]  = useState(false);
@@ -685,9 +698,12 @@ export const MapCanvas = forwardRef<MapCanvasRef>(function MapCanvas(_, ref) {
       return;
     }
 
-    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-    if (token) {
-      mapboxgl.accessToken = token;
+    mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
+    if (!mapboxgl.accessToken) {
+      console.error("Mapbox token is missing");
+      setMapError("Map token is not configured.");
+      setIsLoading(false);
+      return;
     }
 
     const map = new mapboxgl.Map({
@@ -702,9 +718,19 @@ export const MapCanvas = forwardRef<MapCanvasRef>(function MapCanvas(_, ref) {
 
     const refreshHazardData = async () => {
       if (!isMounted || !mapRef.current) return;
-      const loadedZones = await loadMapData(mapRef.current);
-      if (isMounted) {
-        dangerZonesRef.current = loadedZones;
+      try {
+        const loadedZones = await loadMapData(mapRef.current);
+        if (isMounted) {
+          dangerZonesRef.current = loadedZones;
+          setMapLoaded(true);
+        }
+      } catch (err: any) {
+        console.error("Locations fetch failed:", err?.message || err);
+        if (isMounted) {
+          setFetchError("Could not load destinations. Check your connection.");
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
     };
 
@@ -803,7 +829,33 @@ export const MapCanvas = forwardRef<MapCanvasRef>(function MapCanvas(_, ref) {
       <DangerZoneOverlay />
 
       {/* Loading */}
-      {isLoading && <LoadingOverlay />}
+      {isLoading && !mapError && !fetchError && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-bg-deep/80 text-primary backdrop-blur-sm">
+          <span className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mb-3" />
+          <p className="font-mono text-xs text-text-muted">Loading Chakkittapara destinations...</p>
+        </div>
+      )}
+
+      {/* Error state */}
+      {(mapError || fetchError) && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-bg-deep/95 p-6 text-center backdrop-blur-md">
+          <div className="max-w-md rounded-2xl border border-danger/30 bg-bg-surface p-6 shadow-2xl space-y-4">
+            <div className="h-12 w-12 rounded-full bg-danger/10 border border-danger/30 flex items-center justify-center text-danger mx-auto">
+              <span className="material-symbols-outlined text-2xl">error</span>
+            </div>
+            <h2 className="text-lg font-bold text-on-surface">Could not load the map</h2>
+            <p className="text-xs text-text-muted">
+              {mapError || fetchError || "Check your connection and try again."}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full py-2.5 rounded-xl bg-primary text-on-primary font-bold text-xs hover:bg-primary-fixed transition-all cursor-pointer shadow-lg"
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Zoom controls (top-left) ──────────────────────────── */}
       <div className="absolute left-6 top-6 z-20">
