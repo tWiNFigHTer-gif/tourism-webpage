@@ -14,6 +14,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { SlotBookingModal } from "@/components/slot-booking-modal";
 import HazardReportDrawer from "@/components/HazardReportDrawer";
 import { useSubmitHazard } from "@/lib/hooks/useSubmitHazard";
+import CurvedBottomNav from "@/components/mobile/CurvedBottomNav";
 
 const SpatialEngineLeafletMap = dynamic(
   () => import("@/components/map/SpatialEngineLeafletMap"),
@@ -230,17 +231,33 @@ export default function TouristMapPage() {
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
           </span>
           <h1 className="text-lg font-bold text-emerald-400 font-mono tracking-wide">
-            TerraPulse • TOURIST SPATIAL ENGINE
+            STOP! • TOURIST SPATIAL ENGINE
           </h1>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/20 text-xs font-mono font-bold text-emerald-300 hover:bg-emerald-500/30 transition-all cursor-pointer shadow-lg shrink-0"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/20 text-xs font-mono font-bold text-emerald-300 hover:bg-emerald-500/30 transition-all cursor-pointer shadow-lg shrink-0"
           >
             <span className="material-symbols-outlined text-sm">arrow_back</span>
-            <span>← Back to TerraPulse</span>
+            <span>← Back to STOP!</span>
+          </Link>
+
+          <Link
+            href="/mobile/explore"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-xs font-mono font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-all cursor-pointer shrink-0"
+          >
+            <span className="material-symbols-outlined text-sm">explore</span>
+            <span className="hidden md:inline">Explore</span>
+          </Link>
+
+          <Link
+            href="/mobile/profile"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-xs font-mono font-semibold text-slate-200 hover:bg-slate-700 transition-all cursor-pointer shrink-0"
+          >
+            <span className="material-symbols-outlined text-sm">account_circle</span>
+            <span className="hidden md:inline">Profile</span>
           </Link>
 
           <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs font-mono text-slate-300">
@@ -515,6 +532,9 @@ export default function TouristMapPage() {
           await submitHazard(selectedAttraction?.id ?? "att-1", category, description);
         }}
       />
+
+      {/* Tourist Navbar */}
+      <CurvedBottomNav />
     </div>
   );
 }

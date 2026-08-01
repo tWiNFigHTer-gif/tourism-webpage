@@ -530,7 +530,7 @@ function MobileMapPage() {
                 color: "#4edea3",
               }}
             >
-              TerraPulse
+              STOP!
             </h1>
           </div>
 

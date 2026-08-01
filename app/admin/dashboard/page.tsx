@@ -122,7 +122,7 @@ export default function PanchayatDashboardPage() {
                 fontWeight: 600,
               }}
             >
-              LIVE TERRAPULSE SPATIAL STREAM • CKP-2024
+              LIVE STOP! SPATIAL STREAM • CKP-2024
             </span>
           </div>
           <h1

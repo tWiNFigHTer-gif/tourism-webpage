@@ -25,10 +25,10 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'TerraPulse — Spatial Ecotourism & Panchayat Admin Portal',
+  title: 'STOP! — Spatial Ecotourism & Panchayat Admin Portal',
   description:
     'Explore waterfalls, dams, eco-centres and trails with live carrying capacity, spatial red zone safety alerts, and civic hazard triage. A spatial DPI platform for Kerala\'s underrated ecotourism zones.',
-  keywords: ['TerraPulse', 'ecotourism', 'Kerala', 'hidden gems', 'nature explorer', 'panchayat admin'],
+  keywords: ['STOP!', 'ecotourism', 'Kerala', 'hidden gems', 'nature explorer', 'panchayat admin'],
   generator: 'next.js',
   icons: {
     icon: [

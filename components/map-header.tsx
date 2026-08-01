@@ -28,7 +28,7 @@ export function MapHeader({ role, onRoleChange }: MapHeaderProps) {
             className="font-display-sm text-[18px] font-semibold tracking-tight text-primary"
             style={{ fontFamily: "var(--font-space-grotesk)" }}
           >
-            TerraPulse
+            STOP!
           </span>
         </div>
 

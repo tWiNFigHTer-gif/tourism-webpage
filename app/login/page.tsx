@@ -186,7 +186,7 @@ function LoginContent() {
                 color: "#4edea3",
               }}
             >
-              TerraPulse
+              STOP!
             </h1>
           </div>
 
@@ -200,7 +200,7 @@ function LoginContent() {
 
         <div className="mt-6">
           <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "22px", fontWeight: 700, color: "#ffffff" }}>
-            Sign In to TerraPulse
+            Sign In to STOP!
           </h2>
           <p className="mt-1.5 text-xs text-[#8aa299]" style={{ fontFamily: "'Inter', sans-serif" }}>
             Role-based redirection: Admin credentials route to Panchayat Dashboard; Tourist credentials route to Map Explorer.

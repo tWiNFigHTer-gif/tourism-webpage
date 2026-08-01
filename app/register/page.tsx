@@ -104,7 +104,7 @@ export default function ExplorerRegisterPage() {
                 color: "#4edea3",
               }}
             >
-              TerraPulse
+              STOP!
             </h1>
           </div>
 
